@@ -2,11 +2,13 @@ import { Pet } from '@/types/pet'
 import { Button } from '@/components/ui/button'
 
 export function PetCard({ pet }: { pet: Pet }) {
+  const imgUrl = pet.primary_image || pet.image_url;
+  
   return (
     <div className="bg-washi border-2 border-black p-4 rounded-lg shadow-paper hover:-translate-y-1 hover:shadow-paper-lg transition-all flex flex-col gap-3">
-      {(pet.primary_image || pet.image_url) ? (
+      {imgUrl ? (
         <img 
-          src={(pet.primary_image || pet.image_url).startsWith('data:') || (pet.primary_image || pet.image_url).startsWith('http') ? (pet.primary_image || pet.image_url) : `data:image/jpeg;base64,${(pet.primary_image || pet.image_url)}`} 
+          src={imgUrl.startsWith('data:') || imgUrl.startsWith('http') ? imgUrl : `data:image/jpeg;base64,${imgUrl}`} 
           alt={pet.name || 'pet'} 
           className="w-full h-48 object-cover border-2 border-black rounded" 
         />
