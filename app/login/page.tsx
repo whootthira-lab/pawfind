@@ -42,7 +42,7 @@ export default function LoginPage() {
   }
 
   // ฟังก์ชันล็อกอินด้วย Social (ต้องไปตั้งค่า Client ID ใน Supabase ก่อนถึงจะใช้ได้)
-  const handleSocialLogin = async (provider: 'google' | 'facebook' | 'line') => {
+  const handleSocialLogin = async (provider: 'google' | 'facebook') => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
