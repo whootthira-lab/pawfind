@@ -1,88 +1,172 @@
-import { SearchResult } from '@/types/pet'
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
+'use client';
 
-export function MatchResultCard({ result }: { result: SearchResult }) {
-  const getTierColors = (tier: string) => {
-    switch(tier) {
-      case 'high': return 'bg-wagashi-matcha border-black'
-      case 'possible': return 'bg-wagashi-kinako border-black'
-      case 'low': return 'bg-wagashi-sakura border-black'
-      default: return 'bg-white border-black'
-    }
-  }
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Bookmark, BookmarkCheck, Loader2, MapPin } from 'lucide-react'; 
+import { Button } from '@/components/ui/button';
+import { createBrowserClient } from '@supabase/ssr'; // 💡 ใช้แพ็กเกจตัวใหม่ล่าสุด
+import { useRouter } from 'next/navigation';
 
-  const imgUrl = result.images?.[0]?.storage_url || result.primary_image || result.image_url;
+interface PetResult {
+  id: string;
+  name: string;
+  breed: string;
+  province: string;
+  image_url: string;
+  status: string;
+  match_percentage?: number;
+}
 
-  // ฟังก์ชันสำหรับการแจ้งเจ้าของ
-  const handleContactOwner = () => {
-    if (!result.contact_info) {
-      alert("ขออภัย เจ้าของไม่ได้ลงข้อมูลติดต่อไว้ในระบบ");
+export function MatchResultCard({ result }: { result: PetResult }) {
+  const router = useRouter();
+  const [isPinned, setIsPinned] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingInitial, setIsCheckingInitial] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // 💡 เรียกใช้ Supabase Browser Client
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  // 1. เช็ค Auth และสถานะการ Pin เมื่อโหลดการ์ด
+  useEffect(() => {
+    const checkPinStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        setUserId(session.user.id);
+        
+        const { data } = await supabase
+          .from('saved_pets')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .eq('pet_id', result.id)
+          .single();
+
+        if (data) {
+          setIsPinned(true);
+        }
+      }
+      setIsCheckingInitial(false);
+    };
+
+    checkPinStatus();
+  }, [supabase, result.id]);
+
+  // 2. Handle การกดปุ่ม Pin
+  const handleTogglePin = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!userId) {
+      alert('กรุณาเข้าสู่ระบบเพื่อบันทึกข้อมูลครับ');
       return;
     }
 
-    // ล้างอักขระพิเศษออกให้เหลือแค่ตัวเลขเพื่อเช็คว่าเป็นเบอร์โทรไหม
-    const cleanContact = result.contact_info.replace(/[- ]/g, '');
-    const isPhoneNumber = /^\d+$/.test(cleanContact);
+    setIsLoading(true);
 
-    if (isPhoneNumber) {
-      // ถ้าเป็นเบอร์โทร ให้สั่งโทรออกทันที
-      window.location.href = `tel:${cleanContact}`;
-    } else {
-      // ถ้าเป็นไอดีไลน์หรือข้อความอื่นๆ ให้แสดง Alert แจ้งข้อมูล
-      alert(`ข้อมูลการติดต่อเจ้าของ: ${result.contact_info}`);
+    try {
+      if (isPinned) {
+        // ยกเลิกการ Pin
+        const res = await fetch(`/api/saved-pets?petId=${result.id}`, {
+          method: 'DELETE',
+        });
+
+        if (!res.ok) throw new Error('Failed to unpin');
+        setIsPinned(false);
+      } else {
+        // บันทึกข้อมูล
+        const res = await fetch('/api/saved-pets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ petId: result.id }),
+        });
+
+        if (!res.ok) throw new Error('Failed to pin');
+        setIsPinned(true);
+      }
+    } catch (error) {
+      console.error('Error toggling pin:', error);
+      alert('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const formatSrc = (src: string) => 
+    src?.startsWith('http') ? src : `data:image/jpeg;base64,${src}`;
+
+  const statusColor = result.status === 'lost' 
+    ? 'bg-wagashi-sakura' 
+    : result.status === 'found'
+    ? 'bg-wagashi-sora'   
+    : 'bg-wagashi-matcha';
+
   return (
-    <div className={`border-2 p-4 rounded-lg shadow-paper flex flex-col gap-3 transition-all hover:-translate-y-1 hover:shadow-paper-lg ${getTierColors(result.tier)}`}>
-      <div className="flex justify-between items-start">
-        <div className="bg-white border-2 border-black px-2 py-1 rounded text-sm font-bold shadow-paper-sm">
-          {Math.round(result.similarity * 100)}% Match
-        </div>
-        <div className="text-sm font-bold bg-white border-2 border-black px-2 py-1 rounded shadow-paper-sm">
-          {result.distance_km ? `${result.distance_km.toFixed(1)} กม.` : 'ไม่ระบุระยะทาง'}
-        </div>
-      </div>
+    <div className="relative border-2 border-black rounded-xl shadow-paper-sm overflow-hidden bg-white group hover:-translate-y-1 transition-all duration-300 flex flex-col h-full">
       
-      {imgUrl ? (
-        <img 
-          src={imgUrl.startsWith('data:') || imgUrl.startsWith('http') ? imgUrl : `data:image/jpeg;base64,${imgUrl}`} 
-          alt={result.name || 'pet'} 
-          className="w-full h-48 object-cover border-2 border-black rounded bg-white" 
+      {/* 📌 ปุ่ม Pin */}
+      <motion.button
+        whileTap={{ scale: 0.9 }}
+        onClick={handleTogglePin}
+        disabled={isLoading || isCheckingInitial}
+        className={`absolute top-3 right-3 z-20 p-2 rounded-lg border-2 border-black shadow-paper-sm transition-colors flex items-center justify-center
+          ${isCheckingInitial ? 'bg-gray-100 opacity-50' : ''}
+          ${isPinned 
+            ? 'bg-wagashi-kinako hover:bg-yellow-400' 
+            : 'bg-white hover:bg-gray-100'
+          }`}
+        title={isPinned ? 'ยกเลิกการบันทึก' : 'บันทึกไว้นัดเจอ'}
+      >
+        {isLoading ? (
+          <Loader2 className="w-5 h-5 animate-spin text-black" />
+        ) : isPinned ? (
+          <BookmarkCheck className="w-5 h-5 text-black" />
+        ) : (
+          <Bookmark className="w-5 h-5 text-black" />
+        )}
+      </motion.button>
+
+      {/* เปอร์เซ็นต์ความคล้าย */}
+      {result.match_percentage && (
+        <div className="absolute top-3 left-3 z-10 bg-wagashi-matcha border-2 border-black px-3 py-1 rounded-full font-bold text-sm shadow-paper-sm flex items-center gap-1.5">
+          🤖 AI Match {result.match_percentage.toFixed(0)}%
+        </div>
+      )}
+
+      {/* รูปภาพ */}
+      <div className="h-48 md:h-56 overflow-hidden border-b-2 border-black relative shrink-0">
+        <img
+          src={formatSrc(result.image_url)}
+          alt={result.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
-      ) : (
-        <div className="w-full h-48 bg-gray-200 border-2 border-black rounded flex items-center justify-center font-bold bg-white">
-          No Image
+        <div className={`absolute bottom-0 left-0 border-t-2 border-r-2 border-black px-3 py-1 font-bold text-xs uppercase ${statusColor}`}>
+          {result.status === 'lost' ? 'สัตว์หาย' : result.status === 'found' ? 'พบหลงทาง' : 'หาบ้าน'}
         </div>
-      )}
-      
-      <div className="flex-1">
-        <h3 className="font-bold text-lg">{result.name || 'ไม่ทราบชื่อ'}</h3>
-        <p className="text-sm">{result.breed || 'ไม่ระบุสายพันธุ์'} • {result.province || 'ไม่ระบุจังหวัด'}</p>
       </div>
 
-      {result.tier === 'possible' && (
-        <div className="bg-white border-2 border-black p-2 text-xs font-bold rounded shadow-paper-sm text-red-600 flex items-center justify-center">
-          ⚠️ สัตว์อาจเปลี่ยนไปหลังจากหลง
+      {/* รายละเอียด */}
+      <div className="p-5 flex flex-col gap-3 flex-grow justify-between">
+        <div>
+          <h3 className="font-bold text-2xl mb-1 truncate">{result.name || 'ไม่ทราบชื่อ'}</h3>
+          <p className="text-sm font-medium text-gray-700 truncate">{result.breed || 'ไม่ระบุสายพันธุ์'}</p>
         </div>
-      )}
 
-      <div className="flex gap-2 mt-auto pt-2">
-        <Link href={`/pet/${result.id}`} className="flex-1">
-          <Button className="w-full bg-white hover:bg-gray-100 text-black border-2 border-black shadow-paper-sm font-bold">
-            ข้อมูล / เปรียบเทียบ
-          </Button>
-        </Link>
-        
-        {/* 💡 อัปเกรดปุ่มแจ้งเจ้าของให้ทำงานได้จริง */}
+        <div className="flex items-center gap-2 text-sm font-bold bg-gray-100 border border-black/10 px-3 py-1.5 rounded-lg w-fit">
+          <MapPin size={16} className="text-gray-600" />
+          <span className="truncate">{result.province}</span>
+        </div>
+
         <Button 
-          onClick={handleContactOwner}
-          className="flex-1 bg-black text-white border-2 border-black shadow-paper-sm hover:shadow-paper transition-shadow font-bold"
+          onClick={() => router.push(`/pet/${result.id}`)}
+          className="w-full mt-2 bg-white text-black border-2 border-black shadow-paper-sm font-bold hover:bg-black hover:text-white hover:shadow-paper-lg hover:-translate-y-0.5 transition-all"
         >
-          แจ้งเจ้าของ
+          ดูรายละเอียด
         </Button>
       </div>
     </div>
-  )
+  );
 }

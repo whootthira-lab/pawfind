@@ -13,12 +13,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    // 💡 รับ distinctive_features เพิ่มเติมจาก body
+    
+    // 💡 ดึงข้อมูลพิกัด (latitude, longitude) และสี (color) ออกมาจาก body
     const { 
       images, 
       markingImageIndexes = [], 
       type, 
-      distinctive_features, 
+      distinctive_features,
+      latitude,
+      longitude,
+      color: userColor,
       ...petData 
     } = body
 
@@ -29,7 +33,7 @@ export async function POST(req: NextRequest) {
     // 1. Analyze images ด้วย Gemini AI
     const analysis = await analyzePetImages(images)
 
-    // 2. Create weighted embeddings สำหรับการทำ Vector Search
+    // 2. Create weighted embeddings สำหรับการทำ Vector Search (ใช้คำบรรยายจาก AI)
     const embeddingInputs = await Promise.all(
       images.map(async (_: string, i: number) => ({
         vector: await createEmbedding(analysis.full_description || ""),
@@ -38,7 +42,7 @@ export async function POST(req: NextRequest) {
     )
     const finalEmbedding = weightedAverageEmbedding(embeddingInputs)
 
-    // 3. Save pet data (ใช้ admin client เพื่อบายพาส RLS กรณี anonymous)
+    // 3. Save pet data (ใช้ admin client เพื่อบายพาส RLS)
     const adminSupabase = createAdminClient()
     const { data: pet, error: petError } = await adminSupabase
       .from('pets')
@@ -46,19 +50,22 @@ export async function POST(req: NextRequest) {
         ...petData,
         species: type,
         user_id: ownerId,
-        distinctive_features: distinctive_features || "", // 💡 บันทึกตำหนิพิเศษที่ผู้ใช้กรอก
+        distinctive_features: distinctive_features || "",
+        latitude: latitude || null,   // 💡 บันทึกพิกัดรุ้ง
+        longitude: longitude || null, // 💡 บันทึกพิกัดแวง
         ai_description: analysis.full_description || "",
         breed: analysis.breed || "ไม่ระบุ",
-        color: analysis.main_color || "ไม่ระบุ",
+        // 💡 ใช้สีที่ผู้ใช้กรอกมา (userColor) ถ้าไม่มีค่อยใช้ที่ AI วิเคราะห์ (main_color)
+        color: userColor || analysis.main_color || "ไม่ระบุ",
         embedding: `[${finalEmbedding.join(',')}]`,
-        image_url: images[0] // ใช้รูปแรกเป็นรูปหลักในตาราง pets
+        image_url: images[0]
       })
       .select()
       .single()
 
     if (petError) throw petError
 
-    // 4. Save ข้อมูลลงตาราง pet_images เพื่อเก็บรูปภาพทั้งหมดที่แนบมา
+    // 4. Save ข้อมูลลงตาราง pet_images เพื่อเก็บรูปภาพทั้งหมด
     const { error: imgError } = await adminSupabase
       .from('pet_images')
       .insert(
