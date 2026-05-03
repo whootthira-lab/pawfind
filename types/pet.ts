@@ -1,3 +1,8 @@
+// ไฟล์: types/pet.ts
+
+// 💡 เติม Type ตัวนี้เข้ามาเพื่อแก้ Error ครับ
+export type MatchTier = 'high' | 'possible' | 'low' | string;
+
 export interface Pet {
   id: string;
   name?: string;
@@ -14,7 +19,7 @@ export interface Pet {
 }
 
 export interface SearchResult extends Pet {
-  tier: 'high' | 'possible' | 'low' | string;
+  tier: MatchTier; // 💡 ปรับให้มาใช้ MatchTier ตรงนี้
   similarity: number;
   distance_km?: number;
   images?: { storage_url: string }[];
