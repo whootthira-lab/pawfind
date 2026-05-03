@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay'
 import { AnimatePresence } from 'framer-motion'
-import { MapPin, MapPinCheckInside } from 'lucide-react' // เพิ่ม Icon เพื่อความสวยงาม
+import { MapPin, MapPinCheckInside } from 'lucide-react' 
 
 export default function ReportPage() {
   const router = useRouter()
@@ -28,13 +28,22 @@ export default function ReportPage() {
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null)
   const [isGettingLocation, setIsGettingLocation] = useState(false)
 
-  // 📍 ฟังก์ชันดึงพิกัด GPS
+  // 📍 ฟังก์ชันดึงพิกัด GPS (แก้ไขปัญหาปุ่มค้างแล้ว)
   const handleGetLocation = () => {
     setIsGettingLocation(true)
+    setError(null)
+
     if (!navigator.geolocation) {
       alert("เบราว์เซอร์ของคุณไม่รองรับการระบุตำแหน่ง")
       setIsGettingLocation(false)
       return
+    }
+
+    // 💡 ตั้งค่าจำกัดเวลา (Timeout) 10 วินาที เพื่อป้องกันปุ่มค้าง
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000, 
+      maximumAge: 0
     }
 
     navigator.geolocation.getCurrentPosition(
@@ -43,10 +52,23 @@ export default function ReportPage() {
         setIsGettingLocation(false)
       },
       (err) => {
-        alert("ไม่สามารถเข้าถึงพิกัดได้: " + err.message)
         setIsGettingLocation(false)
+        // 💡 แจ้งเตือนสาเหตุที่ดึงพิกัดไม่ได้ชัดเจนขึ้น
+        switch(err.code) {
+          case err.PERMISSION_DENIED:
+            alert("คุณปฏิเสธการเข้าถึงพิกัด กรุณาตั้งค่าอนุญาตในเบราว์เซอร์ครับ")
+            break
+          case err.POSITION_UNAVAILABLE:
+            alert("ไม่สามารถระบุตำแหน่งได้ในขณะนี้")
+            break
+          case err.TIMEOUT:
+            alert("การดึงพิกัดใช้เวลานานเกินไป กรุณาลองใหม่อีกครั้งครับ")
+            break
+          default:
+            alert("เกิดข้อผิดพลาด: " + err.message)
+        }
       },
-      { enableHighAccuracy: true }
+      options
     )
   }
 
@@ -96,8 +118,8 @@ export default function ReportPage() {
           reward_amount: reward ? parseInt(reward) : 0,
           distinctive_features: distinctiveFeatures,
           images,
-          latitude: location?.lat || null, // 📍 ส่งพิกัดไปยัง API
-          longitude: location?.lng || null, // 📍 ส่งพิกัดไปยัง API
+          latitude: location?.lat || null, 
+          longitude: location?.lng || null, 
           markingImageIndexes: []
         }),
       })
@@ -188,7 +210,7 @@ export default function ReportPage() {
             </select>
           </div>
 
-          {/* 📍 ส่วนแชร์พิกัด (แสดงเฉพาะเมื่อพบสัตว์หลงทาง) */}
+          {/* 📍 ส่วนแชร์พิกัด */}
           {status === 'found' && (
             <div className="flex flex-col gap-2 md:col-span-2">
               <label className="font-bold text-lg">ตำแหน่งที่พบสัตว์</label>
