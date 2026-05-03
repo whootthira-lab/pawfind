@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Bookmark, BookmarkCheck, Loader2, MapPin } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
-import { createBrowserClient } from '@supabase/ssr'; // 💡 ใช้แพ็กเกจตัวใหม่ล่าสุด
+import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 
 interface PetResult {
@@ -24,7 +24,7 @@ export function MatchResultCard({ result }: { result: PetResult }) {
   const [isCheckingInitial, setIsCheckingInitial] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
-  // 💡 เรียกใช้ Supabase Browser Client
+  // เรียกใช้ Supabase Browser Client
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -60,8 +60,10 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     e.preventDefault();
     e.stopPropagation();
 
+    // 💡 ถ้ายังไม่ล็อกอิน ให้แจ้งเตือนและเด้งไปหน้า Login
     if (!userId) {
       alert('กรุณาเข้าสู่ระบบเพื่อบันทึกข้อมูลครับ');
+      router.push('/login'); 
       return;
     }
 
