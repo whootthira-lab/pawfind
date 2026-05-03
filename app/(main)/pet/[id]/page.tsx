@@ -127,7 +127,7 @@ export default async function PetProfilePage({ params }: { params: { id: string 
               🤖 บทวิเคราะห์จาก Gemini AI
             </h3>
             <p className="text-gray-800 leading-relaxed italic">
-              "{pet.ai_description}"
+              &quot;{pet.ai_description}&quot;
             </p>
           </div>
 
