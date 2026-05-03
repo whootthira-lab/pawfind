@@ -3,11 +3,54 @@ import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { PetGallery } from '@/components/pet/PetGallery'
 import { Phone, MessageCircle, ExternalLink, UserCircle2 } from 'lucide-react'
+import { Metadata, ResolvingMetadata } from 'next' 
+import ShareButton from '@/components/pet/ShareButton'
 
-export default async function PetProfilePage({ params }: { params: { id: string } }) {
+type Props = {
+  params: { id: string }
+}
+
+export async function generateMetadata(
+  { params }: Props,
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const supabase = createClient()
+  const { data: pet } = await supabase
+    .from('pets')
+    .select('*, pet_images(storage_url, is_primary)')
+    .eq('id', params.id)
+    .single()
+
+  if (!pet) return { title: 'ไม่พบข้อมูล - PawFind' }
+
+  const images = pet.pet_images || []
+  const primaryImage = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url || ''
+  
+  const statusLabel = pet.status === 'lost' ? '🚨 ตามหาเจ้าของ' : pet.status === 'found' ? '👀 พบน้องหลงทาง' : '💖 หาบ้านใหม่'
+  const title = `${statusLabel}: ${pet.name || 'ไม่ทราบชื่อ'} - PawFind`
+  const description = `พิกัด: ${pet.province} ${pet.district ? `อ.${pet.district}` : ''} | ลักษณะ: ${pet.distinctive_features || 'ช่วยเหลือน้องเพื่อกลับบ้านที่อบอุ่น'}`
+
+  return {
+    title: title,
+    description: description,
+    openGraph: {
+      title: title,
+      description: description,
+      images: primaryImage ? [{ url: primaryImage }] : [],
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: title,
+      description: description,
+      images: primaryImage ? [primaryImage] : [],
+    },
+  }
+}
+
+export default async function PetProfilePage({ params }: Props) {
   const supabase = createClient()
   
-  // ดึงข้อมูลสัตว์เลี้ยง พร้อมกับดึงข้อมูลโปรไฟล์ของผู้โพสต์ (ผ่าน user_id)
   const { data: pet } = await supabase
     .from('pets')
     .select(`
@@ -24,11 +67,8 @@ export default async function PetProfilePage({ params }: { params: { id: string 
 
   const images = pet.pet_images || []
   const primaryImage = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url
-  
-  // ข้อมูลโปรไฟล์ของผู้แจ้ง
   const reporter = pet.profiles
 
-  // จัดรูปแบบ วัน และ เวลา ที่แจ้งข้อมูล
   const createdAt = new Date(pet.created_at)
   const formattedDate = createdAt.toLocaleDateString('th-TH', {
     year: 'numeric', month: 'long', day: 'numeric',
@@ -55,13 +95,19 @@ export default async function PetProfilePage({ params }: { params: { id: string 
                 {pet.breed || 'ไม่ระบุสายพันธุ์'} • {pet.province} {pet.district ? `(${pet.district})` : ''}
               </p>
               <p className="text-sm font-bold text-gray-500 mt-2 bg-gray-100 border border-gray-300 inline-block px-3 py-1 rounded-full">
-                🕒 แจ้งข้อมูลเมื่อ: {formattedDate} เวลา {formattedTime} น.
+                🕒 แจ้งเมื่อ: {formattedDate} เวลา {formattedTime} น.
               </p>
             </div>
             <div className="flex flex-col items-end gap-2">
               <span className="bg-wagashi-matcha border-2 border-black px-4 py-2 rounded-lg font-bold shadow-paper-sm text-lg text-center min-w-[140px]">
                 {pet.status === 'lost' ? '🚨 ตามหาเจ้าของ' : pet.status === 'found' ? '👀 พบน้องหลงทาง' : '💖 หาบ้านใหม่'}
               </span>
+
+              <ShareButton 
+                petName={pet.name || 'น้องสัตว์เลี้ยง'} 
+                status={pet.status === 'lost' ? 'ตามหาเจ้าของ' : 'พบน้องหลงทาง'} 
+              />
+
               {pet.reward_amount > 0 && (
                 <span className="bg-red-500 text-white border-2 border-black px-3 py-1 rounded font-bold shadow-paper-sm">
                   💰 รางวัล {pet.reward_amount.toLocaleString()} บาท
@@ -72,7 +118,6 @@ export default async function PetProfilePage({ params }: { params: { id: string 
 
           <hr className="border-black border-1 mb-6" />
 
-          {/* พิกัด GPS */}
           {pet.latitude && pet.longitude && (
             <div className="bg-white border-2 border-black p-5 rounded-lg mb-8 shadow-paper-sm flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden">
               <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none"></div>
@@ -83,9 +128,12 @@ export default async function PetProfilePage({ params }: { params: { id: string 
                 </div>
                 <div>
                   <h3 className="font-bold text-lg">พิกัดที่พบสัตว์เลี้ยง</h3>
-                  <p className="text-sm font-medium text-gray-600 font-mono mt-1">Lat: {pet.latitude.toFixed(5)}, Lng: {pet.longitude.toFixed(5)}</p>
+                  <p className="text-sm font-medium text-gray-600 font-mono mt-1">
+                    Lat: {pet.latitude.toFixed(5)}, Lng: {pet.longitude.toFixed(5)}
+                  </p>
                 </div>
               </div>
+              {/* ✅ แก้ไข URL แผนที่ให้ถูกต้อง */}
               <a 
                 href={`https://www.google.com/maps/search/?api=1&query=${pet.latitude},${pet.longitude}`}
                 target="_blank"
@@ -126,17 +174,21 @@ export default async function PetProfilePage({ params }: { params: { id: string 
             <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
               🤖 บทวิเคราะห์จาก Gemini AI
             </h3>
+            {/* ✅ แก้ไขเป็น &quot; เพื่อป้องกัน Error ตอน Build */}
             <p className="text-gray-800 leading-relaxed italic">
               &quot;{pet.ai_description}&quot;
             </p>
           </div>
 
-          {/* ✨ อัปเดตส่วน "ติดต่อผู้แจ้ง" แบบใหม่ ✨ */}
           {reporter && (
             <div className="border-2 border-black rounded-xl p-6 bg-gray-50 mt-10">
               <div className="flex items-center gap-4 mb-5 border-b-2 border-black pb-4">
                 {reporter.avatar_url ? (
-                  <img src={reporter.avatar_url} alt="Profile" className="w-14 h-14 rounded-full border-2 border-black object-cover" />
+                  <img 
+                    src={reporter.avatar_url} 
+                    alt={reporter.display_name || "Profile"} 
+                    className="w-14 h-14 rounded-full border-2 border-black object-cover" 
+                  />
                 ) : (
                   <UserCircle2 size={56} className="text-gray-400" />
                 )}
@@ -159,8 +211,8 @@ export default async function PetProfilePage({ params }: { params: { id: string 
 
                 {reporter.line_id && (
                   <a 
-                    href={`https://line.me/ti/p/~${reporter.line_id}`}
-                    target="_blank"
+                    href={`https://line.me/ti/p/~${reporter.line_id}`} 
+                    target="_blank" 
                     rel="noopener noreferrer"
                     className="flex-1 flex items-center justify-center gap-2 bg-[#00B900] text-white border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper active:translate-y-1 transition-all"
                   >
@@ -183,7 +235,6 @@ export default async function PetProfilePage({ params }: { params: { id: string 
               </div>
             </div>
           )}
-
         </div>
       </div>
     </div>
