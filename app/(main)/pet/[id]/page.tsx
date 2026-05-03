@@ -2,13 +2,19 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { PetGallery } from '@/components/pet/PetGallery'
+import { Phone, MessageCircle, ExternalLink, UserCircle2 } from 'lucide-react'
 
 export default async function PetProfilePage({ params }: { params: { id: string } }) {
   const supabase = createClient()
   
+  // ดึงข้อมูลสัตว์เลี้ยง พร้อมกับดึงข้อมูลโปรไฟล์ของผู้โพสต์ (ผ่าน user_id)
   const { data: pet } = await supabase
     .from('pets')
-    .select('*, pet_images(storage_url, is_primary)')
+    .select(`
+      *, 
+      pet_images(storage_url, is_primary),
+      profiles(first_name, last_name, display_name, avatar_url, phone_number, line_id, contact_link)
+    `)
     .eq('id', params.id)
     .single()
 
@@ -18,8 +24,11 @@ export default async function PetProfilePage({ params }: { params: { id: string 
 
   const images = pet.pet_images || []
   const primaryImage = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url
+  
+  // ข้อมูลโปรไฟล์ของผู้แจ้ง
+  const reporter = pet.profiles
 
-  // 💡 จัดรูปแบบ วัน และ เวลา ที่แจ้งข้อมูล
+  // จัดรูปแบบ วัน และ เวลา ที่แจ้งข้อมูล
   const createdAt = new Date(pet.created_at)
   const formattedDate = createdAt.toLocaleDateString('th-TH', {
     year: 'numeric', month: 'long', day: 'numeric',
@@ -45,7 +54,6 @@ export default async function PetProfilePage({ params }: { params: { id: string 
               <p className="text-xl font-bold text-gray-700">
                 {pet.breed || 'ไม่ระบุสายพันธุ์'} • {pet.province} {pet.district ? `(${pet.district})` : ''}
               </p>
-              {/* 💡 แสดง วัน-เวลา ที่แจ้งข้อมูล */}
               <p className="text-sm font-bold text-gray-500 mt-2 bg-gray-100 border border-gray-300 inline-block px-3 py-1 rounded-full">
                 🕒 แจ้งข้อมูลเมื่อ: {formattedDate} เวลา {formattedTime} น.
               </p>
@@ -64,10 +72,9 @@ export default async function PetProfilePage({ params }: { params: { id: string 
 
           <hr className="border-black border-1 mb-6" />
 
-          {/* 💡 ส่วนแสดงพิกัด GPS และปุ่มเปิด Google Maps (แสดงเฉพาะเมื่อมีพิกัด) */}
+          {/* พิกัด GPS */}
           {pet.latitude && pet.longitude && (
             <div className="bg-white border-2 border-black p-5 rounded-lg mb-8 shadow-paper-sm flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden">
-              {/* ตกแต่งพื้นหลังสไตล์แผนที่นิดหน่อย */}
               <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none"></div>
               
               <div className="flex items-center gap-4 relative z-10">
@@ -120,24 +127,62 @@ export default async function PetProfilePage({ params }: { params: { id: string 
               🤖 บทวิเคราะห์จาก Gemini AI
             </h3>
             <p className="text-gray-800 leading-relaxed italic">
-              &quot;{pet.ai_description}&quot;
+              "{pet.ai_description}"
             </p>
           </div>
 
-          {/* 💡 แก้ไขข้อความปุ่มติดต่อ */}
-          <div className="bg-black text-white p-6 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-              <p className="text-sm opacity-80">ติดต่อผู้ที่แจ้ง</p>
-              <p className="text-2xl font-bold">{pet.contact_info}</p>
+          {/* ✨ อัปเดตส่วน "ติดต่อผู้แจ้ง" แบบใหม่ ✨ */}
+          {reporter && (
+            <div className="border-2 border-black rounded-xl p-6 bg-gray-50 mt-10">
+              <div className="flex items-center gap-4 mb-5 border-b-2 border-black pb-4">
+                {reporter.avatar_url ? (
+                  <img src={reporter.avatar_url} alt="Profile" className="w-14 h-14 rounded-full border-2 border-black object-cover" />
+                ) : (
+                  <UserCircle2 size={56} className="text-gray-400" />
+                )}
+                <div>
+                  <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">ข้อมูลผู้แจ้ง</p>
+                  <p className="text-xl font-black">{reporter.display_name || `${reporter.first_name} ${reporter.last_name}`}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                {reporter.phone_number && (
+                  <a 
+                    href={`tel:${reporter.phone_number}`}
+                    className="flex-1 flex items-center justify-center gap-2 bg-wagashi-kinako border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper active:translate-y-1 transition-all text-black"
+                  >
+                    <Phone size={20} />
+                    <span>โทรติดต่อ</span>
+                  </a>
+                )}
+
+                {reporter.line_id && (
+                  <a 
+                    href={`https://line.me/ti/p/~${reporter.line_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2 bg-[#00B900] text-white border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper active:translate-y-1 transition-all"
+                  >
+                    <MessageCircle size={20} />
+                    <span>แอดไลน์</span>
+                  </a>
+                )}
+
+                {reporter.contact_link && (
+                  <a 
+                    href={reporter.contact_link.startsWith('http') ? reporter.contact_link : `https://${reporter.contact_link}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2 bg-black text-white border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper active:translate-y-1 transition-all"
+                  >
+                    <ExternalLink size={20} />
+                    <span>ช่องทางอื่น</span>
+                  </a>
+                )}
+              </div>
             </div>
-            {pet.contact_info && (
-              <a href={`tel:${pet.contact_info.replace(/[- ]/g, '')}`} className="w-full md:w-auto">
-                <Button className="w-full md:w-auto bg-white text-black hover:bg-wagashi-matcha border-2 border-white px-8 py-6 text-xl font-bold transition-colors">
-                  📞 โทรหาผู้ที่แจ้ง
-                </Button>
-              </a>
-            )}
-          </div>
+          )}
 
         </div>
       </div>
