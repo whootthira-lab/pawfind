@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { PetGallery } from '@/components/pet/PetGallery' // 💡 Import Component ใหม่
 
 export default async function PetProfilePage({ params }: { params: { id: string } }) {
   const supabase = createClient()
   
-  // ดึงข้อมูลแบบ Join table เพื่อเอารูปภาพทั้งหมดมาแสดง
   const { data: pet } = await supabase
     .from('pets')
     .select('*, pet_images(storage_url, is_primary)')
@@ -16,38 +16,19 @@ export default async function PetProfilePage({ params }: { params: { id: string 
     notFound()
   }
 
-  // แยกรูปหลักและรูปประกอบ
   const images = pet.pet_images || []
   const primaryImage = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url
-  const secondaryImages = images.filter((i: any) => !i.is_primary)
 
   return (
     <div className="max-w-3xl mx-auto mb-12">
       <div className="bg-white border-2 border-black rounded-lg shadow-paper overflow-hidden">
         
-        {/* ส่วนแสดงรูปภาพ (Gallery) */}
-        <div className="flex flex-col border-b-2 border-black">
-          {primaryImage && (
-            <img 
-              src={primaryImage.startsWith('http') ? primaryImage : `data:image/jpeg;base64,${primaryImage}`} 
-              alt={pet.name || 'Pet image'} 
-              className="w-full h-[450px] object-cover" 
-            />
-          )}
-          
-          {secondaryImages.length > 0 && (
-            <div className="flex gap-2 p-4 bg-gray-50 border-t-2 border-black overflow-x-auto">
-              {secondaryImages.map((img: any, idx: number) => (
-                <img 
-                  key={idx}
-                  src={img.storage_url.startsWith('http') ? img.storage_url : `data:image/jpeg;base64,${img.storage_url}`}
-                  alt={`${pet.name} gallery ${idx + 1}`}
-                  className="w-24 h-24 object-cover border-2 border-black rounded shadow-paper-sm flex-shrink-0"
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        {/* 💡 ใช้งาน PetGallery แทนโค้ด img เดิม */}
+        <PetGallery 
+          primaryImage={primaryImage} 
+          images={images} 
+          petName={pet.name} 
+        />
 
         <div className="p-8">
           <div className="flex justify-between items-start mb-6">
@@ -71,8 +52,8 @@ export default async function PetProfilePage({ params }: { params: { id: string 
 
           <hr className="border-black border-1 mb-6" />
 
+          {/* รายละเอียดอื่นๆ (สี, ประเภท, ตำหนิ) คงเดิมตามโค้ดที่คุณส่งมา */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* ส่วนแสดงตำหนิ/ลักษณะพิเศษ */}
             <div className="border-2 border-black p-5 rounded-lg bg-wagashi-kinako shadow-paper-sm md:col-span-2">
               <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
                 ✨ ตำหนิหรือลักษณะพิเศษ
@@ -95,7 +76,6 @@ export default async function PetProfilePage({ params }: { params: { id: string 
             </div>
           </div>
 
-          {/* ข้อมูลจาก AI - แก้ไขเรื่อง Quote ให้ Build ผ่าน */}
           <div className="bg-washi border-2 border-black p-6 rounded-lg mb-8 shadow-paper-sm">
             <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
               🤖 บทวิเคราะห์จาก Gemini AI
@@ -105,7 +85,6 @@ export default async function PetProfilePage({ params }: { params: { id: string 
             </p>
           </div>
 
-          {/* ช่องทางติดต่อ */}
           <div className="bg-black text-white p-6 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
               <p className="text-sm opacity-80">หากพบเบาะแสหรือต้องการติดต่อเจ้าของ</p>

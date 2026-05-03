@@ -17,7 +17,8 @@ export default function ReportPage() {
   const [district, setDistrict] = useState('')
   const [contactInfo, setContactInfo] = useState('')
   const [reward, setReward] = useState('')
-  const [distinctiveFeatures, setDistinctiveFeatures] = useState('') // 💡 เพิ่ม state สำหรับตำหนิพิเศษ
+  const [color, setColor] = useState('') // 💡 1. เพิ่ม state สำหรับสี
+  const [distinctiveFeatures, setDistinctiveFeatures] = useState('')
   const [images, setImages] = useState<string[]>([])
   
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,9 +66,10 @@ export default function ReportPage() {
           status,
           province,
           district,
+          color, // 💡 2. ส่งค่าสีไปยัง API
           contact_info: contactInfo,
           reward_amount: reward ? parseInt(reward) : 0,
-          distinctive_features: distinctiveFeatures, // 💡 ส่งค่าตำหนิพิเศษไปยัง API
+          distinctive_features: distinctiveFeatures,
           images,
           markingImageIndexes: []
         }),
@@ -103,6 +105,7 @@ export default function ReportPage() {
           </div>
         )}
 
+        {/* ส่วนอัปโหลดรูปภาพ */}
         <div className="flex flex-col gap-2">
           <label className="font-bold text-lg">รูปภาพสัตว์เลี้ยง (บังคับ 1-5 รูป)</label>
           <div className="border-4 border-dashed border-gray-300 rounded-lg p-8 text-center bg-white hover:bg-gray-50 transition-colors cursor-pointer relative">
@@ -188,6 +191,19 @@ export default function ReportPage() {
             </select>
           </div>
 
+          {/* 💡 3. เพิ่มช่องกรอกสีสัตว์เลี้ยง */}
+          <div className="flex flex-col gap-2">
+            <label className="font-bold text-lg">สีของสัตว์เลี้ยง</label>
+            <input 
+              type="text" 
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              required
+              className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black"
+              placeholder="เช่น สีน้ำตาลขาว, ลายสลิด"
+            />
+          </div>
+
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">สถานะ</label>
             <select 
@@ -201,7 +217,7 @@ export default function ReportPage() {
             </select>
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">เงินรางวัล (บาท)</label>
             <input 
               type="number" 
@@ -213,7 +229,6 @@ export default function ReportPage() {
             />
           </div>
 
-          {/* 💡 3. เพิ่มช่องกรอกตำหนิ/ลักษณะพิเศษ */}
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">ตำหนิหรือลักษณะพิเศษ (แนะนำให้ระบุ)</label>
             <textarea 
