@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { MatchResultCard } from '@/components/pet/MatchResult'
-import { Bookmark, Lock } from 'lucide-react'
+import { Bookmark, Lock, User } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function SavedPetsPage() {
@@ -9,7 +9,7 @@ export default async function SavedPetsPage() {
   // 1. ตรวจสอบสถานะผู้ใช้
   const { data: { user } } = await supabase.auth.getUser()
   
-  // 💡 ถ้ายังไม่ Login ให้โชว์หน้านี้แทนการ Redirect ไปหน้า 404
+  // กรณีที่ยังไม่ได้เข้าสู่ระบบ
   if (!user) {
     return (
       <div className="max-w-6xl mx-auto px-4 mb-20 flex justify-center items-center min-h-[60vh]">
@@ -36,7 +36,12 @@ export default async function SavedPetsPage() {
     )
   }
 
-  // 2. ดึงข้อมูลสัตว์ที่ผู้ใช้ Pin ไว้ (ทำเมื่อ Login แล้วเท่านั้น)
+  // 2. ดึงข้อมูลโปรไฟล์จาก Metadata (Google/Facebook)
+  const userMetadata = user.user_metadata
+  const userName = userMetadata?.full_name || user.email?.split('@')[0] || 'นักช่วยเหลือ'
+  const userAvatar = userMetadata?.avatar_url
+
+  // 3. ดึงข้อมูลสัตว์ที่ผู้ใช้ Pin ไว้
   const { data: savedItems, error } = await supabase
     .from('saved_pets')
     .select(`
@@ -59,16 +64,43 @@ export default async function SavedPetsPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 mb-20">
-      <div className="bg-wagashi-kinako border-4 border-black p-8 rounded-2xl shadow-paper mb-10 flex flex-col md:flex-row items-center gap-6">
-        <div className="bg-white border-2 border-black p-4 rounded-full shadow-paper-sm">
-          <Bookmark size={48} className="text-black" />
+      
+      {/* 🌟 ส่วนแบนเนอร์ผู้ใช้สไตล์ Neubrutalism */}
+      <div className="bg-wagashi-kinako border-4 border-black p-8 rounded-2xl shadow-paper mb-10 flex flex-col md:flex-row items-center gap-6 relative overflow-hidden">
+        
+        {/* รูปโปรไฟล์จาก Metadata */}
+        <div className="relative shrink-0">
+          {userAvatar ? (
+            <img 
+              src={userAvatar} 
+              alt={userName}
+              className="w-24 h-24 rounded-full border-4 border-black shadow-paper-sm object-cover"
+            />
+          ) : (
+            <div className="w-24 h-24 rounded-full border-4 border-black bg-white flex items-center justify-center shadow-paper-sm">
+              <User size={48} className="text-black" />
+            </div>
+          )}
+          <div className="absolute -bottom-2 -right-2 bg-white border-2 border-black p-1.5 rounded-lg shadow-paper-sm">
+            <Bookmark size={16} className="fill-black" />
+          </div>
         </div>
-        <div className="text-center md:text-left">
-          <h1 className="text-4xl font-bold mb-2">รายการที่คุณบันทึกไว้</h1>
-          <p className="text-lg font-medium opacity-80">รวมสัตว์เลี้ยงที่คุณกด Pin ไว้เพื่อติดตามสถานะหรือนัดเจอ</p>
+
+        <div className="text-center md:text-left z-10">
+          <p className="text-lg font-bold opacity-70 mb-1">ยินดีต้อนรับกลับมา,</p>
+          <h1 className="text-4xl font-bold mb-2">{userName} ✨</h1>
+          <p className="font-medium opacity-80">
+            คุณได้ช่วยบันทึกข้อมูลสัตว์เลี้ยงไว้ทั้งหมด {savedPets.length} รายการ
+          </p>
+        </div>
+        
+        {/* ลายตกแต่งพื้นหลังเพื่อความสวยงาม */}
+        <div className="absolute top-0 right-0 p-4 opacity-10 text-9xl font-bold select-none pointer-events-none">
+          🐾
         </div>
       </div>
 
+      {/* รายการสัตว์เลี้ยงที่บันทึก */}
       {savedPets.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {savedPets.map((pet: any) => (
