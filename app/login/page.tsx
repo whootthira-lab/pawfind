@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [step, setStep] = useState<'email' | 'register' | 'success'>('email')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
-  const [uploading, setUploading] = useState(false) // สำหรับสถานะอัปโหลดรูป
+  const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   const [formData, setFormData] = useState({
@@ -34,7 +34,6 @@ export default function LoginPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // 1. ฟังก์ชันจัดการการอัปโหลดไฟล์จริงไปที่ Supabase Storage
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = e.target.files?.[0]
@@ -42,19 +41,16 @@ export default function LoginPage() {
 
       setUploading(true)
       
-      // ตั้งชื่อไฟล์ใหม่ด้วย timestamp เพื่อป้องกันชื่อซ้ำใน Storage
       const fileExt = file.name.split('.').pop()
       const fileName = `${Date.now()}.${fileExt}`
       const filePath = `avatars/${fileName}`
 
-      // อัปโหลดไฟล์ไปที่ bucket 'profile-images'
       const { error: uploadError } = await supabase.storage
         .from('profile-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      // ดึง Public URL ของรูปที่อัปโหลดสำเร็จ
       const { data: { publicUrl } } = supabase.storage
         .from('profile-images')
         .getPublicUrl(filePath)
@@ -68,7 +64,6 @@ export default function LoginPage() {
     }
   }
 
-  // 2. ตรวจสอบว่ามีอีเมลในระบบหรือยัง
   const handleCheckEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -88,7 +83,6 @@ export default function LoginPage() {
     }
   }
 
-  // 3. ส่ง Magic Link (signInWithOtp)
   const handleSendOTP = async (targetEmail: string, metadata = {}) => {
     const { error } = await supabase.auth.signInWithOtp({
       email: targetEmail,
@@ -107,7 +101,6 @@ export default function LoginPage() {
     }
   }
 
-  // 4. บันทึกข้อมูลและส่งลิงก์
   const handleRegisterAndLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -145,7 +138,7 @@ export default function LoginPage() {
                 <LogIn size={42} />
               </div>
             </div>
-            <h1 className="text-3xl font-black text-center mb-2 italic tracking-tight">PAWFIND LOGIN</h1>
+            <h1 className="text-3xl font-black text-center mb-2 italic tracking-tight uppercase">PawFind Login</h1>
             <p className="text-center font-bold text-gray-400 mb-8 uppercase tracking-widest text-xs">Community Connectivity</p>
             
             <form onSubmit={handleCheckEmail} className="space-y-4">
@@ -160,21 +153,20 @@ export default function LoginPage() {
                   className="w-full border-4 border-black rounded-xl px-4 py-4 font-bold text-lg focus:ring-8 ring-black/5 outline-none transition-all"
                 />
               </div>
-              <Button disabled={loading} className="w-full bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper transition-all">
+              <Button disabled={loading} className="w-full bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper transition-all active:translate-y-1">
                 {loading ? <Loader2 className="animate-spin" /> : "ดำเนินการต่อ ➔"}
               </Button>
             </form>
           </div>
         ) : (
           <div className="animate-in slide-in-from-bottom duration-500">
-            <div className="flex items-center gap-3 mb-8 border-b-4 border-black pb-4">
+            <div className="flex items-center gap-3 mb-8 border-b-4 border-black pb-4 text-left">
               <UserPlus size={32} className="text-wagashi-matcha" />
-              <h2 className="text-2xl font-black italic">REGISTER PROFILE</h2>
+              <h2 className="text-2xl font-black italic uppercase">Register Profile</h2>
             </div>
             
             <form onSubmit={handleRegisterAndLogin} className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left">
               
-              {/* ส่วนอัปโหลดรูปโปรไฟล์จริง */}
               <div className="md:col-span-2 bg-gray-50 p-6 border-4 border-black rounded-2xl flex flex-col items-center gap-4 shadow-inner">
                 <div className="w-28 h-28 bg-white rounded-full border-4 border-black flex items-center justify-center overflow-hidden shadow-paper-sm relative group">
                   {formData.avatar_url ? (
@@ -202,13 +194,13 @@ export default function LoginPage() {
 
               <div className="space-y-1">
                 <label className="font-black text-sm ml-1 uppercase text-gray-500">ชื่อจริง</label>
-                <input required className="w-full border-2 border-black rounded-lg p-3 font-bold focus:bg-gray-50 outline-none" 
+                <input required className="w-full border-2 border-black rounded-lg p-3 font-bold focus:bg-gray-50 outline-none transition-colors" 
                   onChange={e => setFormData({...formData, first_name: e.target.value})} />
               </div>
 
               <div className="space-y-1">
                 <label className="font-black text-sm ml-1 uppercase text-gray-500">นามสกุล</label>
-                <input required className="w-full border-2 border-black rounded-lg p-3 font-bold focus:bg-gray-50 outline-none" 
+                <input required className="w-full border-2 border-black rounded-lg p-3 font-bold focus:bg-gray-50 outline-none transition-colors" 
                   onChange={e => setFormData({...formData, last_name: e.target.value})} />
               </div>
 
@@ -220,7 +212,7 @@ export default function LoginPage() {
 
               <div className="space-y-1">
                 <label className="font-black text-sm ml-1 flex items-center gap-1 uppercase text-gray-500"><Phone size={14}/> เบอร์โทร</label>
-                <input required className="w-full border-2 border-black rounded-lg p-3 font-bold" 
+                <input required placeholder="08x-xxx-xxxx" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
                   onChange={e => setFormData({...formData, phone_number: e.target.value})} />
               </div>
 
@@ -230,32 +222,41 @@ export default function LoginPage() {
                   onChange={e => setFormData({...formData, province: e.target.value})} />
               </div>
 
+              {/* แยกอำเภอออกมา */}
               <div className="space-y-1">
-                <label className="font-black text-sm ml-1 text-gray-500 uppercase">อำเภอ / ตำบล</label>
-                <input required placeholder="ด่านขุนทด" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
+                <label className="font-black text-sm ml-1 text-gray-500 uppercase">อำเภอ / เขต</label>
+                <input required placeholder="เช่น ด่านขุนทด" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
                   onChange={e => setFormData({...formData, district: e.target.value})} />
               </div>
 
+              {/* แยกตำบลออกมา (แก้ไขความกว้างให้เท่าอำเภอ) */}
+              <div className="space-y-1">
+                <label className="font-black text-sm ml-1 text-gray-500 uppercase">ตำบล / แขวง</label>
+                <input required placeholder="เช่น สระจระเข้" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
+                  onChange={e => setFormData({...formData, subdistrict: e.target.value})} />
+              </div>
+
+              {/* ที่อยู่ขยายเต็ม 2 คอลัมน์ */}
               <div className="md:col-span-2 space-y-1">
                 <label className="font-black text-sm ml-1 uppercase text-gray-500">ที่อยู่โดยละเอียด</label>
-                <textarea rows={2} required className="w-full border-2 border-black rounded-lg p-3 font-bold resize-none" 
+                <textarea rows={2} required placeholder="บ้านเลขที่, หมู่บ้าน, ซอย..." className="w-full border-2 border-black rounded-lg p-3 font-bold resize-none" 
                   onChange={e => setFormData({...formData, address: e.target.value})} />
               </div>
 
               <div className="md:col-span-1 space-y-1">
                 <label className="font-black text-sm ml-1">Line ID</label>
-                <input className="w-full border-2 border-black rounded-lg p-3 font-bold bg-green-50/30" 
+                <input placeholder="ถ้ามี" className="w-full border-2 border-black rounded-lg p-3 font-bold bg-green-50/30" 
                   onChange={e => setFormData({...formData, line_id: e.target.value})} />
               </div>
 
               <div className="md:col-span-1 space-y-1">
                 <label className="font-black text-sm ml-1 flex items-center gap-1"><LinkIcon size={14}/> ช่องทางติดต่ออื่น</label>
-                <input className="w-full border-2 border-black rounded-lg p-3 font-bold" 
+                <input placeholder="FB / IG Link" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
                   onChange={e => setFormData({...formData, contact_link: e.target.value})} />
               </div>
 
               <Button disabled={loading || uploading} className="md:col-span-2 mt-6 bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50">
-                {loading ? <Loader2 className="animate-spin" /> : "บันทึกโปรไฟล์และรับ Magic Link"}
+                {loading || uploading ? <Loader2 className="animate-spin" /> : "บันทึกโปรไฟล์และรับ Magic Link"}
               </Button>
             </form>
           </div>
