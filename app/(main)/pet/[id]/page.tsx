@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 export default async function PetProfilePage({ params }: { params: { id: string } }) {
   const supabase = createClient()
   
-  // 💡 ดึงข้อมูลแบบ Join table เพื่อเอารูปภาพทั้งหมดมาแสดง
+  // ดึงข้อมูลแบบ Join table เพื่อเอารูปภาพทั้งหมดมาแสดง
   const { data: pet } = await supabase
     .from('pets')
     .select('*, pet_images(storage_url, is_primary)')
@@ -30,18 +30,18 @@ export default async function PetProfilePage({ params }: { params: { id: string 
           {primaryImage && (
             <img 
               src={primaryImage.startsWith('http') ? primaryImage : `data:image/jpeg;base64,${primaryImage}`} 
-              alt={pet.name} 
+              alt={pet.name || 'Pet image'} 
               className="w-full h-[450px] object-cover" 
             />
           )}
           
-          {/* 💡 แสดงรูปอื่นๆ ที่แนบมา (ถ้ามี) */}
           {secondaryImages.length > 0 && (
             <div className="flex gap-2 p-4 bg-gray-50 border-t-2 border-black overflow-x-auto">
               {secondaryImages.map((img: any, idx: number) => (
                 <img 
                   key={idx}
                   src={img.storage_url.startsWith('http') ? img.storage_url : `data:image/jpeg;base64,${img.storage_url}`}
+                  alt={`${pet.name} gallery ${idx + 1}`}
                   className="w-24 h-24 object-cover border-2 border-black rounded shadow-paper-sm flex-shrink-0"
                 />
               ))}
@@ -58,7 +58,7 @@ export default async function PetProfilePage({ params }: { params: { id: string 
               </p>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <span className="bg-wagashi-matcha border-2 border-black px-4 py-2 rounded-lg font-bold shadow-paper-sm text-lg">
+              <span className="bg-wagashi-matcha border-2 border-black px-4 py-2 rounded-lg font-bold shadow-paper-sm text-lg text-center min-w-[140px]">
                 {pet.status === 'lost' ? '🚨 ตามหาเจ้าของ' : pet.status === 'found' ? '👀 พบน้องหลงทาง' : '💖 หาบ้านใหม่'}
               </span>
               {pet.reward_amount > 0 && (
@@ -72,7 +72,7 @@ export default async function PetProfilePage({ params }: { params: { id: string 
           <hr className="border-black border-1 mb-6" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* 💡 ส่วนแสดงตำหนิ/ลักษณะพิเศษ (ใหม่) */}
+            {/* ส่วนแสดงตำหนิ/ลักษณะพิเศษ */}
             <div className="border-2 border-black p-5 rounded-lg bg-wagashi-kinako shadow-paper-sm md:col-span-2">
               <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
                 ✨ ตำหนิหรือลักษณะพิเศษ
@@ -89,17 +89,19 @@ export default async function PetProfilePage({ params }: { params: { id: string 
 
             <div className="border-2 border-black p-5 rounded-lg bg-wagashi-sora shadow-paper-sm">
               <div className="text-sm font-bold text-gray-600 mb-1 uppercase">ประเภทสัตว์</div>
-              <div className="text-xl font-bold capitalize">{pet.species === 'dog' ? 'สุนัข' : pet.species === 'cat' ? 'แมว' : pet.species}</div>
+              <div className="text-xl font-bold capitalize">
+                {pet.species === 'dog' ? 'สุนัข' : pet.species === 'cat' ? 'แมว' : pet.species || 'ไม่ระบุ'}
+              </div>
             </div>
           </div>
 
-          {/* ข้อมูลจาก AI */}
+          {/* ข้อมูลจาก AI - แก้ไขเรื่อง Quote ให้ Build ผ่าน */}
           <div className="bg-washi border-2 border-black p-6 rounded-lg mb-8 shadow-paper-sm">
             <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
               🤖 บทวิเคราะห์จาก Gemini AI
             </h3>
             <p className="text-gray-800 leading-relaxed italic">
-              "{pet.ai_description}"
+              &quot;{pet.ai_description}&quot;
             </p>
           </div>
 
@@ -109,11 +111,13 @@ export default async function PetProfilePage({ params }: { params: { id: string 
               <p className="text-sm opacity-80">หากพบเบาะแสหรือต้องการติดต่อเจ้าของ</p>
               <p className="text-2xl font-bold">{pet.contact_info}</p>
             </div>
-            <a href={`tel:${pet.contact_info?.replace(/[- ]/g, '')}`} className="w-full md:w-auto">
-              <Button className="w-full md:w-auto bg-white text-black hover:bg-wagashi-matcha border-2 border-white px-8 py-6 text-xl font-bold transition-colors">
-                📞 โทรหาเจ้าของทันที
-              </Button>
-            </a>
+            {pet.contact_info && (
+              <a href={`tel:${pet.contact_info.replace(/[- ]/g, '')}`} className="w-full md:w-auto">
+                <Button className="w-full md:w-auto bg-white text-black hover:bg-wagashi-matcha border-2 border-white px-8 py-6 text-xl font-bold transition-colors">
+                  📞 โทรหาเจ้าของทันที
+                </Button>
+              </a>
+            )}
           </div>
         </div>
       </div>
