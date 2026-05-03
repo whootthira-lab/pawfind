@@ -17,6 +17,7 @@ export default function ReportPage() {
   const [district, setDistrict] = useState('')
   const [contactInfo, setContactInfo] = useState('')
   const [reward, setReward] = useState('')
+  const [distinctiveFeatures, setDistinctiveFeatures] = useState('') // 💡 เพิ่ม state สำหรับตำหนิพิเศษ
   const [images, setImages] = useState<string[]>([])
   
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,6 +67,7 @@ export default function ReportPage() {
           district,
           contact_info: contactInfo,
           reward_amount: reward ? parseInt(reward) : 0,
+          distinctive_features: distinctiveFeatures, // 💡 ส่งค่าตำหนิพิเศษไปยัง API
           images,
           markingImageIndexes: []
         }),
@@ -77,7 +79,6 @@ export default function ReportPage() {
         throw new Error(data.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล')
       }
 
-      // Success
       alert('บันทึกข้อมูลสำเร็จ AI กำลังวิเคราะห์รูปภาพของคุณ')
       router.push('/search')
     } catch (err: any) {
@@ -88,7 +89,7 @@ export default function ReportPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto flex flex-col gap-6">
+    <div className="max-w-2xl mx-auto flex flex-col gap-6 mb-12">
       <div className="bg-wagashi-sakura border-2 border-black rounded-lg shadow-paper p-8 text-center">
         <h1 className="text-3xl font-bold mb-2">แจ้งสัตว์หาย 🚨</h1>
         <p className="font-medium text-lg">อัปโหลดรูปภาพและกรอกข้อมูลเพื่อให้ชุมชนและ AI ช่วยตามหา</p>
@@ -157,7 +158,7 @@ export default function ReportPage() {
               onChange={(e) => setProvince(e.target.value)}
               required
               className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="เช่น กรุงเทพมหานคร"
+              placeholder="เช่น นครราชสีมา"
             />
           </div>
 
@@ -168,7 +169,7 @@ export default function ReportPage() {
               value={district}
               onChange={(e) => setDistrict(e.target.value)}
               className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="เช่น พญาไท"
+              placeholder="เช่น ด่านขุนทด"
             />
           </div>
 
@@ -200,20 +201,8 @@ export default function ReportPage() {
             </select>
           </div>
 
-          <div className="flex flex-col gap-2 md:col-span-2">
-            <label className="font-bold text-lg">ช่องทางติดต่อ (เช่น เบอร์โทรศัพท์ หรือ LINE ID)</label>
-            <input 
-              type="text" 
-              value={contactInfo}
-              onChange={(e) => setContactInfo(e.target.value)}
-              required
-              className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="08X-XXX-XXXX หรือ LINE ID"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2 md:col-span-2">
-            <label className="font-bold text-lg">เงินรางวัล (บาท) - ใส่ 0 หากไม่มี</label>
+          <div className="flex flex-col gap-2">
+            <label className="font-bold text-lg">เงินรางวัล (บาท)</label>
             <input 
               type="number" 
               value={reward}
@@ -223,6 +212,30 @@ export default function ReportPage() {
               min="0"
             />
           </div>
+
+          {/* 💡 3. เพิ่มช่องกรอกตำหนิ/ลักษณะพิเศษ */}
+          <div className="flex flex-col gap-2 md:col-span-2">
+            <label className="font-bold text-lg">ตำหนิหรือลักษณะพิเศษ (แนะนำให้ระบุ)</label>
+            <textarea 
+              value={distinctiveFeatures}
+              onChange={(e) => setDistinctiveFeatures(e.target.value)}
+              rows={3}
+              className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black"
+              placeholder="เช่น หางกุด, ปลอกคอสีแดง, มีปานสีดำที่ขาหลังขวา..."
+            />
+          </div>
+
+          <div className="flex flex-col gap-2 md:col-span-2">
+            <label className="font-bold text-lg">ช่องทางติดต่อ (เบอร์โทร หรือ LINE ID)</label>
+            <input 
+              type="text" 
+              value={contactInfo}
+              onChange={(e) => setContactInfo(e.target.value)}
+              required
+              className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black"
+              placeholder="08X-XXX-XXXX หรือ LINE ID"
+            />
+          </div>
         </div>
 
         <Button 
@@ -230,7 +243,7 @@ export default function ReportPage() {
           disabled={loading}
           className="w-full mt-4 bg-wagashi-matcha hover:bg-wagashi-sora text-black border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 transition-all text-xl font-bold py-6"
         >
-          {loading ? 'กำลังวิเคราะห์ด้วย AI 🤖...' : 'แจ้งข้อมูลสัตว์เลี้ยง'}
+          {loading ? 'กำลังวิเคราะห์และบันทึกข้อมูล 🤖...' : 'แจ้งข้อมูลสัตว์เลี้ยง'}
         </Button>
       </form>
     </div>
