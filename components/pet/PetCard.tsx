@@ -1,5 +1,6 @@
 import { Pet } from '@/types/pet'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link' // 💡 1. เพิ่มการ Import Link จาก Next.js
 
 export function PetCard({ pet }: { pet: Pet }) {
   const imgUrl = pet.primary_image || pet.image_url;
@@ -39,9 +40,12 @@ export function PetCard({ pet }: { pet: Pet }) {
         )}
       </div>
 
-      <Button className="w-full mt-auto bg-white hover:bg-wagashi-sakura text-black border-2 border-black shadow-paper-sm hover:shadow-paper transition-all font-bold">
-        ดูข้อมูลเพิ่มเติม
-      </Button>
+      {/* 💡 2. ห่อ Button ด้วย Link และชี้ไปที่ /pet/ตามด้วยไอดีของสัตว์ */}
+      <Link href={`/pet/${pet.id}`} className="w-full mt-auto">
+        <Button className="w-full bg-white hover:bg-wagashi-sakura text-black border-2 border-black shadow-paper-sm hover:shadow-paper transition-all font-bold">
+          ดูข้อมูลเพิ่มเติม
+        </Button>
+      </Link>
     </div>
   )
 }
