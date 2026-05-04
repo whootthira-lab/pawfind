@@ -1,15 +1,15 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay'
 import { AnimatePresence } from 'framer-motion'
 import { MapPin, MapPinCheckInside } from 'lucide-react' 
 
-export default function ReportPage() {
+// 1. เปลี่ยนชื่อจาก export default function ReportPage() เป็นฟังก์ชันธรรมดา
+function ReportForm() {
   const router = useRouter()
-  // ดึงพารามิเตอร์ status จาก URL (เช่น ?status=found)
   const searchParams = useSearchParams()
   const initialStatus = searchParams.get('status') || 'lost'
 
@@ -19,7 +19,7 @@ export default function ReportPage() {
   // Form State
   const [name, setName] = useState('')
   const [type, setType] = useState('dog')
-  const [status, setStatus] = useState(initialStatus) // ใช้ค่าจาก URL เป็นค่าเริ่มต้น
+  const [status, setStatus] = useState(initialStatus) 
   const [province, setProvince] = useState('นครราชสีมา')
   const [district, setDistrict] = useState('ด่านขุนทด')
   const [contactInfo, setContactInfo] = useState('')
@@ -32,7 +32,6 @@ export default function ReportPage() {
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null)
   const [isGettingLocation, setIsGettingLocation] = useState(false)
 
-  // อัปเดต status state เมื่อ URL เปลี่ยนแปลง
   useEffect(() => {
     const currentStatus = searchParams.get('status')
     if (currentStatus) {
@@ -40,7 +39,6 @@ export default function ReportPage() {
     }
   }, [searchParams])
 
-  // ตั้งค่าธีมแบนเนอร์ตามสถานะที่เลือก
   const pageConfig: Record<string, { title: string, desc: string, bgClass: string }> = {
     lost: {
       title: 'ลงประกาศหาน้อง 🚨',
@@ -59,10 +57,8 @@ export default function ReportPage() {
     }
   }
 
-  // ดึงค่าการตั้งค่าหน้าเว็บ ถ้าไม่มีในรายการให้ใช้ lost เป็นค่าปริยาย
   const config = pageConfig[status] || pageConfig.lost
 
-  // 📍 ฟังก์ชันดึงพิกัด GPS
   const handleGetLocation = () => {
     setIsGettingLocation(true)
     setError(null)
@@ -71,12 +67,6 @@ export default function ReportPage() {
       alert("เบราว์เซอร์ของคุณไม่รองรับการระบุตำแหน่ง")
       setIsGettingLocation(false)
       return
-    }
-
-    const options = {
-      enableHighAccuracy: true,
-      timeout: 10000, 
-      maximumAge: 0
     }
 
     navigator.geolocation.getCurrentPosition(
@@ -100,7 +90,7 @@ export default function ReportPage() {
             alert("เกิดข้อผิดพลาด: " + err.message)
         }
       },
-      options
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     )
   }
 
@@ -172,23 +162,18 @@ export default function ReportPage() {
         {loading && <LoadingOverlay message="AI กำลังวิเคราะห์และบันทึกข้อมูล..." />}
       </AnimatePresence>
 
-      {/* ── แบนเนอร์ที่เปลี่ยนสีและข้อความตามสถานะ ── */}
       <div className={`${config.bgClass} border-[3px] rounded-2xl shadow-paper p-8 text-center transition-colors duration-300`}>
         <h1 className="text-3xl font-black mb-3">{config.title}</h1>
         <p className="font-bold text-gray-800">{config.desc}</p>
       </div>
 
-      <form 
-        onSubmit={handleSubmit} 
-        className={`bg-white border-[3px] border-ori-ink rounded-2xl shadow-paper p-6 md:p-8 flex flex-col gap-6 transition-opacity ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}
-      >
+      <form onSubmit={handleSubmit} className={`bg-white border-[3px] border-ori-ink rounded-2xl shadow-paper p-6 md:p-8 flex flex-col gap-6 transition-opacity ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
         {error && (
           <div className="bg-red-100 border-2 border-red-500 text-red-700 p-4 rounded-xl font-bold shadow-paper-sm">
             {error}
           </div>
         )}
 
-        {/* รูปภาพ */}
         <div className="flex flex-col gap-2">
           <label className="font-bold text-lg">รูปภาพสัตว์เลี้ยง (บังคับ 1-5 รูป)</label>
           <div className="border-[3px] border-dashed border-ori-ink-l rounded-xl p-8 text-center bg-ori-cream hover:bg-yellow-50 transition-colors cursor-pointer relative">
@@ -199,7 +184,7 @@ export default function ReportPage() {
             <div className="flex gap-4 mt-3 overflow-x-auto pb-2">
               {images.map((b64, idx) => (
                 <div key={idx} className="relative w-28 h-28 flex-shrink-0">
-                  <img src={`data:image/jpeg;base64,${b64}`} className="w-full h-full object-cover border-[3px] border-ori-ink rounded-xl shadow-paper-sm" />
+                  <img src={`data:image/jpeg;base64,${b64}`} alt="" className="w-full h-full object-cover border-[3px] border-ori-ink rounded-xl shadow-paper-sm" />
                   <button type="button" onClick={() => setImages(prev => prev.filter((_, i) => i !== idx))} className="absolute -top-3 -right-3 bg-red-500 text-white w-8 h-8 rounded-full font-black border-[3px] border-ori-ink flex items-center justify-center text-sm shadow-paper-sm hover:-translate-y-1 transition-transform">X</button>
                 </div>
               ))}
@@ -236,7 +221,7 @@ export default function ReportPage() {
           </div>
           
           <div className="flex flex-col gap-2">
-            <label className="font-bold text-lg">สถานะ (เปลี่ยนแบนเนอร์อัตโนมัติ)</label>
+            <label className="font-bold text-lg">สถานะ</label>
             <select value={status} onChange={(e) => setStatus(e.target.value)} className="ori-input cursor-pointer font-bold">
               <option value="lost">🚨 ลงประกาศหาน้อง</option>
               <option value="found">👀 แจ้งพบสัตว์หลง</option>
@@ -244,7 +229,6 @@ export default function ReportPage() {
             </select>
           </div>
 
-          {/* 📍 ส่วนแชร์พิกัด */}
           {status === 'found' && (
             <div className="flex flex-col gap-2 md:col-span-2">
               <label className="font-bold text-lg">ตำแหน่งที่พบสัตว์</label>
@@ -285,5 +269,14 @@ export default function ReportPage() {
         </Button>
       </form>
     </div>
+  )
+}
+
+// 2. สร้าง Component หลักมาครอบ (Wrap) ด้วย Suspense อีกที
+export default function ReportPage() {
+  return (
+    <Suspense fallback={<LoadingOverlay message="กำลังโหลดแบบฟอร์ม..." />}>
+      <ReportForm />
+    </Suspense>
   )
 }
