@@ -21,17 +21,20 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   
-  // อัปเดตการเรียกใช้ Supabase แบบใหม่
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
   useEffect(() => {
-    const loadNotifications = async () => {
+    let channel: any = null;
+
+    const initNotifications = async () => {
+      // 1. รอเช็คให้ชัวร์ก่อนว่าใครล็อกอิน
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      // 2. ดึงข้อมูลแจ้งเตือนเดิมมาโชว์
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
@@ -43,21 +46,34 @@ export default function NotificationBell() {
         setNotifications(data)
         setUnreadCount(data.filter(n => !n.is_read).length)
       }
+
+      // 3. เริ่มดักฟังแจ้งเตือนใหม่ (แบบล็อกเป้าเฉพาะ User นี้)
+      channel = supabase
+        .channel(`user-notifications-${user.id}`)
+        .on('postgres_changes', 
+          { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}` // กรองเอาเฉพาะของฉัน!
+          }, 
+          (payload) => {
+            console.log('🔔 มีแจ้งเตือนใหม่เข้ามาแล้ว!', payload)
+            const newNotif = payload.new as Notification
+            setNotifications(prev => {
+              // ป้องกันการโชว์ซ้ำ
+              if (prev.some(n => n.id === newNotif.id)) return prev
+              return [newNotif, ...prev].slice(0, 5)
+            })
+            setUnreadCount(prev => prev + 1)
+          }
+        )
+        .subscribe((status) => {
+          console.log('📡 สถานะเชื่อมต่อ Realtime:', status)
+        })
     }
 
-    loadNotifications()
-
-    const channel = supabase
-      .channel('notification_updates')
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'notifications' }, 
-        (payload) => {
-          const newNotif = payload.new as Notification
-          setNotifications(prev => [newNotif, ...prev].slice(0, 5))
-          setUnreadCount(prev => prev + 1)
-        }
-      )
-      .subscribe()
+    initNotifications()
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -67,7 +83,7 @@ export default function NotificationBell() {
     document.addEventListener('mousedown', handleClickOutside)
 
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) supabase.removeChannel(channel)
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [supabase])
@@ -102,7 +118,6 @@ export default function NotificationBell() {
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50">
           <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
             <h3 className="font-bold text-gray-800">การแจ้งเตือน</h3>
-            <span className="text-xs text-blue-600 font-medium cursor-pointer hover:underline">ทั้งหมด</span>
           </div>
 
           <div className="max-h-[400px] overflow-y-auto">
@@ -119,7 +134,7 @@ export default function NotificationBell() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-gray-700 leading-snug">
-                      <span className="font-semibold text-gray-900">มีคนใหม่</span> {notif.content}
+                      <span className="font-semibold text-gray-900">มีข้อความใหม่</span> {notif.content}
                     </p>
                     <p className="text-[10px] text-gray-400 mt-1">
                       {new Date(notif.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
