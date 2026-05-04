@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay'
 import { AnimatePresence } from 'framer-motion'
@@ -9,13 +9,17 @@ import { MapPin, MapPinCheckInside } from 'lucide-react'
 
 export default function ReportPage() {
   const router = useRouter()
+  // ดึงพารามิเตอร์ status จาก URL (เช่น ?status=found)
+  const searchParams = useSearchParams()
+  const initialStatus = searchParams.get('status') || 'lost'
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
   // Form State
   const [name, setName] = useState('')
   const [type, setType] = useState('dog')
-  const [status, setStatus] = useState('lost')
+  const [status, setStatus] = useState(initialStatus) // ใช้ค่าจาก URL เป็นค่าเริ่มต้น
   const [province, setProvince] = useState('นครราชสีมา')
   const [district, setDistrict] = useState('ด่านขุนทด')
   const [contactInfo, setContactInfo] = useState('')
@@ -28,7 +32,37 @@ export default function ReportPage() {
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null)
   const [isGettingLocation, setIsGettingLocation] = useState(false)
 
-  // 📍 ฟังก์ชันดึงพิกัด GPS (แก้ไขปัญหาปุ่มค้างแล้ว)
+  // อัปเดต status state เมื่อ URL เปลี่ยนแปลง
+  useEffect(() => {
+    const currentStatus = searchParams.get('status')
+    if (currentStatus) {
+      setStatus(currentStatus)
+    }
+  }, [searchParams])
+
+  // ตั้งค่าธีมแบนเนอร์ตามสถานะที่เลือก
+  const pageConfig: Record<string, { title: string, desc: string, bgClass: string }> = {
+    lost: {
+      title: 'ลงประกาศหาน้อง 🚨',
+      desc: 'อัปโหลดรูปภาพและกรอกข้อมูลเพื่อให้ชุมชนและ AI ช่วยตามหา',
+      bgClass: 'bg-wagashi-sakura border-ori-orange-d', 
+    },
+    found: {
+      title: 'แจ้งพบสัตว์หลง 👀',
+      desc: 'พบเห็นสัตว์พลัดหลง แจ้งเบาะแสเพื่อช่วยน้องกลับบ้าน',
+      bgClass: 'bg-wagashi-sora border-ori-blue-d', 
+    },
+    adoption: {
+      title: 'ประกาศหาบ้านให้น้อง 💖',
+      desc: 'ลงประกาศหาบ้านใหม่ที่อบอุ่นให้กับน้องๆ',
+      bgClass: 'bg-wagashi-matcha border-ori-green-d', 
+    }
+  }
+
+  // ดึงค่าการตั้งค่าหน้าเว็บ ถ้าไม่มีในรายการให้ใช้ lost เป็นค่าปริยาย
+  const config = pageConfig[status] || pageConfig.lost
+
+  // 📍 ฟังก์ชันดึงพิกัด GPS
   const handleGetLocation = () => {
     setIsGettingLocation(true)
     setError(null)
@@ -39,7 +73,6 @@ export default function ReportPage() {
       return
     }
 
-    // 💡 ตั้งค่าจำกัดเวลา (Timeout) 10 วินาที เพื่อป้องกันปุ่มค้าง
     const options = {
       enableHighAccuracy: true,
       timeout: 10000, 
@@ -53,7 +86,6 @@ export default function ReportPage() {
       },
       (err) => {
         setIsGettingLocation(false)
-        // 💡 แจ้งเตือนสาเหตุที่ดึงพิกัดไม่ได้ชัดเจนขึ้น
         switch(err.code) {
           case err.PERMISSION_DENIED:
             alert("คุณปฏิเสธการเข้าถึงพิกัด กรุณาตั้งค่าอนุญาตในเบราว์เซอร์ครับ")
@@ -135,22 +167,23 @@ export default function ReportPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto flex flex-col gap-6 mb-12 relative">
+    <div className="max-w-2xl mx-auto flex flex-col gap-6 mb-12 relative p-4 mt-4">
       <AnimatePresence>
-        {loading && <LoadingOverlay message="AI กำลังวิเคราะห์และบันทึกพิกัดตำแหน่ง..." />}
+        {loading && <LoadingOverlay message="AI กำลังวิเคราะห์และบันทึกข้อมูล..." />}
       </AnimatePresence>
 
-      <div className="bg-wagashi-sakura border-2 border-black rounded-lg shadow-paper p-8 text-center">
-        <h1 className="text-3xl font-bold mb-2">แจ้งสัตว์หาย 🚨</h1>
-        <p className="font-medium text-lg">อัปโหลดรูปภาพและกรอกข้อมูลเพื่อให้ชุมชนและ AI ช่วยตามหา</p>
+      {/* ── แบนเนอร์ที่เปลี่ยนสีและข้อความตามสถานะ ── */}
+      <div className={`${config.bgClass} border-[3px] rounded-2xl shadow-paper p-8 text-center transition-colors duration-300`}>
+        <h1 className="text-3xl font-black mb-3">{config.title}</h1>
+        <p className="font-bold text-gray-800">{config.desc}</p>
       </div>
 
       <form 
         onSubmit={handleSubmit} 
-        className={`bg-washi border-2 border-black rounded-lg shadow-paper p-8 flex flex-col gap-6 transition-opacity ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}
+        className={`bg-white border-[3px] border-ori-ink rounded-2xl shadow-paper p-6 md:p-8 flex flex-col gap-6 transition-opacity ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}
       >
         {error && (
-          <div className="bg-red-100 border-2 border-red-500 text-red-700 p-4 rounded-lg font-bold shadow-paper-sm">
+          <div className="bg-red-100 border-2 border-red-500 text-red-700 p-4 rounded-xl font-bold shadow-paper-sm">
             {error}
           </div>
         )}
@@ -158,16 +191,16 @@ export default function ReportPage() {
         {/* รูปภาพ */}
         <div className="flex flex-col gap-2">
           <label className="font-bold text-lg">รูปภาพสัตว์เลี้ยง (บังคับ 1-5 รูป)</label>
-          <div className="border-4 border-dashed border-gray-300 rounded-lg p-8 text-center bg-white hover:bg-gray-50 transition-colors cursor-pointer relative">
-            <div className="font-bold text-gray-500 text-xl">📸 คลิกเพื่ออัปโหลดรูปภาพ (สูงสุด 5 รูป)</div>
+          <div className="border-[3px] border-dashed border-ori-ink-l rounded-xl p-8 text-center bg-ori-cream hover:bg-yellow-50 transition-colors cursor-pointer relative">
+            <div className="font-bold text-ori-ink-m text-lg md:text-xl">📸 คลิกเพื่ออัปโหลดรูปภาพ (สูงสุด 5 รูป)</div>
             <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={images.length >= 5} />
           </div>
           {images.length > 0 && (
-            <div className="flex gap-4 mt-2 overflow-x-auto pb-2">
+            <div className="flex gap-4 mt-3 overflow-x-auto pb-2">
               {images.map((b64, idx) => (
-                <div key={idx} className="relative w-24 h-24 flex-shrink-0">
-                  <img src={`data:image/jpeg;base64,${b64}`} className="w-full h-full object-cover border-2 border-black rounded shadow-paper-sm" />
-                  <button type="button" onClick={() => setImages(prev => prev.filter((_, i) => i !== idx))} className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full font-bold border-2 border-black flex items-center justify-center text-xs">X</button>
+                <div key={idx} className="relative w-28 h-28 flex-shrink-0">
+                  <img src={`data:image/jpeg;base64,${b64}`} className="w-full h-full object-cover border-[3px] border-ori-ink rounded-xl shadow-paper-sm" />
+                  <button type="button" onClick={() => setImages(prev => prev.filter((_, i) => i !== idx))} className="absolute -top-3 -right-3 bg-red-500 text-white w-8 h-8 rounded-full font-black border-[3px] border-ori-ink flex items-center justify-center text-sm shadow-paper-sm hover:-translate-y-1 transition-transform">X</button>
                 </div>
               ))}
             </div>
@@ -177,19 +210,19 @@ export default function ReportPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">ชื่อสัตว์เลี้ยง</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black" placeholder="ไม่ทราบชื่อเว้นว่างไว้" />
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="ori-input" placeholder="ไม่ทราบชื่อเว้นว่างไว้" />
           </div>
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">จังหวัด</label>
-            <input type="text" value={province} onChange={(e) => setProvince(e.target.value)} required className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black" />
+            <input type="text" value={province} onChange={(e) => setProvince(e.target.value)} required className="ori-input" />
           </div>
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">อำเภอ/เขต</label>
-            <input type="text" value={district} onChange={(e) => setDistrict(e.target.value)} className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black" />
+            <input type="text" value={district} onChange={(e) => setDistrict(e.target.value)} className="ori-input" />
           </div>
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">ประเภท</label>
-            <select value={type} onChange={(e) => setType(e.target.value)} className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black">
+            <select value={type} onChange={(e) => setType(e.target.value)} className="ori-input">
               <option value="dog">🐶 สุนัข</option>
               <option value="cat">🐱 แมว</option>
               <option value="bird">🐦 นก</option>
@@ -199,14 +232,15 @@ export default function ReportPage() {
           </div>
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">สีของสัตว์เลี้ยง</label>
-            <input type="text" value={color} onChange={(e) => setColor(e.target.value)} required className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black" placeholder="เช่น สีน้ำตาลขาว, ลายสลิด" />
+            <input type="text" value={color} onChange={(e) => setColor(e.target.value)} required className="ori-input" placeholder="เช่น สีน้ำตาลขาว, ลายสลิด" />
           </div>
+          
           <div className="flex flex-col gap-2">
-            <label className="font-bold text-lg">สถานะ</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black">
-              <option value="lost">🚨 สัตว์หาย</option>
-              <option value="found">👀 พบสัตว์หลงทาง</option>
-              <option value="adoption">💖 หาบ้าน</option>
+            <label className="font-bold text-lg">สถานะ (เปลี่ยนแบนเนอร์อัตโนมัติ)</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className="ori-input cursor-pointer font-bold">
+              <option value="lost">🚨 ลงประกาศหาน้อง</option>
+              <option value="found">👀 แจ้งพบสัตว์หลง</option>
+              <option value="adoption">💖 ประกาศหาบ้านให้น้อง</option>
             </select>
           </div>
 
@@ -218,36 +252,36 @@ export default function ReportPage() {
                 type="button"
                 onClick={handleGetLocation}
                 disabled={isGettingLocation}
-                className={`w-full py-6 border-2 border-black shadow-paper-sm font-bold text-lg transition-all ${location ? 'bg-wagashi-matcha hover:bg-green-400' : 'bg-wagashi-kinako hover:bg-yellow-400'}`}
+                className={`w-full py-6 border-[3px] border-ori-ink rounded-xl shadow-paper font-bold text-lg transition-all ${location ? 'bg-ori-green-bg hover:bg-green-200 text-ori-green-d' : 'bg-ori-yellow-bg hover:bg-yellow-200 text-ori-ink'}`}
               >
                 {isGettingLocation ? 'กำลังดึงพิกัด...' : location ? (
-                  <span className="flex items-center gap-2"><MapPinCheckInside /> บันทึกพิกัดจุดที่พบแล้ว ✅</span>
+                  <span className="flex items-center gap-2"><MapPinCheckInside size={24} /> บันทึกพิกัดจุดที่พบแล้ว ✅</span>
                 ) : (
-                  <span className="flex items-center gap-2"><MapPin /> กดเพื่อแชร์พิกัดปัจจุบันที่พบสัตว์</span>
+                  <span className="flex items-center gap-2"><MapPin size={24} /> กดเพื่อแชร์พิกัดปัจจุบันที่พบสัตว์</span>
                 )}
               </Button>
-              <p className="text-sm font-bold text-center text-gray-600 italic">
-                * พิกัดจะแสดงเป็นรัศมี 50 เมตรเพื่อความเป็นส่วนตัวของคุณ
+              <p className="text-sm font-bold text-center text-ori-ink-l italic mt-1">
+                * พิกัดจะแสดงเป็นรัศมี 50 เมตรเพื่อความเป็นส่วนตัว
               </p>
             </div>
           )}
 
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">เงินรางวัล (บาท)</label>
-            <input type="number" value={reward} onChange={(e) => setReward(e.target.value)} className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black" placeholder="0" min="0" />
+            <input type="number" value={reward} onChange={(e) => setReward(e.target.value)} className="ori-input" placeholder="0 (เว้นว่างได้)" min="0" />
           </div>
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">ตำหนิหรือลักษณะพิเศษ</label>
-            <textarea value={distinctiveFeatures} onChange={(e) => setDistinctiveFeatures(e.target.value)} rows={3} className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black" placeholder="หางกุด, ปลอกคอสีแดง..." />
+            <textarea value={distinctiveFeatures} onChange={(e) => setDistinctiveFeatures(e.target.value)} rows={3} className="ori-input" placeholder="หางกุด, ปลอกคอสีแดง, ขี้กลัว..." />
           </div>
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">ช่องทางติดต่อ</label>
-            <input type="text" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} required className="bg-white border-2 border-black px-4 py-3 font-bold rounded shadow-paper-sm focus:outline-none focus:ring-2 focus:ring-black" placeholder="08X-XXX-XXXX หรือ LINE ID" />
+            <input type="text" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} required className="ori-input" placeholder="เบอร์โทรศัพท์ หรือ LINE ID" />
           </div>
         </div>
 
-        <Button type="submit" disabled={loading} className="w-full mt-4 bg-black text-white border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 transition-all text-xl font-bold py-6">
-          {loading ? 'กำลังประมวลผล...' : 'แจ้งข้อมูลสัตว์เลี้ยง'}
+        <Button type="submit" disabled={loading} className="w-full mt-4 ori-btn-orange text-xl py-6 rounded-xl">
+          {loading ? 'กำลังประมวลผล...' : 'บันทึกข้อมูล'}
         </Button>
       </form>
     </div>

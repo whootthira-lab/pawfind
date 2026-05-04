@@ -3,7 +3,7 @@ import { RadiusExpander } from '@/components/search/RadiusExpander'
 import { MatchResultCard } from '@/components/pet/MatchResult' 
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Search, AlertCircle, Eye, Heart } from 'lucide-react'
+import { Search } from 'lucide-react' // ลบ AlertCircle, Eye, Heart ออกเพราะเปลี่ยนไปใช้อิโมจิแทน
 
 export default async function SearchPage({
   searchParams,
@@ -59,7 +59,8 @@ export default async function SearchPage({
   return (
     <div className="flex flex-col gap-6 mb-20 max-w-6xl mx-auto px-4">
       <div className="bg-wagashi-sora border-4 border-black rounded-2xl shadow-paper p-8 text-center">
-        <h1 className="text-4xl font-bold mb-2">ค้นหาน้อง 🔍</h1>
+        {/* เปลี่ยนหัวข้อและเพิ่มอิโมจิ 🐾🔍 */}
+        <h1 className="text-4xl font-bold mb-2">ค้นหาน้อง 🐾🔍</h1>
         <p className="font-medium text-lg">ค้นหาสัตว์เลี้ยงที่หายไป หรืออุปการะเพื่อนใหม่</p>
       </div>
 
@@ -68,14 +69,15 @@ export default async function SearchPage({
         <Link href={`/search?tab=all&radius=${radius}`} className={getTabStyle('all', 'bg-black text-white')}>
           <Search size={20} /> ทั้งหมด
         </Link>
+        {/* เปลี่ยนข้อความปุ่มและใส่อิโมจินำหน้า */}
         <Link href={`/search?tab=lost&radius=${radius}`} className={getTabStyle('lost', 'bg-wagashi-sakura')}>
-          <AlertCircle size={20} /> แจ้งสัตว์หาย
+          🚨 ดูการแจ้งหาย
         </Link>
         <Link href={`/search?tab=found&radius=${radius}`} className={getTabStyle('found', 'bg-wagashi-sora')}>
-          <Eye size={20} /> พบสัตว์หลงทาง
+          👀 ดูประกาศพบสัตว์หลง
         </Link>
         <Link href={`/search?tab=adoption&radius=${radius}`} className={getTabStyle('adoption', 'bg-wagashi-matcha')}>
-          <Heart size={20} /> หาบ้าน
+          💖 หาบ้านให้น้อง
         </Link>
       </div>
 
