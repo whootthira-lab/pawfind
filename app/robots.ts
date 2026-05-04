@@ -7,20 +7,20 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: [
-          '/',
-          '/api/og', // ✨ สำคัญ: ต้องอนุญาตให้บอททุกตัวเข้าถึงตัวสร้างรูปภาพ OG ได้
-        ],
-        disallow: [
-          '/admin/',      
-          '/dashboard/',
-          '/_next/',
-          // '/api/',  <-- นำบรรทัดนี้ออกเพื่อให้บอทเข้าถึง /api/og ได้
-        ],
+        allow: ['/', '/api/og'],
+        disallow: ['/admin/', '/dashboard/', '/_next/'],
       },
-      // ✨ อนุญาตบอทโซเชียลเป็นแขก VIP เข้าได้ทุกส่วน
+      // ✅ แยกกฎของ Facebook ออกมาให้ชัดเจน
       {
-        userAgent: ['facebookexternalhit', 'Twitterbot', 'Line'],
+        userAgent: 'facebookexternalhit',
+        allow: '/',
+      },
+      {
+        userAgent: 'Twitterbot',
+        allow: '/',
+      },
+      {
+        userAgent: 'Line',
         allow: '/',
       }
     ],
