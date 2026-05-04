@@ -52,14 +52,14 @@ export function Navbar() {
           </span>
         </Link>
         
+        {/* แก้ไขชื่อปุ่มและลิงก์สำหรับ Desktop ตรงนี้ */}
         <div className="hidden md:flex items-center gap-6 text-sm font-bold text-ori-ink-m">
-          <Link href="/search?status=lost" className="hover:text-ori-orange transition-colors">🔔 ตามหาน้อง</Link>
-          <Link href="/search?status=found" className="hover:text-ori-blue transition-colors">👀 พบเห็นสัตว์</Link>
-          <Link href="/search?status=adoption" className="hover:text-ori-green transition-colors">💖 หาบ้าน</Link>
+          <Link href="/report?status=lost" className="hover:text-ori-orange transition-colors">🔔 ลงประกาศหาน้อง</Link>
+          <Link href="/report?status=found" className="hover:text-ori-blue transition-colors">👀 แจ้งพบสัตว์หลง</Link>
+          <Link href="/report?status=adoption" className="hover:text-ori-green transition-colors">💖 ประกาศหาบ้านให้น้อง</Link>
         </div>
         
         <div className="hidden md:flex items-center gap-2">
-          {/* 💡 ตรวจสอบเงื่อนไข: ถ้ามี User ให้แสดงโปรไฟล์/ล็อกเอาท์ ถ้าไม่มีให้แสดงเข้าสู่ระบบ */}
           {user ? (
             <>
               <Link href="/profile" className="ori-btn ori-btn-white ori-btn-sm text-sm px-3 flex items-center gap-2">
@@ -81,13 +81,13 @@ export function Navbar() {
         </button>
       </div>
       
-      {/* Mobile Menu */}
+      {/* แก้ไขชื่อปุ่มและลิงก์สำหรับ Mobile ตรงนี้ */}
       {open && (
         <div className="md:hidden border-t-2 border-ori-ink px-5 py-4 flex flex-col gap-3"
           style={{ background: '#F5EDD8' }}>
-          <Link href="/search?status=lost" onClick={() => setOpen(false)} className="font-bold py-2 border-b border-ori-cream-d">🔔 ตามหาน้อง</Link>
-          <Link href="/search?status=found" onClick={() => setOpen(false)} className="font-bold py-2 border-b border-ori-cream-d">👀 พบเห็นสัตว์</Link>
-          <Link href="/search?status=adoption" onClick={() => setOpen(false)} className="font-bold py-2 border-b border-ori-cream-d">💖 หาบ้าน</Link>
+          <Link href="/report?status=lost" onClick={() => setOpen(false)} className="font-bold py-2 border-b border-ori-cream-d">🔔 ลงประกาศหาน้อง</Link>
+          <Link href="/report?status=found" onClick={() => setOpen(false)} className="font-bold py-2 border-b border-ori-cream-d">👀 แจ้งพบสัตว์หลง</Link>
+          <Link href="/report?status=adoption" onClick={() => setOpen(false)} className="font-bold py-2 border-b border-ori-cream-d">💖 ประกาศหาบ้านให้น้อง</Link>
           <div className="flex gap-2 pt-2">
             {user ? (
               <>
