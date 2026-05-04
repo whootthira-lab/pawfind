@@ -18,12 +18,34 @@ export function CommentSection({ petId }: { petId: string }) {
 
   useEffect(() => {
     fetchComments()
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
-    }
     checkUser()
+
+    // เปิดระบบ Realtime: เมื่อมีคนคอมเมนต์ใหม่ ให้ Update รายการทันที
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'comments',
+          filter: `pet_id=eq.${petId}`,
+        },
+        (payload) => {
+          setComments((prev) => [...prev, payload.new])
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [petId])
+
+  const checkUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    setUser(user)
+  }
 
   const fetchComments = async () => {
     const { data } = await supabase
@@ -35,69 +57,84 @@ export function CommentSection({ petId }: { petId: string }) {
   }
 
   const handleSend = async () => {
-    if (!newComment.trim() || !user) return
-    setLoading(true)
+    if (!newComment.trim() || !user || loading) return
 
+    setLoading(true)
     const { error } = await supabase.from('comments').insert({
       pet_id: petId,
       user_id: user.id,
-      content: newComment,
-      user_name: user.user_metadata?.first_name || 'ผู้ใช้งาน',
-      user_avatar: user.user_metadata?.avatar_url
+      content: newComment.trim(),
+      user_name: user.user_metadata?.first_name || user.email?.split('@')[0] || 'ผู้ใช้งาน',
+      user_avatar: user.user_metadata?.avatar_url || null
     })
 
-    if (!error) {
+    if (error) {
+      console.error('Error sending comment:', error.message)
+      alert('ไม่สามารถส่งคอมเมนต์ได้: ' + error.message)
+    } else {
       setNewComment('')
-      fetchComments()
     }
     setLoading(false)
   }
 
   return (
-    <div className="mt-6 border-t-2 border-ori-ink pt-6">
-      <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
-        <MessageCircle size={20} /> ความคิดเห็น ({comments.length})
-      </h3>
+    <div className="mt-8 space-y-6">
+      <div className="flex items-center gap-2 text-ori-ink font-bold border-b-2 border-ori-ink pb-2">
+        <MessageCircle size={20} />
+        <span>ความคิดเห็น ({comments.length})</span>
+      </div>
 
-      <div className="flex flex-col gap-4 mb-6">
+      {/* รายการคอมเมนต์ */}
+      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
         {comments.map((comment) => (
-          <div key={comment.id} className="bg-white border-2 border-ori-ink rounded-xl p-4 shadow-paper-sm">
+          <div key={comment.id} className="bg-white border-2 border-ori-ink p-4 rounded-2xl shadow-paper-sm">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-ori-cream border-2 border-ori-ink overflow-hidden">
+              <div className="w-8 h-8 rounded-full bg-ori-cream border-2 border-ori-ink overflow-hidden flex items-center justify-center">
                 {comment.user_avatar ? (
                   <img src={comment.user_avatar} alt="" className="w-full h-full object-cover" />
-                ) : <User size={16} className="m-auto mt-1" />}
+                ) : (
+                  <User size={16} className="text-ori-ink" />
+                )}
               </div>
-              <span className="font-bold text-sm">{comment.user_name}</span>
-              <span className="text-xs text-ori-ink-l">
+              <span className="font-bold text-sm text-ori-ink">{comment.user_name}</span>
+              <span className="text-[10px] text-gray-400">
                 • {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: th })}
               </span>
             </div>
-            <p className="text-ori-ink-m">{comment.content}</p>
+            <p className="text-ori-ink-m text-sm ml-10">{comment.content}</p>
           </div>
         ))}
+        {comments.length === 0 && (
+          <p className="text-center text-gray-400 py-4 text-sm">ยังไม่มีความคิดเห็น มาเป็นคนแรกกัน!</p>
+        )}
       </div>
 
+      {/* ช่องกรอกข้อมูล */}
       {user ? (
-        <div className="flex gap-2">
+        <div className="flex gap-2 bg-white p-2 rounded-2xl border-2 border-ori-ink shadow-paper-sm focus-within:shadow-none transition-all">
           <input
             type="text"
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            placeholder="เขียนข้อความ..."
-            className="ori-input flex-1"
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="เขียนข้อความแสดงความยินดีหรือสอบถาม..."
+            className="flex-1 bg-transparent px-3 py-2 outline-none text-sm"
           />
           <button 
             onClick={handleSend}
-            disabled={loading}
-            className="ori-btn-orange p-3 rounded-xl shadow-paper-sm hover:shadow-none translate-y-0 active:translate-y-1"
+            disabled={loading || !newComment.trim()}
+            className={`p-3 rounded-xl transition-all ${
+              loading || !newComment.trim() 
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                : 'bg-orange-500 text-white hover:bg-orange-600 active:translate-y-1'
+            }`}
           >
-            <Send size={20} />
+            <Send size={20} className={loading ? 'animate-pulse' : ''} />
           </button>
         </div>
       ) : (
-        <div className="text-center p-4 bg-ori-cream-d rounded-xl font-bold border-2 border-dashed border-ori-ink-l">
-          กรุณาเข้าสู่ระบบเพื่อแสดงความคิดเห็น
+        <div className="text-center p-6 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300">
+          <p className="text-sm text-gray-500">กรุณาเข้าสู่ระบบเพื่อแสดงความคิดเห็น 🐾</p>
         </div>
       )}
     </div>
