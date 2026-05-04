@@ -30,11 +30,11 @@ export default function NotificationBell() {
     let channel: any = null;
 
     const initNotifications = async () => {
-      // 1. รอเช็คให้ชัวร์ก่อนว่าใครล็อกอิน
+      // 1. ตรวจสอบผู้ใช้ปัจจุบัน
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // 2. ดึงข้อมูลแจ้งเตือนเดิมมาโชว์
+      // 2. ดึงข้อมูล 5 รายการล่าสุดมาแสดงก่อน
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
@@ -47,7 +47,7 @@ export default function NotificationBell() {
         setUnreadCount(data.filter(n => !n.is_read).length)
       }
 
-      // 3. เริ่มดักฟังแจ้งเตือนใหม่ (แบบล็อกเป้าเฉพาะ User นี้)
+      // 3. เริ่มดักฟัง Realtime แบบล็อกเป้าเฉพาะ User นี้ (user_id=eq)
       channel = supabase
         .channel(`user-notifications-${user.id}`)
         .on('postgres_changes', 
@@ -55,22 +55,19 @@ export default function NotificationBell() {
             event: 'INSERT', 
             schema: 'public', 
             table: 'notifications',
-            filter: `user_id=eq.${user.id}` // กรองเอาเฉพาะของฉัน!
+            filter: `user_id=eq.${user.id}` 
           }, 
           (payload) => {
-            console.log('🔔 มีแจ้งเตือนใหม่เข้ามาแล้ว!', payload)
+            console.log('🔔 ได้รับการแจ้งเตือนใหม่:', payload.new)
             const newNotif = payload.new as Notification
             setNotifications(prev => {
-              // ป้องกันการโชว์ซ้ำ
               if (prev.some(n => n.id === newNotif.id)) return prev
               return [newNotif, ...prev].slice(0, 5)
             })
             setUnreadCount(prev => prev + 1)
           }
         )
-        .subscribe((status) => {
-          console.log('📡 สถานะเชื่อมต่อ Realtime:', status)
-        })
+        .subscribe()
     }
 
     initNotifications()
@@ -116,7 +113,7 @@ export default function NotificationBell() {
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50">
-          <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+          <div className="p-4 border-b border-gray-50 bg-gray-50/50">
             <h3 className="font-bold text-gray-800">การแจ้งเตือน</h3>
           </div>
 
@@ -129,18 +126,18 @@ export default function NotificationBell() {
                   onClick={() => setIsOpen(false)}
                   className={`flex items-start gap-3 p-4 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0 ${!notif.is_read ? 'bg-blue-50/30' : ''}`}
                 >
-                  <div className="bg-blue-100 p-2 rounded-full">
+                  <div className="bg-blue-100 p-2 rounded-full flex-shrink-0">
                     {notif.type === 'comment' ? <MessageCircle className="w-4 h-4 text-blue-600" /> : <User className="w-4 h-4 text-blue-600" />}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-700 leading-snug">
-                      <span className="font-semibold text-gray-900">มีข้อความใหม่</span> {notif.content}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-700 leading-snug break-words">
+                      {notif.content}
                     </p>
                     <p className="text-[10px] text-gray-400 mt-1">
                       {new Date(notif.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
                     </p>
                   </div>
-                  {!notif.is_read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>}
+                  {!notif.is_read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>}
                 </Link>
               ))
             ) : (
