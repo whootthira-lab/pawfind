@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { Button } from '@/components/ui/button'
-import Image from 'next/image' // เพิ่ม Image ของ Next.js
+import Image from 'next/image'
 import { 
   LogIn, Mail, Loader2, CheckCircle2, AlertCircle, 
   UserPlus, MapPin, Phone, Camera, Link as LinkIcon, Cake 
@@ -74,15 +74,25 @@ export default function LoginPage() {
     setLoading(true)
     setMessage(null)
 
+    // ✅ แก้ไข: ใช้ .maybeSingle() แทน .single() เพื่อป้องกัน Error หากไม่เจอข้อมูล
     const { data, error } = await supabase
       .from('profiles')
       .select('email')
       .eq('email', email)
-      .single()
+      .maybeSingle()
+
+    if (error) {
+      console.error('Check email error:', error)
+      setMessage({ type: 'error', text: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' })
+      setLoading(false)
+      return
+    }
 
     if (data) {
+      // มีข้อมูลอยู่แล้ว ส่ง OTP เพื่อล็อกอิน
       await handleSendOTP(email)
     } else {
+      // ไม่มีข้อมูล เปลี่ยนไปหน้าลงทะเบียน
       setStep('register')
       setLoading(false)
     }
@@ -143,7 +153,6 @@ export default function LoginPage() {
                 <LogIn size={42} />
               </div>
             </div>
-            {/* เปลี่ยนชื่อแบรนด์ตรงนี้ */}
             <h1 className="text-3xl font-black text-center mb-2 italic tracking-tight uppercase">PobPet Login</h1>
             <p className="text-center font-bold text-gray-400 mb-8 uppercase tracking-widest text-xs">Community Connectivity</p>
             
@@ -176,7 +185,6 @@ export default function LoginPage() {
               <div className="md:col-span-2 bg-gray-50 p-6 border-4 border-black rounded-2xl flex flex-col items-center gap-4 shadow-inner">
                 <div className="w-28 h-28 bg-white rounded-full border-4 border-black flex items-center justify-center overflow-hidden shadow-paper-sm relative group">
                   {formData.avatar_url ? (
-                    // ใช้ next/image แทน <img>
                     <Image 
                       src={formData.avatar_url} 
                       alt="Profile Preview" 
@@ -235,21 +243,18 @@ export default function LoginPage() {
                   onChange={e => setFormData({...formData, province: e.target.value})} />
               </div>
 
-              {/* แยกอำเภอออกมา */}
               <div className="space-y-1">
                 <label className="font-black text-sm ml-1 text-gray-500 uppercase">อำเภอ / เขต</label>
                 <input required placeholder="เช่น ด่านขุนทด" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
                   onChange={e => setFormData({...formData, district: e.target.value})} />
               </div>
 
-              {/* แยกตำบลออกมา (แก้ไขความกว้างให้เท่าอำเภอ) */}
               <div className="space-y-1">
                 <label className="font-black text-sm ml-1 text-gray-500 uppercase">ตำบล / แขวง</label>
                 <input required placeholder="เช่น สระจระเข้" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
                   onChange={e => setFormData({...formData, subdistrict: e.target.value})} />
               </div>
 
-              {/* ที่อยู่ขยายเต็ม 2 คอลัมน์ */}
               <div className="md:col-span-2 space-y-1">
                 <label className="font-black text-sm ml-1 uppercase text-gray-500">ที่อยู่โดยละเอียด</label>
                 <textarea rows={2} required placeholder="บ้านเลขที่, หมู่บ้าน, ซอย..." className="w-full border-2 border-black rounded-lg p-3 font-bold resize-none" 
