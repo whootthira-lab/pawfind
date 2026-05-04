@@ -5,43 +5,45 @@ import { createBrowserClient } from '@supabase/ssr'
 import { MatchResultCard } from '@/components/pet/MatchResult'
 import { RadiusExpander } from '@/components/search/RadiusExpander'
 import Link from 'next/link'
-import { Search, Loader2, ChevronDown } from 'lucide-react'
+import { Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 
-// 💡 สร้าง Component ย่อยเพื่อรองรับ Suspense (กฎของ Next.js เวลามีการดึง URL Params)
 function SearchContent() {
   const searchParams = useSearchParams()
   const radiusStr = searchParams.get('radius')
   const radius = radiusStr ? parseInt(radiusStr) : 10
   
-  // ดึงค่า Tab ปัจจุบัน (ค่าเริ่มต้นคือ 'all')
   const currentTab = searchParams.get('tab') || 'all'
 
   const [pets, setPets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const [page, setPage] = useState(0)
+  const [page, setPage] = useState(0) // หน้าปัจจุบัน (เริ่มที่ 0)
+  const [totalCount, setTotalCount] = useState(0) // จำนวนข้อมูลทั้งหมดในหมวดหมู่นั้นๆ
 
-  const ITEMS_PER_PAGE = 12 // 💡 โหลดทีละ 12 การ์ด
+  const ITEMS_PER_PAGE = 6 // 💡 เปลี่ยนมาแสดงทีละ 6 การ์ด (2 แถว x 3 การ์ด)
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // ฟังก์ชันดึงข้อมูลจากฐานข้อมูล
-  const fetchPets = async (pageNumber: number, isLoadMore = false) => {
-    if (!isLoadMore) setLoading(true)
-    else setLoadingMore(true)
+  const fetchPets = async (pageNumber: number) => {
+    setLoading(true)
 
-    // ใช้คำสั่ง .range() เพื่อจำกัดจำนวนการโหลด
+    // นับจำนวนข้อมูลทั้งหมดก่อน เพื่อใช้คำนวณปุ่ม "ถัดไป"
+    let countQuery = supabase.from('pets').select('*', { count: 'exact', head: true })
+    if (currentTab !== 'all') {
+      countQuery = countQuery.eq('status', currentTab)
+    }
+    const { count } = await countQuery
+    if (count !== null) setTotalCount(count)
+
+    // ดึงข้อมูลตามหน้าที่เลือก (ทีละ 6)
     let query = supabase
       .from('pets')
       .select('*, pet_images(storage_url, is_primary)')
       .order('created_at', { ascending: false })
       .range(pageNumber * ITEMS_PER_PAGE, (pageNumber + 1) * ITEMS_PER_PAGE - 1)
 
-    // กรองตามหมวดหมู่
     if (currentTab !== 'all') {
       query = query.eq('status', currentTab)
     }
@@ -59,42 +61,40 @@ function SearchContent() {
           || p.pet_images?.[0]?.storage_url 
           || (p.images && p.images.length > 0 ? p.images[0] : '')
       }))
-
-      if (isLoadMore) {
-        setPets(prev => [...prev, ...formattedPets]) // นำของใหม่ไปต่อท้ายของเดิม
-      } else {
-        setPets(formattedPets) // โหลดครั้งแรกให้แทนที่เลย
-      }
-
-      // เช็คว่ามีข้อมูลชุดต่อไปให้โหลดอีกไหม
-      setHasMore(data.length === ITEMS_PER_PAGE)
+      setPets(formattedPets)
     }
-    
     setLoading(false)
-    setLoadingMore(false)
   }
 
-  // โหลดข้อมูลใหม่ทุกครั้งที่เปลี่ยน Tab หรือ รัศมี
+  // โหลดเมื่อเปลี่ยน Tab หรือ รัศมี (รีเซ็ตกลับไปหน้าแรก)
   useEffect(() => {
     setPage(0)
-    setHasMore(true)
-    fetchPets(0, false)
+    fetchPets(0)
   }, [currentTab, radius])
 
-  // ฟังก์ชันเมื่อกดปุ่ม "โหลดเพิ่มเติม"
-  const handleLoadMore = () => {
-    const nextPage = page + 1
-    setPage(nextPage)
-    fetchPets(nextPage, true)
+  // ฟังก์ชันเปลี่ยนหน้า
+  const handlePrevPage = () => {
+    if (page > 0) {
+      setPage(page - 1)
+      fetchPets(page - 1)
+    }
   }
 
-  // ฟังก์ชันตกแต่งปุ่ม Tab
+  const handleNextPage = () => {
+    if ((page + 1) * ITEMS_PER_PAGE < totalCount) {
+      setPage(page + 1)
+      fetchPets(page + 1)
+    }
+  }
+
   const getTabStyle = (tabName: string, colorClass: string) => {
     const isActive = currentTab === tabName
     return `flex-1 py-3 px-4 font-bold text-center border-2 border-black rounded-lg shadow-paper-sm transition-all flex items-center justify-center gap-2 ${
       isActive ? colorClass + ' translate-y-1 shadow-none' : 'bg-white hover:bg-gray-50 hover:-translate-y-1 hover:shadow-paper'
     }`
   }
+
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
 
   return (
     <div className="flex flex-col gap-6 mb-20 max-w-6xl mx-auto px-4">
@@ -103,7 +103,6 @@ function SearchContent() {
         <p className="font-medium text-lg">ค้นหาสัตว์เลี้ยงที่หายไป หรืออุปการะเพื่อนใหม่</p>
       </div>
 
-      {/* 💡 ระบบ Tabs 4 หมวดหมู่ครบถ้วน */}
       <div className="flex flex-col sm:flex-row gap-4 mb-2">
         <Link href={`/search?tab=all&radius=${radius}`} className={getTabStyle('all', 'bg-black text-white')}>
           <Search size={20} /> ทั้งหมด
@@ -119,16 +118,15 @@ function SearchContent() {
         </Link>
       </div>
 
-      <RadiusExpander resultCount={pets.length} />
+      <RadiusExpander resultCount={totalCount} />
 
-      {/* พื้นที่แสดงการ์ด หรือ สถานะโหลด */}
       {loading ? (
-        <div className="flex justify-center items-center py-20">
+        <div className="flex justify-center items-center py-20 min-h-[400px]">
           <Loader2 className="animate-spin text-ori-orange" size={48} />
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[600px] content-start">
             {pets.map(pet => (
               <MatchResultCard key={pet.id} result={pet} />
             ))}
@@ -140,16 +138,27 @@ function SearchContent() {
             </div>
           )}
 
-          {/* 💡 ปุ่มโหลดเพิ่มเติม (จะแสดงก็ต่อเมื่อยังมีข้อมูลในฐานข้อมูลเหลืออยู่) */}
-          {hasMore && pets.length > 0 && (
-            <div className="flex justify-center mt-8">
+          {/* 💡 ระบบควบคุมหน้า (Pagination) แบบ Swipe Feel */}
+          {totalCount > ITEMS_PER_PAGE && (
+            <div className="flex items-center justify-center gap-6 mt-8">
               <button 
-                onClick={handleLoadMore} 
-                disabled={loadingMore}
-                className="bg-white border-2 border-black px-8 py-3 rounded-full font-bold shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all flex items-center gap-2 disabled:opacity-50"
+                onClick={handlePrevPage}
+                disabled={page === 0}
+                className="p-4 bg-white border-4 border-black rounded-full shadow-paper hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0 transition-all"
               >
-                {loadingMore ? <Loader2 className="animate-spin" size={20} /> : <ChevronDown size={20} />}
-                {loadingMore ? 'กำลังโหลด...' : 'โหลดเพิ่มเติม'}
+                <ChevronLeft size={32} />
+              </button>
+              
+              <div className="font-bold text-xl font-mono px-6 py-2 bg-white border-2 border-black rounded-xl">
+                {page + 1} / {totalPages}
+              </div>
+
+              <button 
+                onClick={handleNextPage}
+                disabled={(page + 1) * ITEMS_PER_PAGE >= totalCount}
+                className="p-4 bg-white border-4 border-black rounded-full shadow-paper hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0 transition-all"
+              >
+                <ChevronRight size={32} />
               </button>
             </div>
           )}
@@ -159,7 +168,6 @@ function SearchContent() {
   )
 }
 
-// 💡 Export ตัวหลักที่ห่อด้วย Suspense (ป้องกัน Error จาก Vercel ตอน Build)
 export default function SearchPage() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-ori-orange" size={48} /></div>}>
