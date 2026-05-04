@@ -5,6 +5,7 @@ import { PetGallery } from '@/components/pet/PetGallery'
 import { Phone, MessageCircle, ExternalLink, UserCircle2 } from 'lucide-react'
 import { Metadata, ResolvingMetadata } from 'next' 
 import ShareButton from '@/components/pet/ShareButton'
+import { CommentSection } from '@/components/pet/CommentSection' // 💡 นำเข้า CommentSection
 
 type Props = {
   params: { id: string }
@@ -259,6 +260,12 @@ export default async function PetProfilePage({ params }: Props) {
               </div>
             </div>
           )}
+
+          {/* 💡 เพิ่มส่วนคอมเมนต์ตรงนี้ */}
+          <div className="mt-12">
+            <CommentSection petId={params.id} /> 
+          </div>
+
         </div>
       </div>
     </div>
