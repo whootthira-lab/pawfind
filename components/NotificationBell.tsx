@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Bell, MessageCircle, User } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 import Link from 'next/link'
@@ -21,35 +21,38 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   
-  const supabase = createBrowserClient(
+  // สร้าง Client ไว้ข้างนอกเพื่อความคงที่
+  const [supabase] = useState(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  ))
+
+  const fetchInitialData = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5)
+
+    if (!error && data) {
+      setNotifications(data)
+      setUnreadCount(data.filter(n => !n.is_read).length)
+    }
+  }, [supabase])
 
   useEffect(() => {
-    let channel: any = null;
+    let channel: any = null
 
-    const initNotifications = async () => {
-      // 1. ตรวจสอบผู้ใช้ปัจจุบัน
+    const setupRealtime = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // 2. ดึงข้อมูล 5 รายการล่าสุดมาแสดงก่อน
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5)
+      await fetchInitialData(user.id)
 
-      if (!error && data) {
-        setNotifications(data)
-        setUnreadCount(data.filter(n => !n.is_read).length)
-      }
-
-      // 3. เริ่มดักฟัง Realtime แบบล็อกเป้าเฉพาะ User นี้ (user_id=eq)
+      // เริ่มการเชื่อมต่อ Realtime
       channel = supabase
-        .channel(`user-notifications-${user.id}`)
+        .channel(`public:notifications:user_id=eq.${user.id}`)
         .on('postgres_changes', 
           { 
             event: 'INSERT', 
@@ -58,91 +61,95 @@ export default function NotificationBell() {
             filter: `user_id=eq.${user.id}` 
           }, 
           (payload) => {
-            console.log('🔔 ได้รับการแจ้งเตือนใหม่:', payload.new)
             const newNotif = payload.new as Notification
             setNotifications(prev => {
               if (prev.some(n => n.id === newNotif.id)) return prev
               return [newNotif, ...prev].slice(0, 5)
             })
             setUnreadCount(prev => prev + 1)
+            // เพิ่มเสียงแจ้งเตือนสั้นๆ (ถ้าต้องการ)
           }
         )
-        .subscribe()
+        .subscribe((status) => {
+          console.log('📡 สถานะการเชื่อมต่อ Realtime:', status)
+        })
     }
 
-    initNotifications()
+    setupRealtime()
 
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [supabase, fetchInitialData])
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
-
-    return () => {
-      if (channel) supabase.removeChannel(channel)
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [supabase])
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const markAsRead = async () => {
-    setUnreadCount(0)
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', user.id)
-        .eq('is_read', false)
-    }
+    if (!user) return
+
+    setUnreadCount(0)
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false)
   }
 
   return (
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => { setIsOpen(!isOpen); if(!isOpen) markAsRead(); }}
-        className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors focus:outline-none"
+        className="relative p-2 text-ori-ink-l hover:bg-ori-cream rounded-full transition-all focus:outline-none"
       >
         <Bell className="w-6 h-6" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white animate-pulse">
+          <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white animate-bounce">
             {unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50">
-          <div className="p-4 border-b border-gray-50 bg-gray-50/50">
-            <h3 className="font-bold text-gray-800">การแจ้งเตือน</h3>
+        <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-paper border-2 border-ori-ink overflow-hidden z-50">
+          <div className="p-4 border-b-2 border-ori-ink bg-ori-cream-d">
+            <h3 className="font-bold text-ori-ink text-sm">การแจ้งเตือนล่าสุด 🐾</h3>
           </div>
 
-          <div className="max-h-[400px] overflow-y-auto">
+          <div className="max-h-[350px] overflow-y-auto custom-scrollbar">
             {notifications.length > 0 ? (
               notifications.map((notif) => (
                 <Link 
                   key={notif.id} 
                   href={notif.link}
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-start gap-3 p-4 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0 ${!notif.is_read ? 'bg-blue-50/30' : ''}`}
+                  className={`flex items-start gap-3 p-4 hover:bg-ori-cream transition-colors border-b border-ori-ink last:border-0 ${!notif.is_read ? 'bg-orange-50/50' : ''}`}
                 >
-                  <div className="bg-blue-100 p-2 rounded-full flex-shrink-0">
-                    {notif.type === 'comment' ? <MessageCircle className="w-4 h-4 text-blue-600" /> : <User className="w-4 h-4 text-blue-600" />}
+                  <div className="bg-white border border-ori-ink p-2 rounded-full flex-shrink-0 shadow-paper-sm">
+                    {notif.type === 'comment' ? <MessageCircle size={14} className="text-orange-500" /> : <User size={14} className="text-blue-500" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-700 leading-snug break-words">
+                    <p className="text-xs text-ori-ink leading-relaxed break-words">
                       {notif.content}
                     </p>
-                    <p className="text-[10px] text-gray-400 mt-1">
+                    <p className="text-[10px] text-ori-ink-l mt-1 opacity-60">
                       {new Date(notif.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
                     </p>
                   </div>
-                  {!notif.is_read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>}
+                  {!notif.is_read && <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0 animate-pulse"></div>}
                 </Link>
               ))
             ) : (
-              <div className="p-8 text-center text-gray-400 text-sm">
-                ยังไม่มีการแจ้งเตือนใหม่ 🐾
+              <div className="p-10 text-center text-ori-ink-l text-xs italic">
+                ยังไม่มีการแจ้งเตือนใหม่ในตอนนี้...
               </div>
             )}
           </div>
