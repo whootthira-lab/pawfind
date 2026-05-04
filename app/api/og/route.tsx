@@ -1,11 +1,16 @@
 // app/api/og/route.tsx
-// ── Dynamic OG Image — รองรับ Facebook, X, LINE, Instagram ──
-// ต้องติดตั้ง: npm install @vercel/og
-
 import { ImageResponse } from '@vercel/og'
 import { NextRequest } from 'next/server'
 
 export const runtime = 'edge'
+
+// ── โหลด Noto Sans Thai font (รองรับภาษาไทย) ──────────────
+async function loadThaiFont() {
+  // ใช้ Google Fonts API โหลด Noto Sans Thai weight 700
+  const url = 'https://fonts.gstatic.com/s/notosansthai/v20/iJWnBXeUZi_OHPqn4wq6hQ2_hbJ1xyN9wd43SofCRgo.woff'
+  const res  = await fetch(url)
+  return res.arrayBuffer()
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -14,178 +19,211 @@ export async function GET(req: NextRequest) {
   const status   = searchParams.get('status')   || 'lost'
   const breed    = searchParams.get('breed')    || ''
   const province = searchParams.get('province') || ''
-  const imageUrl = searchParams.get('image')    || ''  // ต้องเป็น https URL
+  const imageUrl = searchParams.get('image')    || ''
   const reward   = searchParams.get('reward')   || '0'
 
-  const statusConfig: Record<string, { label: string; bg: string; border: string }> = {
-    lost:     { label: '🚨 ตามหาเจ้าของ',   bg: '#FDE8ED', border: '#C07080' },
-    found:    { label: '👀 พบน้องหลงทาง',   bg: '#E4F0E5', border: '#4A7D50' },
-    adoption: { label: '💖 หาบ้านใหม่',     bg: '#E2EFF8', border: '#3A6A8A' },
+  // โหลด font ก่อน render
+  const fontData = await loadThaiFont()
+
+  const statusConfig: Record<string, { label: string; bg: string; border: string; accent: string }> = {
+    lost:     { label: 'ตามหาเจ้าของ', bg: '#FDE8ED', border: '#C07080', accent: '#D94F1E' },
+    found:    { label: 'พบน้องหลงทาง', bg: '#E4F0E5', border: '#4A7D50', accent: '#2D6A2D' },
+    adoption: { label: 'หาบ้านใหม่',   bg: '#E2EFF8', border: '#3A6A8A', accent: '#1A5EA8' },
   }
   const cfg = statusConfig[status] || statusConfig.lost
+
+  // ตรวจสอบว่า imageUrl ใช้ได้ไหม (ต้องเป็น https)
+  const validImage = imageUrl.startsWith('https://') ? imageUrl : ''
 
   return new ImageResponse(
     (
       <div
         style={{
-          width: '1200px',
+          width:  '1200px',
           height: '630px',
           display: 'flex',
-          fontFamily: 'sans-serif',
-          background: '#FAF7F2',
-          border: '8px solid #2A2018',
+          fontFamily: '"NotoSansThai"',
+          background: '#F5EDD8',
+          // Grid paper background
+          backgroundImage: 'radial-gradient(circle, #C8B89060 1px, transparent 1px)',
+          backgroundSize: '28px 28px',
+          border: '0px solid transparent',
           position: 'relative',
           overflow: 'hidden',
         }}
       >
-        {/* Left — Pet Image */}
-        <div style={{ width: '480px', flexShrink: 0, position: 'relative', display: 'flex' }}>
-          {imageUrl ? (
+        {/* ── Left color zone — Green (Lost) or Blue (Found) ── */}
+        <div style={{
+          width: '420px', flexShrink: 0,
+          background: status === 'lost' ? '#E8F3E8' : status === 'found' ? '#E3EEF8' : '#FDE8F4',
+          borderRight: '4px solid #1A1208',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          {/* Status label top */}
+          <div style={{
+            position: 'absolute', top: '24px', left: '20px',
+            background: cfg.accent, color: '#fff',
+            border: '2.5px solid #1A1208',
+            borderRadius: '999px',
+            padding: '8px 20px',
+            fontSize: '20px', fontWeight: 700,
+            display: 'flex', alignItems: 'center', gap: '6px',
+            boxShadow: `3px 3px 0 #1A1208`,
+          }}>
+            {status === 'lost' ? '🔔' : status === 'found' ? '👀' : '💖'} {cfg.label}
+          </div>
+
+          {/* Pet image or emoji fallback */}
+          {validImage ? (
             <img
-              src={imageUrl}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              src={validImage}
+              style={{
+                width: '320px', height: '320px',
+                objectFit: 'cover',
+                borderRadius: '16px',
+                border: '4px solid #1A1208',
+                boxShadow: '6px 6px 0 #1A1208',
+              }}
               alt={name}
             />
           ) : (
             <div style={{
-              width: '100%', height: '100%',
-              background: '#F5F0E8',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '280px', height: '280px',
+              background: '#fff',
+              border: '4px solid #1A1208',
+              borderRadius: '16px',
+              boxShadow: '6px 6px 0 #1A1208',
+              display: 'flex', alignItems: 'center',
+              justifyContent: 'center',
               fontSize: '120px',
             }}>
               🐾
             </div>
           )}
-          {/* Status badge overlay */}
+
+          {/* Paw decoration bottom */}
           <div style={{
-            position: 'absolute', bottom: '20px', left: '20px',
-            background: cfg.bg,
-            border: `3px solid ${cfg.border}`,
-            borderRadius: '8px',
-            padding: '8px 16px',
-            fontSize: '22px',
-            fontWeight: 700,
-            boxShadow: `4px 4px 0 ${cfg.border}`,
+            position: 'absolute', bottom: '16px',
+            display: 'flex', gap: '12px', opacity: 0.25, fontSize: '24px',
           }}>
-            {cfg.label}
+            🐾🐾🐾
           </div>
         </div>
 
-        {/* Right — Info */}
+        {/* ── Right — Info panel ── */}
         <div style={{
           flex: 1,
-          padding: '48px 48px 40px 48px',
-          display: 'flex',
-          flexDirection: 'column',
+          padding: '40px 44px',
+          display: 'flex', flexDirection: 'column',
           justifyContent: 'space-between',
-          borderLeft: '4px solid #2A2018',
+          background: '#FFFFFF',
+          position: 'relative',
         }}>
-          {/* Top */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Brand */}
+          {/* Brand top */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
             <div style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              fontSize: '20px', fontWeight: 700, color: '#9A8E86',
-              letterSpacing: '0.1em',
-            }}>
-              <span>🐾</span>
-              <span>POBPET · ตามหาน้อง</span>
+              width: '36px', height: '36px',
+              background: '#D94F1E',
+              border: '2px solid #1A1208',
+              borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '18px',
+              boxShadow: '2px 2px 0 #1A1208',
+            }}>🐾</div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: '#9A8E86', letterSpacing: '0.08em' }}>
+              POBPET · ตามหาน้อง
             </div>
+          </div>
 
+          {/* Main content */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, justifyContent: 'center' }}>
             {/* Name */}
             <div style={{
-              fontSize: name.length > 8 ? '60px' : '72px',
+              fontSize: name.length > 10 ? '56px' : name.length > 6 ? '68px' : '80px',
               fontWeight: 900,
-              color: '#2A2018',
+              color: '#1A1208',
               lineHeight: 1.1,
-              letterSpacing: '-0.02em',
             }}>
               {name}
             </div>
 
             {/* Breed */}
             {breed && (
-              <div style={{
-                fontSize: '28px', color: '#5A4E46', fontWeight: 500,
-              }}>
+              <div style={{ fontSize: '26px', color: '#5A4E46', fontWeight: 600 }}>
                 {breed}
               </div>
             )}
 
-            {/* Location */}
+            {/* Location chip */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: '8px',
-              fontSize: '26px', fontWeight: 700, color: '#2A2018',
-              background: '#F5F0E8',
-              border: '2px solid #E2D8CE',
-              borderRadius: '8px',
-              padding: '10px 18px',
+              background: '#F5EDD8',
+              border: '2.5px solid #1A1208',
+              borderRadius: '999px',
+              padding: '10px 20px',
+              fontSize: '22px', fontWeight: 700,
               width: 'fit-content',
+              boxShadow: '3px 3px 0 #1A1208',
             }}>
-              <span>📍</span>
-              <span>{province || 'ไม่ระบุพื้นที่'}</span>
+              📍 {province || 'ไม่ระบุพื้นที่'}
             </div>
 
-            {/* Reward */}
+            {/* Reward chip */}
             {parseInt(reward) > 0 && (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
-                fontSize: '24px', fontWeight: 700,
                 background: '#FDF3DC',
-                border: '2px solid #E8C87A',
-                borderRadius: '8px',
-                padding: '10px 18px',
+                border: '2.5px solid #E8C87A',
+                borderRadius: '999px',
+                padding: '10px 20px',
+                fontSize: '22px', fontWeight: 700,
                 width: 'fit-content',
                 color: '#966A1A',
+                boxShadow: '3px 3px 0 #A07800',
               }}>
-                💰 รางวัล {parseInt(reward).toLocaleString('th-TH')} บาท
+                💰 รางวัล {parseInt(reward).toLocaleString()} บาท
               </div>
             )}
           </div>
 
-          {/* Bottom CTA */}
+          {/* CTA bottom */}
           <div style={{
-            display: 'flex', flexDirection: 'column', gap: '12px',
+            background: '#1A1208',
+            color: '#FAF6EE',
+            borderRadius: '12px',
+            padding: '18px 24px',
+            fontSize: '22px', fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginTop: '16px',
+            boxShadow: '4px 4px 0 #5A4E46',
           }}>
-            <div style={{
-              background: '#2A2018',
-              color: '#FAF7F2',
-              borderRadius: '8px',
-              padding: '16px 24px',
-              fontSize: '24px',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-            }}>
-              <span>ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🏠</span>
-            </div>
-            <div style={{
-              fontSize: '18px', color: '#9A8E86', textAlign: 'center',
-            }}>
-              pobpet.com
-            </div>
+            ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🏠
           </div>
-        </div>
 
-        {/* Corner decoration */}
-        <div style={{
-          position: 'absolute', top: 0, right: 0,
-          width: '120px', height: '120px',
-          background: '#F2AABF',
-          borderLeft: '4px solid #2A2018',
-          borderBottom: '4px solid #2A2018',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '48px',
-        }}>
-          🐾
+          {/* Domain */}
+          <div style={{
+            fontSize: '16px', color: '#CBBFB4',
+            textAlign: 'center', marginTop: '10px',
+            fontWeight: 600,
+          }}>
+            pobpet.com
+          </div>
         </div>
       </div>
     ),
     {
-      width: 1200,
+      width:  1200,
       height: 630,
+      fonts: [
+        {
+          name: 'NotoSansThai',
+          data: fontData,
+          style: 'normal',
+          weight: 700,
+        },
+      ],
     }
   )
 }
