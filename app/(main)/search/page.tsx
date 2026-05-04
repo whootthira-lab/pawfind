@@ -5,8 +5,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import { MatchResultCard } from '@/components/pet/MatchResult'
 import { RadiusExpander } from '@/components/search/RadiusExpander'
 import Link from 'next/link'
-import { Search, Loader2, ChevronLeft, ChevronRight, LayoutGrid, Layers } from 'lucide-react'
-import { SwipeInterface } from '@/app/(main)/match/SwipeInterface' // 💡 ดึงระบบ Swipe มาใช้งาน
+import { Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 
 function SearchContent() {
   const searchParams = useSearchParams()
@@ -17,9 +16,8 @@ function SearchContent() {
 
   const [pets, setPets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(0) // หน้าปัจจุบัน (เริ่มที่ 0)
-  const [totalCount, setTotalCount] = useState(0) // จำนวนข้อมูลทั้งหมดในหมวดหมู่นั้นๆ
-  const [viewMode, setViewMode] = useState<'grid' | 'swipe'>('grid') // 💡 State สลับโหมด
+  const [page, setPage] = useState(0) 
+  const [totalCount, setTotalCount] = useState(0) 
 
   const ITEMS_PER_PAGE = 6 // แสดงทีละ 6 การ์ด
 
@@ -31,7 +29,6 @@ function SearchContent() {
   const fetchPets = async (pageNumber: number) => {
     setLoading(true)
 
-    // นับจำนวนข้อมูลทั้งหมดก่อน เพื่อใช้คำนวณปุ่ม "ถัดไป"
     let countQuery = supabase.from('pets').select('*', { count: 'exact', head: true })
     if (currentTab !== 'all') {
       countQuery = countQuery.eq('status', currentTab)
@@ -39,7 +36,6 @@ function SearchContent() {
     const { count } = await countQuery
     if (count !== null) setTotalCount(count)
 
-    // ดึงข้อมูลตามหน้าที่เลือก (ทีละ 6)
     let query = supabase
       .from('pets')
       .select('*, pet_images(storage_url, is_primary)')
@@ -68,13 +64,11 @@ function SearchContent() {
     setLoading(false)
   }
 
-  // โหลดเมื่อเปลี่ยน Tab หรือ รัศมี (รีเซ็ตกลับไปหน้าแรก)
   useEffect(() => {
     setPage(0)
     fetchPets(0)
   }, [currentTab, radius])
 
-  // ฟังก์ชันเปลี่ยนหน้า
   const handlePrevPage = () => {
     if (page > 0) {
       setPage(page - 1)
@@ -122,50 +116,24 @@ function SearchContent() {
 
       <RadiusExpander resultCount={totalCount} />
 
-      {/* 💡 ปุ่มสลับโหมด Grid / Swipe */}
-      <div className="flex justify-end mb-2">
-        <div className="bg-white border-4 border-black rounded-xl inline-flex overflow-hidden shadow-paper-sm">
-          <button 
-            onClick={() => setViewMode('grid')}
-            className={`px-4 py-2 flex items-center gap-2 font-bold transition-all ${viewMode === 'grid' ? 'bg-black text-white' : 'hover:bg-gray-100'}`}
-          >
-            <LayoutGrid size={20} /> ตาราง
-          </button>
-          <button 
-            onClick={() => setViewMode('swipe')}
-            className={`px-4 py-2 flex items-center gap-2 font-bold transition-all border-l-4 border-black ${viewMode === 'swipe' ? 'bg-black text-white' : 'hover:bg-gray-100'}`}
-          >
-            <Layers size={20} /> ปัดการ์ด
-          </button>
-        </div>
-      </div>
-
       {loading ? (
         <div className="flex justify-center items-center py-20 min-h-[400px]">
           <Loader2 className="animate-spin text-ori-orange" size={48} />
         </div>
       ) : (
         <>
-          {/* 💡 แสดงผลตาม Mode ที่เลือก */}
-          {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[600px] content-start">
-              {pets.map(pet => (
-                <MatchResultCard key={pet.id} result={pet} />
-              ))}
-            </div>
-          ) : (
-            <div className="py-4 min-h-[600px]">
-              {pets.length > 0 ? (
-                <SwipeInterface initialPets={pets} />
-              ) : (
-                <div className="bg-washi border-4 border-dashed border-black rounded-2xl shadow-paper-sm p-20 text-center">
-                  <p className="font-bold text-2xl text-gray-500">ไม่พบข้อมูลในหมวดหมู่นี้</p>
-                </div>
-              )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[600px] content-start mt-4">
+            {pets.map(pet => (
+              <MatchResultCard key={pet.id} result={pet} />
+            ))}
+          </div>
+          
+          {pets.length === 0 && (
+            <div className="bg-washi border-4 border-dashed border-black rounded-2xl shadow-paper-sm p-20 text-center">
+              <p className="font-bold text-2xl text-gray-500">ไม่พบข้อมูลในหมวดหมู่นี้</p>
             </div>
           )}
 
-          {/* 💡 ระบบควบคุมหน้า (Pagination) แสดงเสมอทั้ง 2 โหมด */}
           {totalCount > ITEMS_PER_PAGE && (
             <div className="flex items-center justify-center gap-6 mt-8">
               <button 
