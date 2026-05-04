@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { Bell, MessageCircle, User } from 'lucide-react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createBrowserClient } from '@supabase/ssr'
 import Link from 'next/link'
 
 interface Notification {
@@ -20,15 +20,18 @@ export default function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const supabase = createClientComponentClient()
+  
+  // อัปเดตการเรียกใช้ Supabase แบบใหม่
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
-  // 1. ดึงข้อมูลครั้งแรกเมื่อโหลดหน้า
   useEffect(() => {
     const loadNotifications = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // ดึง 5 รายการล่าสุด
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
@@ -44,7 +47,6 @@ export default function NotificationBell() {
 
     loadNotifications()
 
-    // 2. สมัครใช้งาน Realtime
     const channel = supabase
       .channel('notification_updates')
       .on('postgres_changes', 
@@ -57,7 +59,6 @@ export default function NotificationBell() {
       )
       .subscribe()
 
-    // ปิด Dropdown เมื่อคลิกข้างนอก
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false)
@@ -71,7 +72,6 @@ export default function NotificationBell() {
     }
   }, [supabase])
 
-  // ฟังก์ชันอ่านแล้ว (Mark as Read)
   const markAsRead = async () => {
     setUnreadCount(0)
     const { data: { user } } = await supabase.auth.getUser()
@@ -86,7 +86,6 @@ export default function NotificationBell() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* ไอคอนกระดิ่ง */}
       <button 
         onClick={() => { setIsOpen(!isOpen); if(!isOpen) markAsRead(); }}
         className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors focus:outline-none"
@@ -99,7 +98,6 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* กล่อง Dropdown แจ้งเตือน */}
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50">
           <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
