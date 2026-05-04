@@ -1,17 +1,15 @@
-// app/auth/callback/route.ts
-import { NextResponse } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/'
+  // ถ้ามี URL ส่งมาให้กลับไปหน้านั้น ถ้าไม่มีให้ไปหน้าโปรไฟล์
+  const next = searchParams.get('next') ?? '/profile'
 
   if (code) {
     const cookieStore = cookies()
-    
-    // สร้าง Supabase Client และบังคับให้เขียน Cookie ลงเบราว์เซอร์ทันที
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -29,18 +27,12 @@ export async function GET(request: Request) {
         },
       }
     )
-
-    // แลก Code เป็น Session พร้อมฝัง Cookie
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    
     if (!error) {
-      // แลกสำเร็จ + ฝังคุกกี้สำเร็จ -> พาไปหน้าแรก
       return NextResponse.redirect(`${origin}${next}`)
-    } else {
-      console.error('Auth Callback Error:', error.message)
     }
   }
 
-  // ถ้าไม่มี Code หรือเกิด Error ระหว่างแลกเปลี่ยน
-  return NextResponse.redirect(`${origin}/login?error=auth-callback-failed`)
+  // ถ้า Error ให้พากลับไปหน้า Login
+  return NextResponse.redirect(`${origin}/login?error=true`)
 }
