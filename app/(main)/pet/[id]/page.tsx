@@ -10,6 +10,16 @@ type Props = {
   params: { id: string }
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
+
+// ── Helper: แปลง URL รูปภาพเพื่อส่งไปให้ตัวสร้าง OG Image ──
+function resolveImageUrl(url: string | null | undefined): string {
+  if (!url) return ''
+  if (url.startsWith('data:')) return ''
+  if (url.startsWith('http')) return url
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pet-images/${url}`
+}
+
 export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata
@@ -21,13 +31,26 @@ export async function generateMetadata(
     .eq('id', params.id)
     .single()
 
-  if (!pet) return { title: 'ไม่พบข้อมูล - PawFind' }
+  if (!pet) return { title: 'ไม่พบข้อมูล - PobPet' }
 
   const images = pet.pet_images || []
   const primaryImage = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url || ''
   
+  // ✨ สร้าง URL สำหรับรูป OG สไตล์โอริกามิ
+  const ogUrl = new URL(`${BASE_URL}/api/og`)
+  ogUrl.searchParams.set('name', pet.name || 'ไม่ทราบชื่อ')
+  ogUrl.searchParams.set('status', pet.status || 'lost')
+  if (pet.breed) ogUrl.searchParams.set('breed', pet.breed)
+  if (pet.province) ogUrl.searchParams.set('province', pet.province)
+  if (pet.reward_amount) ogUrl.searchParams.set('reward', pet.reward_amount.toString())
+  
+  const resolvedImage = resolveImageUrl(primaryImage)
+  if (resolvedImage) ogUrl.searchParams.set('image', resolvedImage)
+
+  const finalOgImageUrl = ogUrl.toString()
+  
   const statusLabel = pet.status === 'lost' ? '🚨 ตามหาเจ้าของ' : pet.status === 'found' ? '👀 พบน้องหลงทาง' : '💖 หาบ้านใหม่'
-  const title = `${statusLabel}: ${pet.name || 'ไม่ทราบชื่อ'} - PawFind`
+  const title = `${statusLabel}: ${pet.name || 'ไม่ทราบชื่อ'} - PobPet`
   const description = `พิกัด: ${pet.province} ${pet.district ? `อ.${pet.district}` : ''} | ลักษณะ: ${pet.distinctive_features || 'ช่วยเหลือน้องเพื่อกลับบ้านที่อบอุ่น'}`
 
   return {
@@ -36,14 +59,14 @@ export async function generateMetadata(
     openGraph: {
       title: title,
       description: description,
-      images: primaryImage ? [{ url: primaryImage }] : [],
+      images: [{ url: finalOgImageUrl, width: 1200, height: 630 }], // ดึงรูปที่เจนมาใหม่ไปใช้
       type: 'website',
     },
     twitter: {
       card: 'summary_large_image',
       title: title,
       description: description,
-      images: primaryImage ? [primaryImage] : [],
+      images: [finalOgImageUrl],
     },
   }
 }
@@ -104,8 +127,9 @@ export default async function PetProfilePage({ params }: Props) {
               </span>
 
               <ShareButton 
-                petName={pet.name || 'น้องสัตว์เลี้ยง'} 
-                status={pet.status === 'lost' ? 'ตามหาเจ้าของ' : 'พบน้องหลงทาง'} 
+                petName={pet.name || 'น้องสัตว์เลี้ยง'}
+                status={pet.status === 'lost' ? 'ตามหาเจ้าของ' : 'พบน้องหลงทาง'}
+                petId={params.id} 
               />
 
               {pet.reward_amount > 0 && (
@@ -174,7 +198,7 @@ export default async function PetProfilePage({ params }: Props) {
             <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
               🤖 บทวิเคราะห์จาก Gemini AI
             </h3>
-            {/* ✅ แก้ไขเป็น &quot; เพื่อป้องกัน Error ตอน Build */}
+            {/* ✅ แก้ไขให้เป็น HTML Entity */}
             <p className="text-gray-800 leading-relaxed italic">
               &quot;{pet.ai_description}&quot;
             </p>
