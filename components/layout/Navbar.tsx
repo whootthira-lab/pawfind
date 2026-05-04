@@ -1,11 +1,45 @@
 'use client'
 // components/layout/Navbar.tsx — Origami style
 import Link from 'next/link'
-import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Menu, X, LogOut, User } from 'lucide-react'
+import { createBrowserClient } from '@supabase/ssr'
+import { useRouter } from 'next/navigation'
 
 export function Navbar() {
   const [open, setOpen] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const router = useRouter()
+
+  // สร้าง Supabase Client สำหรับฝั่ง Browser
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  useEffect(() => {
+    // 1. ดึงข้อมูล User ทันทีที่โหลดหน้า Navbar
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    getUser()
+
+    // 2. คอยดักฟัง (Listen) หากมีการ Login หรือ Logout เกิดขึ้น
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      router.refresh() // สั่งให้ Next.js รีเฟรชข้อมูลเบื้องหลัง
+    })
+
+    return () => subscription.unsubscribe()
+  }, [router, supabase])
+
+  // ฟังก์ชันสำหรับออกจากระบบ
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/') // กลับหน้าแรกหลังออกจากระบบ
+  }
+
   return (
     <nav className="sticky top-0 z-[200] border-b-[2.5px] border-ori-ink"
       style={{ background: 'rgba(245,237,216,.96)', backdropFilter: 'blur(12px)' }}>
@@ -17,20 +51,37 @@ export function Navbar() {
             <span className="text-ori-green">Pob</span><span className="text-ori-orange">Pet</span>
           </span>
         </Link>
+        
         <div className="hidden md:flex items-center gap-6 text-sm font-bold text-ori-ink-m">
           <Link href="/search?status=lost" className="hover:text-ori-orange transition-colors">🔔 ตามหาน้อง</Link>
           <Link href="/search?status=found" className="hover:text-ori-blue transition-colors">👀 พบเห็นสัตว์</Link>
           <Link href="/search?status=adoption" className="hover:text-ori-green transition-colors">💖 หาบ้าน</Link>
         </div>
+        
         <div className="hidden md:flex items-center gap-2">
-          <Link href="/login" className="ori-btn ori-btn-white ori-btn-sm text-sm">เข้าสู่ระบบ</Link>
+          {/* 💡 ตรวจสอบเงื่อนไข: ถ้ามี User ให้แสดงโปรไฟล์/ล็อกเอาท์ ถ้าไม่มีให้แสดงเข้าสู่ระบบ */}
+          {user ? (
+            <>
+              <Link href="/profile" className="ori-btn ori-btn-white ori-btn-sm text-sm px-3 flex items-center gap-2">
+                <User size={16} /> บัญชีของฉัน
+              </Link>
+              <button onClick={handleLogout} className="ori-btn ori-btn-white ori-btn-sm text-sm px-3 text-red-600 hover:bg-red-50">
+                <LogOut size={16} />
+              </button>
+            </>
+          ) : (
+            <Link href="/login" className="ori-btn ori-btn-white ori-btn-sm text-sm">เข้าสู่ระบบ</Link>
+          )}
           <Link href="/report" className="ori-btn ori-btn-orange ori-btn-sm text-sm">⚡ แจ้งหายด่วน</Link>
         </div>
+
         <button className="md:hidden p-2 border-2 border-ori-ink rounded-lg bg-white"
           style={{ boxShadow: '2px 2px 0 #1A1208' }} onClick={() => setOpen(!open)}>
           {open ? <X size={20}/> : <Menu size={20}/>}
         </button>
       </div>
+      
+      {/* Mobile Menu */}
       {open && (
         <div className="md:hidden border-t-2 border-ori-ink px-5 py-4 flex flex-col gap-3"
           style={{ background: '#F5EDD8' }}>
@@ -38,8 +89,15 @@ export function Navbar() {
           <Link href="/search?status=found" onClick={() => setOpen(false)} className="font-bold py-2 border-b border-ori-cream-d">👀 พบเห็นสัตว์</Link>
           <Link href="/search?status=adoption" onClick={() => setOpen(false)} className="font-bold py-2 border-b border-ori-cream-d">💖 หาบ้าน</Link>
           <div className="flex gap-2 pt-2">
-            <Link href="/login" className="ori-btn ori-btn-white ori-btn-sm flex-1 text-sm">เข้าสู่ระบบ</Link>
-            <Link href="/report" className="ori-btn ori-btn-orange ori-btn-sm flex-1 text-sm">⚡ แจ้งหาย</Link>
+            {user ? (
+              <>
+                <Link href="/profile" className="ori-btn ori-btn-white ori-btn-sm flex-1 text-sm justify-center">โปรไฟล์</Link>
+                <button onClick={handleLogout} className="ori-btn ori-btn-white ori-btn-sm text-sm px-3 text-red-600 justify-center"><LogOut size={16} /></button>
+              </>
+            ) : (
+              <Link href="/login" className="ori-btn ori-btn-white ori-btn-sm flex-1 text-sm justify-center">เข้าสู่ระบบ</Link>
+            )}
+            <Link href="/report" className="ori-btn ori-btn-orange ori-btn-sm flex-1 text-sm justify-center">⚡ แจ้งหาย</Link>
           </div>
         </div>
       )}
