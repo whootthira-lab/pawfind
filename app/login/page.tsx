@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { Button } from '@/components/ui/button'
+import Image from 'next/image' // เพิ่ม Image ของ Next.js
 import { 
   LogIn, Mail, Loader2, CheckCircle2, AlertCircle, 
   UserPlus, MapPin, Phone, Camera, Link as LinkIcon, Cake 
@@ -40,6 +41,7 @@ export default function LoginPage() {
       if (!file) return
 
       setUploading(true)
+      setMessage(null)
       
       const fileExt = file.name.split('.').pop()
       const fileName = `${Date.now()}.${fileExt}`
@@ -54,11 +56,14 @@ export default function LoginPage() {
       const { data: { publicUrl } } = supabase.storage
         .from('profile-images')
         .getPublicUrl(filePath)
-
-      setFormData({ ...formData, avatar_url: publicUrl })
+        
+      if (publicUrl) {
+         setFormData({ ...formData, avatar_url: publicUrl })
+      }
       
-    } catch (error) {
-      alert('อัปโหลดรูปภาพไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
+    } catch (error: any) {
+      console.error('Upload Error:', error)
+      setMessage({ type: 'error', text: 'อัปโหลดรูปภาพไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' })
     } finally {
       setUploading(false)
     }
@@ -69,7 +74,7 @@ export default function LoginPage() {
     setLoading(true)
     setMessage(null)
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('email')
       .eq('email', email)
@@ -138,7 +143,8 @@ export default function LoginPage() {
                 <LogIn size={42} />
               </div>
             </div>
-            <h1 className="text-3xl font-black text-center mb-2 italic tracking-tight uppercase">PawFind Login</h1>
+            {/* เปลี่ยนชื่อแบรนด์ตรงนี้ */}
+            <h1 className="text-3xl font-black text-center mb-2 italic tracking-tight uppercase">PobPet Login</h1>
             <p className="text-center font-bold text-gray-400 mb-8 uppercase tracking-widest text-xs">Community Connectivity</p>
             
             <form onSubmit={handleCheckEmail} className="space-y-4">
@@ -170,7 +176,14 @@ export default function LoginPage() {
               <div className="md:col-span-2 bg-gray-50 p-6 border-4 border-black rounded-2xl flex flex-col items-center gap-4 shadow-inner">
                 <div className="w-28 h-28 bg-white rounded-full border-4 border-black flex items-center justify-center overflow-hidden shadow-paper-sm relative group">
                   {formData.avatar_url ? (
-                    <img src={formData.avatar_url} className="w-full h-full object-cover" alt="Preview" />
+                    // ใช้ next/image แทน <img>
+                    <Image 
+                      src={formData.avatar_url} 
+                      alt="Profile Preview" 
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 112px) 100vw, 112px"
+                    />
                   ) : (
                     <Camera size={32} className="text-gray-300" />
                   )}
