@@ -7,25 +7,20 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: '/',
+        allow: [
+          '/',
+          '/api/og', // ✨ สำคัญ: ต้องอนุญาตให้บอททุกตัวเข้าถึงตัวสร้างรูปภาพ OG ได้
+        ],
         disallow: [
-          '/api/',        
           '/admin/',      
           '/dashboard/',
           '/_next/',
+          // '/api/',  <-- นำบรรทัดนี้ออกเพื่อให้บอทเข้าถึง /api/og ได้
         ],
       },
-      // ✨ เพิ่มส่วนนี้เพื่ออนุญาตบอทของ Facebook และ Social อื่นๆ เป็นพิเศษ ✨
+      // ✨ อนุญาตบอทโซเชียลเป็นแขก VIP เข้าได้ทุกส่วน
       {
-        userAgent: 'facebookexternalhit',
-        allow: '/',
-      },
-      {
-        userAgent: 'Twitterbot',
-        allow: '/',
-      },
-      {
-        userAgent: 'Line',
+        userAgent: ['facebookexternalhit', 'Twitterbot', 'Line'],
         allow: '/',
       }
     ],
