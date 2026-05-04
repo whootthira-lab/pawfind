@@ -10,12 +10,12 @@ export default function LandingPage() {
         <div className="flex gap-4 justify-center">
           <Link href="/report">
             <Button className="bg-white text-black border-2 border-black shadow-paper-sm hover:shadow-paper text-lg font-bold px-8 py-6">
-              แจ้งสัตว์หาย
+              ลงประกาศ
             </Button>
           </Link>
           <Link href="/search">
             <Button className="bg-wagashi-matcha text-black border-2 border-black shadow-paper-sm hover:shadow-paper text-lg font-bold px-8 py-6">
-              ค้นหาสัตว์
+              ค้นหาน้อง
             </Button>
           </Link>
         </div>
