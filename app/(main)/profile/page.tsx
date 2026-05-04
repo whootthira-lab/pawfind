@@ -145,7 +145,7 @@ export default function ProfilePage() {
                     <Calendar size={12} /> {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: th })}
                   </span>
                 </div>
-                <p className="font-bold text-ori-ink-m">"{comment.content}"</p>
+                <p className="font-bold text-ori-ink-m">&quot;{comment.content}&quot;</p>
               </div>
             ))}
             {myComments.length === 0 && <p className="text-center py-10 font-bold text-ori-ink-l">คุณยังไม่เคยแสดงความคิดเห็น</p>}
