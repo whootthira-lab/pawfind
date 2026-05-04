@@ -1,51 +1,61 @@
+'use client'
+// components/pet/PetCard.tsx — Origami style
 import { Pet } from '@/types/pet'
-import { Button } from '@/components/ui/button'
-import Link from 'next/link' // 💡 1. เพิ่มการ Import Link จาก Next.js
+import Link from 'next/link'
+import { MapPin } from 'lucide-react'
+
+function speciesIcon(type: string) {
+  return ({ dog:'🐕', cat:'🐈', bird:'🦜', rabbit:'🐰', fish:'🐟', other:'🐾' } as any)[type] ?? '🐾'
+}
+function statusCfg(status: string) {
+  return ({
+    lost:     { label:'หาย',    color:'#D94F1E', bg:'#FDEEE8' },
+    found:    { label:'พบเห็น', color:'#2D6A2D', bg:'#E8F3E8' },
+    adoption: { label:'รอบ้าน', color:'#1A5EA8', bg:'#E3EEF8' },
+  } as any)[status] ?? { label: status, color:'#1A1208', bg:'#F5EDD8' }
+}
 
 export function PetCard({ pet }: { pet: Pet }) {
-  const imgUrl = pet.primary_image || pet.image_url;
-  
+  const imgUrl = (pet as any).primary_image || pet.image_url
+  const cfg    = statusCfg((pet as any).status || 'lost')
+  const icon   = speciesIcon((pet as any).species || (pet as any).type || 'other')
+  const days   = (pet as any).days_missing
+
   return (
-    <div className="bg-washi border-2 border-black p-4 rounded-lg shadow-paper hover:-translate-y-1 hover:shadow-paper-lg transition-all flex flex-col gap-3">
-      {imgUrl ? (
-        <img 
-          src={imgUrl.startsWith('data:') || imgUrl.startsWith('http') ? imgUrl : `data:image/jpeg;base64,${imgUrl}`} 
-          alt={pet.name || 'pet'} 
-          className="w-full h-48 object-cover border-2 border-black rounded" 
-        />
-      ) : (
-        <div className="w-full h-48 bg-gray-200 border-2 border-black rounded flex items-center justify-center font-bold">No Image</div>
-      )}
-      
-      <div className="flex-1">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-bold text-lg">{pet.name || 'ไม่ทราบชื่อ'}</h3>
-          <span className="text-sm font-bold bg-wagashi-sora px-2 py-1 border-2 border-black rounded shadow-paper-sm">
-            {(pet.species || pet.type) === 'dog' ? '🐶 หมา' : (pet.species || pet.type) === 'cat' ? '🐱 แมว' : (pet.species || pet.type) === 'bird' ? '🐦 นก' : (pet.species || pet.type) === 'rabbit' ? '🐰 กระต่าย' : '🐾 อื่นๆ'}
-          </span>
-        </div>
-        <p className="text-sm text-gray-600 mb-2">{pet.breed}</p>
-        <div className="flex items-center gap-1 text-sm font-bold">
-          <span>📍 {pet.province}</span>
-        </div>
-        {pet.contact_info && (
-          <div className="mt-2 text-sm bg-wagashi-matcha border border-black p-2 rounded">
-            <span className="font-bold">📞 ติดต่อ:</span> {pet.contact_info}
+    <div className="ori-card flex flex-col group">
+      <div className="relative h-48 overflow-hidden border-b-2 border-ori-ink shrink-0"
+        style={{ background: `linear-gradient(135deg, ${cfg.bg}, #E8F3E8)` }}>
+        {imgUrl ? (
+          <img src={imgUrl.startsWith('data:') || imgUrl.startsWith('http') ? imgUrl : `data:image/jpeg;base64,${imgUrl}`}
+            alt={pet.name || 'pet'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-6xl">{icon}</div>
+        )}
+        <div className="absolute top-2.5 left-2.5 text-xs font-black px-2.5 py-1 rounded-full border-2 border-ori-ink"
+          style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</div>
+        {days !== undefined && (
+          <div className="absolute top-2.5 right-2.5 bg-ori-ink/75 text-white text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm">
+            ⏱ {days < 1 ? 'วันนี้' : `${days} วัน`}
           </div>
         )}
-        {pet.days_missing !== undefined && (
-          <p className="text-sm text-red-600 font-bold mt-1">
-            {pet.days_missing < 1 ? 'เพิ่งหายวันนี้' : `หายมา ${pet.days_missing} วันแล้ว`}
-          </p>
-        )}
+        <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: cfg.color }} />
       </div>
-
-      {/* 💡 2. ห่อ Button ด้วย Link และชี้ไปที่ /pet/ตามด้วยไอดีของสัตว์ */}
-      <Link href={`/pet/${pet.id}`} className="w-full mt-auto">
-        <Button className="w-full bg-white hover:bg-wagashi-sakura text-black border-2 border-black shadow-paper-sm hover:shadow-paper transition-all font-bold">
-          ดูข้อมูลเพิ่มเติม
-        </Button>
-      </Link>
+      <div className="p-4 flex flex-col gap-2 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-display font-black text-lg leading-tight text-ori-ink">{pet.name || 'ไม่ทราบชื่อ'} {icon}</h3>
+          {(pet as any).reward_amount > 0 && (
+            <span className="text-xs font-black px-2 py-0.5 rounded-full border-2 border-ori-yellow bg-ori-yellow-bg text-ori-yellow-d shrink-0">💰 มีรางวัล</span>
+          )}
+        </div>
+        {(pet as any).breed && <p className="text-sm text-ori-ink-l font-medium">{(pet as any).breed}</p>}
+        <div className="flex items-center gap-1.5 text-sm font-bold text-ori-ink-m">
+          <MapPin size={14} className="shrink-0" />
+          <span>{(pet as any).province || 'ไม่ระบุพื้นที่'}</span>
+        </div>
+      </div>
+      <div className="px-4 pb-4">
+        <Link href={`/pet/${pet.id}`} className="ori-btn ori-btn-orange w-full text-sm">ดูรายละเอียด →</Link>
+      </div>
     </div>
   )
 }

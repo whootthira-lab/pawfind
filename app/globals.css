@@ -1,99 +1,128 @@
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+/* app/globals.css — Origami Papercraft Design System */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800;900&family=Noto+Serif+Thai:wght@700;800;900&family=Fredoka+One&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --ori-green:      #2D6A2D;
+  --ori-green-l:    #4A8C3F;
+  --ori-green-bg:   #E8F3E8;
+  --ori-green-d:    #1A4A1A;
+  --ori-orange:     #D94F1E;
+  --ori-orange-l:   #F06B35;
+  --ori-orange-bg:  #FDEEE8;
+  --ori-orange-d:   #A03010;
+  --ori-blue:       #1A5EA8;
+  --ori-blue-l:     #2B7DD4;
+  --ori-blue-bg:    #E3EEF8;
+  --ori-blue-d:     #0A3A6A;
+  --ori-yellow:     #E8B800;
+  --ori-yellow-bg:  #FEF8DC;
+  --ori-yellow-d:   #A07800;
+  --ori-cream:      #F5EDD8;
+  --ori-cream-d:    #EDE0C4;
+  --ori-ink:        #1A1208;
+  --ori-ink-m:      #3D2E18;
+  --ori-ink-l:      #7A6A50;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Noto Sans Thai', sans-serif;
+  background-color: var(--ori-cream);
+  background-image:
+    linear-gradient(rgba(100,80,40,.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(100,80,40,.08) 1px, transparent 1px);
+  background-size: 36px 36px;
+  color: var(--ori-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .ori-card {
+    @apply bg-white border-2 border-ori-ink rounded-ori overflow-hidden relative;
+    box-shadow: 5px 5px 0 #1A1208, 8px 8px 0 rgba(0,0,0,.1);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .ori-card:hover {
+    transform: translate(-3px,-3px);
+    box-shadow: 8px 8px 0 #1A1208, 12px 12px 0 rgba(0,0,0,.1);
+  }
+  .ori-card-green  { @apply ori-card; box-shadow: 5px 5px 0 #1A4A1A, 8px 8px 0 rgba(0,0,0,.1); }
+  .ori-card-orange { @apply ori-card; box-shadow: 5px 5px 0 #A03010, 8px 8px 0 rgba(0,0,0,.1); }
+  .ori-card-blue   { @apply ori-card; box-shadow: 5px 5px 0 #0A3A6A, 8px 8px 0 rgba(0,0,0,.1); }
+  .ori-card-sm {
+    @apply bg-white border-2 border-ori-ink rounded-ori relative;
+    box-shadow: 3px 3px 0 #1A1208;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .ori-card-sm:hover { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 #1A1208; }
+
+  .ori-btn {
+    @apply inline-flex items-center justify-center gap-2 font-bold rounded-ori-pill border-2 border-ori-ink px-6 py-3 cursor-pointer select-none no-underline;
+    font-family: 'Noto Sans Thai', sans-serif;
+    transition: transform .1s ease, box-shadow .1s ease;
+  }
+  .ori-btn:hover  { transform: translate(-2px,-2px); }
+  .ori-btn:active { transform: translate(1px,1px); }
+  .ori-btn-green  { @apply ori-btn bg-ori-green text-white;  box-shadow: 4px 4px 0 #1A4A1A; }
+  .ori-btn-green:hover  { box-shadow: 6px 6px 0 #1A4A1A; }
+  .ori-btn-orange { @apply ori-btn bg-ori-orange text-white; box-shadow: 4px 4px 0 #A03010; }
+  .ori-btn-orange:hover { box-shadow: 6px 6px 0 #A03010; }
+  .ori-btn-blue   { @apply ori-btn bg-ori-blue text-white;   box-shadow: 4px 4px 0 #0A3A6A; }
+  .ori-btn-blue:hover   { box-shadow: 6px 6px 0 #0A3A6A; }
+  .ori-btn-yellow { @apply ori-btn bg-ori-yellow text-ori-ink; box-shadow: 4px 4px 0 #A07800; }
+  .ori-btn-yellow:hover { box-shadow: 6px 6px 0 #A07800; }
+  .ori-btn-white  { @apply ori-btn bg-white text-ori-ink;    box-shadow: 4px 4px 0 #1A1208; }
+  .ori-btn-white:hover  { box-shadow: 6px 6px 0 #1A1208; }
+  .ori-btn-sm { @apply px-4 py-2 text-sm; }
+  .ori-btn-lg { @apply px-8 py-4 text-lg; }
+
+  .ori-tag { @apply inline-flex items-center gap-1.5 font-bold text-xs tracking-widest uppercase border-2 border-ori-ink rounded-ori-pill px-3 py-1; }
+  .ori-tag-green  { @apply ori-tag bg-ori-green text-white; }
+  .ori-tag-orange { @apply ori-tag bg-ori-orange text-white; }
+  .ori-tag-blue   { @apply ori-tag bg-ori-blue text-white; }
+  .ori-tag-yellow { @apply ori-tag bg-ori-yellow text-ori-ink; }
+  .ori-tag-white  { @apply ori-tag bg-white text-ori-ink; }
+
+  .ori-status-lost     { @apply ori-tag; background:#FDEEE8; color:#D94F1E; border-color:#F06B35; }
+  .ori-status-found    { @apply ori-tag; background:#E8F3E8; color:#2D6A2D; border-color:#4A8C3F; }
+  .ori-status-adoption { @apply ori-tag; background:#E3EEF8; color:#1A5EA8; border-color:#2B7DD4; }
+  .ori-status-reward   { @apply ori-tag; background:#FEF8DC; color:#A07800; border-color:#E8B800; }
+
+  .ori-input {
+    @apply w-full px-4 py-3 bg-white border-2 border-ori-ink rounded-ori font-sans text-ori-ink outline-none;
+    placeholder-color: var(--ori-ink-l);
+    transition: box-shadow .15s;
+  }
+  .ori-input:focus { box-shadow: 3px 3px 0 var(--ori-ink); }
+}
+
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .font-display { font-family: 'Noto Serif Thai', serif; }
+  .font-brand   { font-family: 'Fredoka One', cursive; }
+  .bg-grid-paper {
+    background-color: var(--ori-cream);
+    background-image:
+      linear-gradient(rgba(100,80,40,.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(100,80,40,.08) 1px, transparent 1px);
+    background-size: 36px 36px;
   }
 }
 
-@layer base {
-  .theme {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
-  }
-  :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-  }
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-  }
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
-}
+/* Wagashi → Origami overrides (backward compat) */
+.bg-wagashi-sakura  { background-color: #FDEEE8 !important; }
+.bg-wagashi-matcha  { background-color: #E8F3E8 !important; }
+.bg-wagashi-sora    { background-color: #E3EEF8 !important; }
+.bg-wagashi-kinako  { background-color: #FEF8DC !important; }
+.bg-washi           { background-color: #F5EDD8 !important; }
+.shadow-paper    { box-shadow: 5px 5px 0 #1A1208, 8px 8px 0 rgba(0,0,0,.1) !important; }
+.shadow-paper-sm { box-shadow: 3px 3px 0 #1A1208 !important; }
+.shadow-paper-lg { box-shadow: 8px 8px 0 #1A1208, 12px 12px 0 rgba(0,0,0,.1) !important; }
 
-.bg-washi {
-  background-color: #FAF9F6;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
-}
+@keyframes ori-scroll-left { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+.animate-scroll-left { animation: ori-scroll-left 30s linear infinite; }
+.animate-scroll-left:hover { animation-play-state: paused; }
