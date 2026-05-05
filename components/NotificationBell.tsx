@@ -28,14 +28,9 @@ export default function NotificationBell() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      // ดึง Session ล่าสุดเพื่อแก้ปัญหา 406 (Not Acceptable)[cite: 1, 4]
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError || !session?.user) {
-        return
-      }
+      if (sessionError || !session?.user) return
 
-      // ใช้ Query ที่เรียบง่ายที่สุดเพื่อเลี่ยง Error 400[cite: 1, 4]
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
@@ -44,26 +39,25 @@ export default function NotificationBell() {
         .limit(5)
 
       if (error) {
-        console.error('❌ Notification Fetch Error:', error.message)[cite: 4]
+        console.error('❌ Fetch Error:', error.message)
         return
       }
 
       if (data) {
         setNotifications(data)
-        const unread = data.filter(n => !n.is_read).length
-        setUnreadCount(unread)
-        if (unread > 0) console.log(`🔔 พบแจ้งเตือนใหม่ ${unread} รายการ`)[cite: 4]
+        setUnreadCount(data.filter(n => !n.is_read).length)
       }
     } catch (err) {
-      // ดักจับข้อผิดพลาดระดับเครือข่าย[cite: 4]
+      // Catch network errors silently
     }
   }, [supabase])
 
   useEffect(() => {
-    fetchNotifications()[cite: 4]
+    fetchNotifications()
 
-    // ตั้งเวลา Polling ทุก 3 วินาทีตามที่ต้องการ[cite: 1, 4]
-    const interval = setInterval(fetchNotifications, 3000)[cite: 4]
+    const interval = setInterval(() => {
+      fetchNotifications()
+    }, 3000)
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -74,7 +68,7 @@ export default function NotificationBell() {
     document.addEventListener('mousedown', handleClickOutside)
     
     return () => {
-      clearInterval(interval)[cite: 4]
+      clearInterval(interval)
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [fetchNotifications])
@@ -84,7 +78,6 @@ export default function NotificationBell() {
     if (!session?.user) return
 
     setUnreadCount(0)
-    
     await supabase
       .from('notifications')
       .update({ is_read: true })
