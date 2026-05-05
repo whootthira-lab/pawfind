@@ -1,3 +1,4 @@
+// app/(main)/pet/[id]/page.tsx
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -48,16 +49,23 @@ export async function generateMetadata(
     .eq('id', params.id)
     .single()
 
-  if (!pet) return { title: 'ไม่พบข้อมูล - Pobpet' }
+  if (!pet) return { title: 'ไม่พบข้อมูล - PobPet หาสัตว์หายด้วย AI' }
 
   const images     = pet.pet_images || []
   const primaryRaw = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url || ''
   const imageUrl   = resolveImageUrl(primaryRaw)
 
-  const statusLabel: Record<string, string> = {
-    lost:     '🚨 ตามหาเจ้าของ',
-    found:    '👀 พบน้องหลงทาง',
-    adoption: '💖 หาบ้านใหม่',
+  // 💡 จัดการข้อความ Title ตามหมวดหมู่
+  let title = ''
+  const petName = pet.name || 'ไม่ทราบชื่อ'
+  if (pet.status === 'lost') {
+    title = `🚨ประกาศตามหาสัตว์หาย(${petName}) | PobPet หาสัตว์หายด้วย AI`
+  } else if (pet.status === 'found') {
+    title = `🚨ประกาศพบสัตว์หลง | PobPet หาสัตว์หายด้วย AI`
+  } else if (pet.status === 'adoption') {
+    title = `💖ประกาศตามหาบ้านให้น้อง(${petName}) | PobPet หาสัตว์หายด้วย AI`
+  } else {
+    title = `${petName} | PobPet หาสัตว์หายด้วย AI`
   }
 
   const locationText = [
@@ -66,7 +74,6 @@ export async function generateMetadata(
     `จ.${pet.province || ''}`
   ].filter(Boolean).join(' ')
 
-  const title       = `${statusLabel[pet.status] || ''}: ${pet.name || 'ไม่ทราบชื่อ'} | Pobpet`
   const description = [
     `ประเภท: ${pet.species === 'dog' ? 'สุนัข' : pet.species === 'cat' ? 'แมว' : pet.species || 'สัตว์เลี้ยง'}`,
     pet.breed ? `สายพันธุ์: ${pet.breed}` : null,
@@ -75,9 +82,6 @@ export async function generateMetadata(
     'ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾',
   ].filter(Boolean).join(' | ')
 
-  // 💡 จุดที่แก้ไข: ลำดับการเลือกใช้รูป OG
-  // 1. ใช้รูปที่ AI สร้างเก็บไว้ (Pre-generated) ถ้ามี
-  // 2. ถ้าไม่มี ให้ใช้ระบบสร้างรูปสด (Dynamic) เป็นแผนสำรอง
   const dynamicOgUrl = buildOgImageUrl({
     name:     pet.name || 'ไม่ทราบชื่อ',
     status:   pet.status,
@@ -98,14 +102,14 @@ export async function generateMetadata(
       url:         pageUrl,
       title,
       description,
-      siteName:    'Pobpet · ตามหาน้อง',
+      siteName:    'PobPet หาสัตว์หายด้วย AI', // 💡 แก้ไขชื่อ SiteName
       locale:      'th_TH',
       images: [
         { 
           url: ogImageUrl, 
           width: 1200, 
           height: 630, 
-          alt: `${statusLabel[pet.status] || ''}: ${pet.name}`, 
+          alt: `${title}`, 
           type: 'image/png' 
         },
         ...(imageUrl ? [{ url: imageUrl, width: 800, height: 800, alt: pet.name || 'สัตว์เลี้ยง' }] : []),
@@ -149,7 +153,7 @@ export default async function PetProfilePage({ params }: Props) {
     datePublished: pet.created_at,
     dateModified:  pet.updated_at || pet.created_at,
     url: `${BASE_URL}/pet/${params.id}`,
-    publisher: { '@type': 'Organization', name: 'Pobpet', url: BASE_URL },
+    publisher: { '@type': 'Organization', name: 'PobPet หาสัตว์หายด้วย AI', url: BASE_URL }, // 💡 อัปเดตใน Schema ด้วย
   }
 
   return (
