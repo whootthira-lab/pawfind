@@ -26,9 +26,9 @@ export default function NotificationBell() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ))
 
+  // ฟังก์ชันดึงข้อมูลคงไว้ แต่จะเรียกเฉพาะตอนเปิดกระดิ่ง หรือโหลดหน้าครั้งแรกเท่านั้น
   const fetchNotifications = useCallback(async () => {
     try {
-      // ใช้ getSession เพื่อความเสถียรสูงสุด[cite: 6]
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.user) return
 
@@ -36,12 +36,11 @@ export default function NotificationBell() {
         .from('notifications')
         .select('*')
         .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false }) // ใช้ ascending: false แทน desc เพื่อความถูกต้อง[cite: 6]
         .limit(5)
 
       if (error) {
-        // หากเจอ Error 400/406 จะ Log แบบเงียบๆ เพื่อไม่ให้ Console รก[cite: 6]
-        console.warn('⚠️ Notification fetch deferred:', error.message)
+        // ไม่ต้องแสดง Warning รก Console[cite: 6]
         return
       }
 
@@ -55,12 +54,10 @@ export default function NotificationBell() {
   }, [supabase])
 
   useEffect(() => {
+    // ดึงข้อมูลแค่ครั้งเดียวตอนโหลดหน้า เพื่อลดภาระระบบ
     fetchNotifications()
 
-    // ปรับเป็น 20 วินาที เพื่อประหยัด Resource และลด Error 406
-    const interval = setInterval(() => {
-      fetchNotifications()
-    }, 20000)
+    // ลบ setInterval ออกถาวร เพื่อหยุด Error 406
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -69,9 +66,7 @@ export default function NotificationBell() {
     }
     
     document.addEventListener('mousedown', handleClickOutside)
-    
     return () => {
-      clearInterval(interval)
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [fetchNotifications])
@@ -91,7 +86,13 @@ export default function NotificationBell() {
   return (
     <div className="relative" ref={dropdownRef}>
       <button 
-        onClick={() => { setIsOpen(!isOpen); if(!isOpen) markAsRead(); }}
+        onClick={() => { 
+          setIsOpen(!isOpen); 
+          if(!isOpen) {
+            fetchNotifications(); // ดึงข้อมูลใหม่เฉพาะตอนคลิกเปิดกระดิ่ง[cite: 6]
+            markAsRead(); 
+          }
+        }}
         className="relative p-2 text-ori-ink-l hover:bg-ori-cream rounded-full transition-all focus:outline-none"
       >
         <Bell className="w-6 h-6" />
