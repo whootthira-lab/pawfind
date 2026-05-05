@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { 
-      images, // ตอนนี้เป็น Array ของ Base64 string[cite: 8]
+      images, 
       markingImageIndexes = [], 
       type, 
       distinctive_features,
@@ -42,16 +42,12 @@ export async function POST(req: NextRequest) {
     // 💡 2. อัปโหลดรูปภาพขึ้น Supabase Storage (Bucket: 'pets')
     const uploadedUrls = await Promise.all(
       images.map(async (base64Str: string) => {
-        // แปลง Base64 กลับเป็น Buffer เพื่อเตรียมอัปโหลด
         const buffer = Buffer.from(base64Str, 'base64');
-        
-        // ตั้งชื่อไฟล์ให้ไม่ซ้ำกัน: [user_id]/[timestamp]-[random].jpg
         const fileName = `${ownerId}/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
 
-        // อัปโหลดเข้า Storage
         const { error: uploadError } = await adminSupabase
           .storage
-          .from('pets') // ต้องตรงกับชื่อ Bucket ที่สร้างไว้
+          .from('pets')
           .upload(fileName, buffer, {
             contentType: 'image/jpeg',
             upsert: false
@@ -59,17 +55,16 @@ export async function POST(req: NextRequest) {
 
         if (uploadError) throw uploadError;
 
-        // ดึง Public URL ของรูปภาพกลับมา
         const { data: { publicUrl } } = adminSupabase
           .storage
           .from('pets')
           .getPublicUrl(fileName);
 
-        return publicUrl; // คืนค่าเป็น URL สั้นๆ เช่น https://.../pets/...jpg
+        return publicUrl;
       })
     );
 
-    // --- 3. ส่วนประมวลผล AI (ส่ง URL ให้ AI วิเคราะห์แทน Base64) ---
+    // --- 3. ส่วนประมวลผล AI ---
     let analysis = { 
       full_description: "ข้อมูลอยู่ระหว่างการประมวลผลโดย AI", 
       breed: "ไม่ระบุ", 
@@ -78,7 +73,7 @@ export async function POST(req: NextRequest) {
     let finalEmbedding = new Array(768).fill(0); 
 
     try {
-      const aiResult = await analyzePetImages(uploadedUrls) // 💡 ใช้ URLs แทน 
+      const aiResult = await analyzePetImages(uploadedUrls) 
       
       if (aiResult) {
         analysis = {
@@ -96,11 +91,10 @@ export async function POST(req: NextRequest) {
       )
       finalEmbedding = weightedAverageEmbedding(embeddingInputs)
     } catch (aiErr) {
-      console.warn('⚠️ AI Analysis skipped. Saving basic data instead.')
+      console.warn('⚠️ AI Analysis skipped.')
     }
-    // -----------------------------------------------------
 
-    // 4. บันทึกข้อมูลลงตาราง pets
+    // 4. บันทึกข้อมูลลงตาราง pets[cite: 10]
     const { data: pet, error: petError } = await adminSupabase
       .from('pets')
       .insert({
@@ -115,7 +109,7 @@ export async function POST(req: NextRequest) {
         breed: analysis.breed,
         color: userColor || analysis.main_color,
         embedding: `[${finalEmbedding.join(',')}]`,
-        image_url: uploadedUrls[0], // 💡 ใช้ URL แรกเป็นภาพหน้าปก
+        image_url: uploadedUrls[0], 
         is_resolved: false 
       })
       .select()
@@ -123,19 +117,30 @@ export async function POST(req: NextRequest) {
 
     if (petError) throw petError
 
-    // 5. บันทึกรูปภาพลงตาราง pet_images
+    // 5. บันทึกรูปภาพลงตาราง pet_images[cite: 10]
     const { error: imgError } = await adminSupabase
       .from('pet_images')
       .insert(
         uploadedUrls.map((url: string, i: number) => ({
           pet_id: pet.id,
-          storage_url: url, // 💡 บันทึก URL สั้นๆ ลงตารางแทนตัวอักษรยาวเหยียด
+          storage_url: url,
           weight: markingImageIndexes.includes(i) ? 3.0 : 1.0,
           is_primary: i === 0
         }))
       )
 
     if (imgError) throw imgError
+
+    // 💡 6. สั่งสร้างรูป OG ในพื้นหลัง (The Trigger)[cite: 10]
+    // เราไม่ใช้ await เพื่อให้หน้าบ้านไม่ต้องรอการวาดรูปจนเสร็จ และส่งข้อมูลสำเร็จกลับไปได้ทันทีครับ
+    if (pet?.id) {
+      const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app';
+      fetch(`${BASE_URL}/api/generate-og`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ petId: pet.id }),
+      }).catch(err => console.error("⚠️ [OG Trigger Error]:", err));
+    }
 
     return NextResponse.json({ data: pet }, { status: 201 })
 

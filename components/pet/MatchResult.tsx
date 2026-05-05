@@ -153,7 +153,7 @@ export function MatchResultCard({ result }: { result: PetResult }) {
           className="ori-btn ori-btn-orange w-full text-sm flex items-center justify-center gap-2"
         >
           {isNavigating ? <Loader2 size={16} className="animate-spin" /> : null}
-          {isNavigating ? 'กำลังนำทาง...' : 'ดูรายละเอียด'} <ArrowRight size={16} />
+          {isNavigating ? 'กำลังโหลด...' : 'ดูรายละเอียด'} <ArrowRight size={16} />
         </button>
 
         {/* 2. ปุ่มจัดการ (แก้ไข/ลบ) - จะขึ้นเฉพาะเจ้าของประกาศเท่านั้น */}

@@ -5,7 +5,7 @@ import { PetGallery } from '@/components/pet/PetGallery'
 import { Phone, MessageCircle, ExternalLink, UserCircle2 } from 'lucide-react'
 import type { Metadata, ResolvingMetadata } from 'next'
 import ShareButton from '@/components/pet/ShareButton'
-import { CommentSection } from '@/components/pet/CommentSection' // 💡 Import ระบบคอมเมนต์
+import { CommentSection } from '@/components/pet/CommentSection'
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
 
@@ -60,7 +60,6 @@ export async function generateMetadata(
     adoption: '💖 หาบ้านใหม่',
   }
 
-  // 💡 สร้างข้อความที่อยู่ให้ครบถ้วน รวมถึงตำบล[cite: 7]
   const locationText = [
     pet.sub_district ? `ต.${pet.sub_district}` : null,
     pet.district ? `อ.${pet.district}` : null,
@@ -71,12 +70,15 @@ export async function generateMetadata(
   const description = [
     `ประเภท: ${pet.species === 'dog' ? 'สุนัข' : pet.species === 'cat' ? 'แมว' : pet.species || 'สัตว์เลี้ยง'}`,
     pet.breed ? `สายพันธุ์: ${pet.breed}` : null,
-    `พื้นที่: ${locationText}`, // 💡 ใช้ข้อความที่อยู่ที่อัปเดตแล้ว[cite: 7]
+    `พื้นที่: ${locationText}`,
     pet.distinctive_features ? `ลักษณะ: ${pet.distinctive_features.slice(0, 80)}` : null,
     'ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾',
   ].filter(Boolean).join(' | ')
 
-  const ogImageUrl = buildOgImageUrl({
+  // 💡 จุดที่แก้ไข: ลำดับการเลือกใช้รูป OG
+  // 1. ใช้รูปที่ AI สร้างเก็บไว้ (Pre-generated) ถ้ามี
+  // 2. ถ้าไม่มี ให้ใช้ระบบสร้างรูปสด (Dynamic) เป็นแผนสำรอง
+  const dynamicOgUrl = buildOgImageUrl({
     name:     pet.name || 'ไม่ทราบชื่อ',
     status:   pet.status,
     breed:    pet.breed,
@@ -85,6 +87,7 @@ export async function generateMetadata(
     reward:   pet.reward_amount,
   })
 
+  const ogImageUrl = pet.og_image_url || dynamicOgUrl
   const pageUrl = `${BASE_URL}/pet/${params.id}`
 
   return {
@@ -98,7 +101,13 @@ export async function generateMetadata(
       siteName:    'Pobpet · ตามหาน้อง',
       locale:      'th_TH',
       images: [
-        { url: ogImageUrl, width: 1200, height: 630, alt: `${statusLabel[pet.status] || ''}: ${pet.name}`, type: 'image/png' },
+        { 
+          url: ogImageUrl, 
+          width: 1200, 
+          height: 630, 
+          alt: `${statusLabel[pet.status] || ''}: ${pet.name}`, 
+          type: 'image/png' 
+        },
         ...(imageUrl ? [{ url: imageUrl, width: 800, height: 800, alt: pet.name || 'สัตว์เลี้ยง' }] : []),
       ],
     },
@@ -147,7 +156,7 @@ export default async function PetProfilePage({ params }: Props) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <div className="max-w-3xl mx-auto mb-12">
+      <div className="max-w-3xl mx-auto mb-12 px-4">
         <div className="bg-white border-2 border-black rounded-lg shadow-paper overflow-hidden">
 
           <PetGallery primaryImage={primaryImage} images={images} petName={pet.name} />
@@ -157,7 +166,6 @@ export default async function PetProfilePage({ params }: Props) {
               <div>
                 <h1 className="text-4xl font-bold mb-2">{pet.name || 'ไม่ทราบชื่อ'}</h1>
                 <p className="text-xl font-bold text-gray-700">
-                  {/* 💡 แสดงตำบล อำเภอ จังหวัด[cite: 7] */}
                   {pet.breed || 'ไม่ระบุสายพันธุ์'} • {pet.sub_district ? `ต.${pet.sub_district} ` : ''}{pet.district ? `อ.${pet.district} ` : ''}จ.{pet.province}
                 </p>
                 <p className="text-sm font-bold text-gray-500 mt-2 bg-gray-100 border border-gray-300 inline-block px-3 py-1 rounded-full">
@@ -259,7 +267,6 @@ export default async function PetProfilePage({ params }: Props) {
               </div>
             )}
 
-            {/* 💡 วางระบบคอมเมนต์ไว้ท้ายสุดของหน้า[cite: 7] */}
             <CommentSection petId={params.id} />
 
           </div>
