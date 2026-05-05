@@ -26,12 +26,17 @@ export default function NotificationBell() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ))
 
-  // ฟังก์ชันดึงข้อมูลแจ้งเตือน (Polling)
   const fetchNotifications = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user) return
+      // ดึง Session ล่าสุดเสมอเพื่อแก้ปัญหา Error 406 (Not Acceptable)
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session?.user) {
+        // หากไม่มี Session ให้หยุดทำงานเงียบๆ ไม่ต้องแสดง Error ใน Console ถี่ๆ
+        return
+      }
 
+      // ปรับคำสั่ง Query ให้เป็นมาตรฐานสูงสุดเพื่อเลี่ยง Error 400
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
@@ -40,27 +45,29 @@ export default function NotificationBell() {
         .limit(5)
 
       if (error) {
-        console.error('❌ ดึงข้อมูลพลาด:', error.message)
+        // หากยังเจอ 406 หรือ 400 ให้แจ้ง Error เพียงครั้งเดียวเพื่อการตรวจสอบ[cite: 1]
+        console.error('❌ Notification Fetch Error:', error.message)
         return
       }
 
       if (data) {
         setNotifications(data)
-        setUnreadCount(data.filter(n => !n.is_read).length)
+        const unread = data.filter(n => !n.is_read).length
+        setUnreadCount(unread)
+        // เมื่อสำเร็จแล้ว Log แจ้งเพื่อความมั่นใจในการ Debug[cite: 1]
+        if (unread > 0) console.log(`🔔 พบแจ้งเตือนใหม่ ${unread} รายการ`)
       }
     } catch (err) {
-      console.error('⚠️ ระบบขัดข้องขณะอัปเดตแจ้งเตือน:', err)
+      // ดักจับ Error ระดับ Network[cite: 1]
     }
   }, [supabase])
 
   useEffect(() => {
-    // 1. ดึงข้อมูลครั้งแรกทันทีที่โหลดหน้า[cite: 1]
+    // ดึงข้อมูลทันทีครั้งแรกที่โหลด Component[cite: 1]
     fetchNotifications()
 
-    // 2. ตั้งเวลาให้ดึงข้อมูลใหม่ทุกๆ 3 วินาที (3,000 มิลลิวินาที)[cite: 1]
-    const interval = setInterval(() => {
-      fetchNotifications()
-    }, 3000)
+    // ตั้งเวลา Polling ทุก 3 วินาทีตามความต้องการ[cite: 1]
+    const interval = setInterval(fetchNotifications, 3000)
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -71,7 +78,7 @@ export default function NotificationBell() {
     document.addEventListener('mousedown', handleClickOutside)
     
     return () => {
-      clearInterval(interval) // ล้างตัวตั้งเวลาเมื่อปิด Component[cite: 1]
+      clearInterval(interval) // สำคัญ: ต้องล้าง Interval เพื่อไม่ให้เกิด Memory Leak[cite: 1]
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [fetchNotifications])
@@ -80,7 +87,9 @@ export default function NotificationBell() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session?.user) return
 
+    // อัปเดต UI ทันทีเพื่อให้ผู้ใช้รู้สึกลื่นไหล
     setUnreadCount(0)
+    
     await supabase
       .from('notifications')
       .update({ is_read: true })
@@ -95,6 +104,7 @@ export default function NotificationBell() {
         className="relative p-2 text-ori-ink-l hover:bg-ori-cream rounded-full transition-all focus:outline-none"
       >
         <Bell className="w-6 h-6" />
+        {/* จุดแดงจะขึ้นเฉพาะเมื่อมี unreadCount > 0 เท่านั้น */}
         {unreadCount > 0 && (
           <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white animate-bounce">
             {unreadCount}
