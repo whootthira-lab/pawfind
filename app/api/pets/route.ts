@@ -7,7 +7,7 @@ import { createEmbedding, weightedAverageEmbedding } from '@/lib/ai/embed'
 export async function POST(req: NextRequest) {
   const supabase = createClient()
   
-  // 1. ตรวจสอบสิทธิ์ผู้ใช้
+  // 1. ตรวจสอบสิทธิ์ผู้ใช้[cite: 5]
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   
   if (authError || !user) {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     const adminSupabase = createAdminClient()
 
-    // 💡 2. อัปโหลดรูปภาพขึ้น Supabase Storage (Bucket: 'pets')
+    // 💡 2. อัปโหลดรูปภาพขึ้น Supabase Storage (Bucket: 'pets')[cite: 5]
     const uploadedUrls = await Promise.all(
       images.map(async (base64Str: string) => {
         const buffer = Buffer.from(base64Str, 'base64');
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    // --- 3. ส่วนประมวลผล AI ---
+    // --- 3. ส่วนประมวลผล AI ---[cite: 5]
     let analysis = { 
       full_description: "ข้อมูลอยู่ระหว่างการประมวลผลโดย AI", 
       breed: "ไม่ระบุ", 
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       console.warn('⚠️ AI Analysis skipped.')
     }
 
-    // 4. บันทึกข้อมูลลงตาราง pets[cite: 10]
+    // 4. บันทึกข้อมูลลงตาราง pets[cite: 5]
     const { data: pet, error: petError } = await adminSupabase
       .from('pets')
       .insert({
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
 
     if (petError) throw petError
 
-    // 5. บันทึกรูปภาพลงตาราง pet_images[cite: 10]
+    // 5. บันทึกรูปภาพลงตาราง pet_images[cite: 5]
     const { error: imgError } = await adminSupabase
       .from('pet_images')
       .insert(
@@ -131,11 +131,11 @@ export async function POST(req: NextRequest) {
 
     if (imgError) throw imgError
 
-    // 💡 6. สั่งสร้างรูป OG ในพื้นหลัง (The Trigger)[cite: 10]
-    // เราไม่ใช้ await เพื่อให้หน้าบ้านไม่ต้องรอการวาดรูปจนเสร็จ และส่งข้อมูลสำเร็จกลับไปได้ทันทีครับ
+    // 💡 6. สั่งสร้างรูป OG (The Trigger)
+    // แก้ไข: เพิ่ม await ตรงนี้เพื่อให้ Vercel รอประมวลผลให้เสร็จก่อนตัดการทำงาน[cite: 5]
     if (pet?.id) {
       const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app';
-      fetch(`${BASE_URL}/api/generate-og`, {
+      await fetch(`${BASE_URL}/api/generate-og`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ petId: pet.id }),
