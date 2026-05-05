@@ -7,7 +7,7 @@ import { createEmbedding, weightedAverageEmbedding } from '@/lib/ai/embed'
 export async function POST(req: NextRequest) {
   const supabase = createClient()
   
-  // 1. ตรวจสอบสิทธิ์ผู้ใช้: บังคับล็อกอินเพื่อผูก user_id กับประกาศ
+  // 1. ตรวจสอบสิทธิ์ผู้ใช้
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   
   if (authError || !user) {
@@ -21,10 +21,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    
-    // 2. แยกข้อมูลจาก Body[cite: 3, 11]
     const { 
-      images, 
+      images, // ตอนนี้เป็น Array ของ Base64 string[cite: 8]
       markingImageIndexes = [], 
       type, 
       distinctive_features,
@@ -39,7 +37,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'กรุณาอัปโหลดรูปภาพอย่างน้อย 1 รูป' }, { status: 400 })
     }
 
-    // --- ส่วนประมวลผล AI (Resilient Logic) ---
+    const adminSupabase = createAdminClient()
+
+    // 💡 2. อัปโหลดรูปภาพขึ้น Supabase Storage (Bucket: 'pets')
+    const uploadedUrls = await Promise.all(
+      images.map(async (base64Str: string) => {
+        // แปลง Base64 กลับเป็น Buffer เพื่อเตรียมอัปโหลด
+        const buffer = Buffer.from(base64Str, 'base64');
+        
+        // ตั้งชื่อไฟล์ให้ไม่ซ้ำกัน: [user_id]/[timestamp]-[random].jpg
+        const fileName = `${ownerId}/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+
+        // อัปโหลดเข้า Storage
+        const { error: uploadError } = await adminSupabase
+          .storage
+          .from('pets') // ต้องตรงกับชื่อ Bucket ที่สร้างไว้
+          .upload(fileName, buffer, {
+            contentType: 'image/jpeg',
+            upsert: false
+          });
+
+        if (uploadError) throw uploadError;
+
+        // ดึง Public URL ของรูปภาพกลับมา
+        const { data: { publicUrl } } = adminSupabase
+          .storage
+          .from('pets')
+          .getPublicUrl(fileName);
+
+        return publicUrl; // คืนค่าเป็น URL สั้นๆ เช่น https://.../pets/...jpg
+      })
+    );
+
+    // --- 3. ส่วนประมวลผล AI (ส่ง URL ให้ AI วิเคราะห์แทน Base64) ---
     let analysis = { 
       full_description: "ข้อมูลอยู่ระหว่างการประมวลผลโดย AI", 
       breed: "ไม่ระบุ", 
@@ -48,31 +78,29 @@ export async function POST(req: NextRequest) {
     let finalEmbedding = new Array(768).fill(0); 
 
     try {
-      // 💡 แก้ไข Type Error: รับค่าใส่ตัวแปรชั่วคราวก่อนตรวจสอบ undefined
-      const aiResult = await analyzePetImages(images)
+      const aiResult = await analyzePetImages(uploadedUrls) // 💡 ใช้ URLs แทน 
       
-      // มั่นใจว่าเป็น string แน่นอนด้วยการใช้ || fallback[cite: 11]
-      analysis = {
-        full_description: aiResult.full_description || analysis.full_description,
-        breed: aiResult.breed || analysis.breed,
-        main_color: aiResult.main_color || analysis.main_color
+      if (aiResult) {
+        analysis = {
+          full_description: aiResult.full_description || analysis.full_description,
+          breed: aiResult.breed || analysis.breed,
+          main_color: aiResult.main_color || analysis.main_color
+        }
       }
       
       const embeddingInputs = await Promise.all(
-        images.map(async (_: string, i: number) => ({
+        uploadedUrls.map(async (_: string, i: number) => ({
           vector: await createEmbedding(analysis.full_description),
           weight: markingImageIndexes.includes(i) ? 3.0 : 1.0
         }))
       )
       finalEmbedding = weightedAverageEmbedding(embeddingInputs)
     } catch (aiErr) {
-      // หาก Gemini ล่ม (503) ระบบจะข้ามไปบันทึกข้อมูลพื้นฐานทันที[cite: 1, 11]
-      console.warn('⚠️ AI Analysis skipped (503). Saving basic data instead.')
+      console.warn('⚠️ AI Analysis skipped. Saving basic data instead.')
     }
     // -----------------------------------------------------
 
-    // 4. บันทึกข้อมูลสัตว์เลี้ยงลงตาราง pets[cite: 11]
-    const adminSupabase = createAdminClient()
+    // 4. บันทึกข้อมูลลงตาราง pets
     const { data: pet, error: petError } = await adminSupabase
       .from('pets')
       .insert({
@@ -87,7 +115,7 @@ export async function POST(req: NextRequest) {
         breed: analysis.breed,
         color: userColor || analysis.main_color,
         embedding: `[${finalEmbedding.join(',')}]`,
-        image_url: images[0],
+        image_url: uploadedUrls[0], // 💡 ใช้ URL แรกเป็นภาพหน้าปก
         is_resolved: false 
       })
       .select()
@@ -95,13 +123,13 @@ export async function POST(req: NextRequest) {
 
     if (petError) throw petError
 
-    // 5. บันทึกรูปภาพลงตาราง pet_images[cite: 11]
+    // 5. บันทึกรูปภาพลงตาราง pet_images
     const { error: imgError } = await adminSupabase
       .from('pet_images')
       .insert(
-        images.map((url: string, i: number) => ({
+        uploadedUrls.map((url: string, i: number) => ({
           pet_id: pet.id,
-          storage_url: url,
+          storage_url: url, // 💡 บันทึก URL สั้นๆ ลงตารางแทนตัวอักษรยาวเหยียด
           weight: markingImageIndexes.includes(i) ? 3.0 : 1.0,
           is_primary: i === 0
         }))
