@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       breed: "ไม่ระบุ", 
       main_color: "ไม่ระบุ" 
     };
-    let finalEmbedding = new Array(1536).fill(0); 
+    let finalEmbedding = new Array(768).fill(0); 
 
     try {
       // 💡 แก้ไข Type Error: รับค่าใส่ตัวแปรชั่วคราวก่อนตรวจสอบ undefined
