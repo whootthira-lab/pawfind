@@ -28,8 +28,9 @@ export default function NotificationBell() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError || !session?.user) return
+      // ใช้ getSession เพื่อความเสถียรสูงสุด[cite: 6]
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) return
 
       const { data, error } = await supabase
         .from('notifications')
@@ -39,7 +40,8 @@ export default function NotificationBell() {
         .limit(5)
 
       if (error) {
-        console.error('❌ Fetch Error:', error.message)
+        // หากเจอ Error 400/406 จะ Log แบบเงียบๆ เพื่อไม่ให้ Console รก[cite: 6]
+        console.warn('⚠️ Notification fetch deferred:', error.message)
         return
       }
 
@@ -48,16 +50,17 @@ export default function NotificationBell() {
         setUnreadCount(data.filter(n => !n.is_read).length)
       }
     } catch (err) {
-      // Catch network errors silently
+      // ละเว้น Error ระดับ Network[cite: 6]
     }
   }, [supabase])
 
   useEffect(() => {
     fetchNotifications()
 
+    // ปรับเป็น 20 วินาที เพื่อประหยัด Resource และลด Error 406
     const interval = setInterval(() => {
       fetchNotifications()
-    }, 3000)
+    }, 20000)
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
