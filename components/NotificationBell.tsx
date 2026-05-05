@@ -26,78 +26,55 @@ export default function NotificationBell() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ))
 
-  const fetchInitialData = useCallback(async (userId: string) => {
-    // ปรับ Query ให้ลดโอกาสเกิด Error 400
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(5)
+  // ฟังก์ชันดึงข้อมูลแจ้งเตือน (Polling)
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) return
 
-    if (error) {
-      console.error('❌ ดึงข้อมูลแจ้งเตือนพลาด:', error.message)
-      return
-    }
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
 
-    if (data) {
-      setNotifications(data)
-      setUnreadCount(data.filter(n => !n.is_read).length)
+      if (error) {
+        console.error('❌ ดึงข้อมูลพลาด:', error.message)
+        return
+      }
+
+      if (data) {
+        setNotifications(data)
+        setUnreadCount(data.filter(n => !n.is_read).length)
+      }
+    } catch (err) {
+      console.error('⚠️ ระบบขัดข้องขณะอัปเดตแจ้งเตือน:', err)
     }
   }, [supabase])
 
   useEffect(() => {
-    let channel: any = null
+    // 1. ดึงข้อมูลครั้งแรกทันทีที่โหลดหน้า[cite: 1]
+    fetchNotifications()
 
-    const setupRealtime = async () => {
-      // ใช้ getSession เพื่อแก้ Error 406
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user) return
+    // 2. ตั้งเวลาให้ดึงข้อมูลใหม่ทุกๆ 3 วินาที (3,000 มิลลิวินาที)[cite: 1]
+    const interval = setInterval(() => {
+      fetchNotifications()
+    }, 3000)
 
-      const userId = session.user.id
-      await fetchInitialData(userId)
-
-      // เริ่มการเชื่อมต่อ Realtime แบบเจาะจง User
-      channel = supabase
-        .channel(`notifications_user_${userId}`)
-        .on('postgres_changes', 
-          { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'notifications',
-            filter: `user_id=eq.${userId}` 
-          }, 
-          (payload) => {
-            console.log('🔔 มีแจ้งเตือนใหม่:', payload.new)
-            const newNotif = payload.new as Notification
-            setNotifications(prev => {
-              if (prev.some(n => n.id === newNotif.id)) return prev
-              return [newNotif, ...prev].slice(0, 5)
-            })
-            setUnreadCount(prev => prev + 1)
-          }
-        )
-        .subscribe((status) => {
-          console.log('📡 สถานะเชื่อมต่อ Realtime:', status)
-        })
-    }
-
-    setupRealtime()
-
-    return () => {
-      if (channel) supabase.removeChannel(channel)
-    }
-  }, [supabase, fetchInitialData])
-
-  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false)
       }
     }
+    
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    
+    return () => {
+      clearInterval(interval) // ล้างตัวตั้งเวลาเมื่อปิด Component[cite: 1]
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [fetchNotifications])
 
   const markAsRead = async () => {
     const { data: { session } } = await supabase.auth.getSession()
