@@ -29,7 +29,6 @@ async function fetchImageAsPart(urlOrBase64: string) {
   };
 }
 
-// 💡 บรรทัดนี้คือจุดที่ VS Code ชอบแอบเติมแท็กปิดให้ ต้องมีแค่นี้เพียวๆ ครับ
 export async function analyzePetImages(imageUrlsOrBase64: string[]): Promise<AnalyzeResponse | null> {
   const modelsToTry = [
     "gemini-2.5-flash", 
@@ -52,8 +51,12 @@ export async function analyzePetImages(imageUrlsOrBase64: string[]): Promise<Ana
         const result = await model.generateContent([ANALYZE_PET_PROMPT, ...imageParts]);
         const text = result.response.text();
         
-        const cleanText = text.replace(/```json/gi, '').replace(/
-```/g, '').trim();
+        // 💡 แก้ไขไม้ตาย: ใช้ new RegExp() ป้องกัน VS Code ปัดบรรทัดพัง
+        const cleanText = text
+          .replace(new RegExp('```json', 'gi'), '')
+          .replace(new RegExp('
+```', 'g'), '')
+          .trim();
         
         console.log(`✅ [AI System] วิเคราะห์สำเร็จด้วย ${modelName}`);
         return JSON.parse(cleanText) as AnalyzeResponse;
@@ -75,7 +78,6 @@ export async function analyzePetImages(imageUrlsOrBase64: string[]): Promise<Ana
   }
 }
 
-// ตรวจว่ามีสัตว์ในรูปไหม
 export async function validatePetImage(imageUrlOrBase64: string): Promise<boolean> {
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
