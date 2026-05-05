@@ -1,11 +1,10 @@
 // app/api/generate-og/route.ts
 // ── Node.js runtime (ไม่ใช่ Edge) → รองรับ Sharp + Thai font เต็มรูปแบบ ──
 
-export const runtime = 'nodejs'   // ← สำคัญ: ต้อง Node.js ไม่ใช่ edge
+export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
-// 💡 เอา createClient ออก และใช้ createAdminClient แทนทั้งหมดเพื่อแก้ปัญหา RLS
 import { createAdminClient } from '@/lib/supabase/admin'
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
@@ -14,11 +13,9 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel
 const COLORS = {
   cream:     '#F5EDD8',
   ink:       '#1A1208',
-  inkRgb:    { r:26,  g:18,  b:8   },
-  creamRgb:  { r:245, g:237, b:216 },
-  lost:      { bg:'#FDEEE8', text:'#D94F1E', rgb:{r:217,g:79,b:30}   },
-  found:     { bg:'#E8F3E8', text:'#2D6A2D', rgb:{r:45, g:106,b:45}  },
-  adoption:  { bg:'#E3EEF8', text:'#1A5EA8', rgb:{r:26, g:94, b:168} },
+  lost:      { bg:'#FDEEE8', text:'#D94F1E' },
+  found:     { bg:'#E8F3E8', text:'#2D6A2D' },
+  adoption:  { bg:'#E3EEF8', text:'#1A5EA8' },
 }
 
 // ── Fetch รูปสัตว์ → Buffer ────────────────────────────────
@@ -34,18 +31,37 @@ async function fetchPetImage(url: string): Promise<Buffer | null> {
   }
 }
 
+// 💡 1. ฟังก์ชันโหลดฟอนต์ภาษาไทย (ตัวหนา) และแปลงเป็น Base64 (แก้ปัญหาสระลอย/กล่องสี่เหลี่ยม)
+let cachedFontBase64: string | null = null
+async function getThaiFontBase64(): Promise<string> {
+  if (cachedFontBase64) return cachedFontBase64
+  try {
+    const res = await fetch('https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/hinted/ttf/NotoSansThai/NotoSansThai-Bold.ttf')
+    if (!res.ok) throw new Error('Failed to fetch font')
+    const buf = await res.arrayBuffer()
+    cachedFontBase64 = Buffer.from(buf).toString('base64')
+    return cachedFontBase64
+  } catch (err) {
+    console.error('❌ Error loading Thai font:', err)
+    return ''
+  }
+}
+
 // ── สร้าง SVG overlay (ข้อมูลสัตว์ทั้งหมด) ─────────────────
 function buildSvg(opts: {
   name: string; breed: string; province: string
   status: string; reward: number; hasImage: boolean
+  fontB64: string // 💡 รับค่าฟอนต์ Base64
 }): string {
   const cfg = (COLORS as any)[opts.status] || COLORS.lost
   const statusLabel: Record<string,string> = {
     lost:'ตามหาเจ้าของ', found:'พบน้องหลงทาง', adoption:'หาบ้านใหม่'
   }
   const label = statusLabel[opts.status] || opts.status
-  const leftW = opts.hasImage ? 460 : 0
-  const rightX = leftW + 48
+  
+  // 💡 ปรับสัดส่วนรูปภาพให้กินพื้นที่ "ครึ่งหนึ่ง" ของความกว้างทั้งหมด (1200 / 2 = 600)[cite: 6]
+  const leftW = opts.hasImage ? 600 : 0
+  const rightX = leftW + 48 // ขยับข้อความไปทางขวาให้พ้นรูป
 
   const displayName = opts.name.length > 12
     ? opts.name.slice(0,11) + '…'
@@ -55,19 +71,22 @@ function buildSvg(opts: {
 <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;700;900&amp;display=swap');
+      /* 💡 ฝังฟอนต์ลงไปตรงนี้เลย! */
+      @font-face {
+        font-family: 'Noto Sans Thai';
+        src: url(data:font/truetype;charset=utf-8;base64,${opts.fontB64}) format('truetype');
+      }
+      text {
+        font-family: 'Noto Sans Thai', sans-serif;
+      }
     </style>
-  </defs>
-
-  <!-- Background -->
-  <rect width="1200" height="630" fill="${COLORS.cream}"/>
-
-  <!-- Grid paper pattern -->
-  <defs>
     <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse">
       <path d="M 36 0 L 0 0 0 36" fill="none" stroke="rgba(100,80,40,.08)" stroke-width="1"/>
     </pattern>
   </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="${COLORS.cream}"/>
   <rect width="1200" height="630" fill="url(#grid)"/>
 
   ${opts.hasImage ? `<!-- Divider line -->
@@ -75,66 +94,43 @@ function buildSvg(opts: {
 
   <!-- Right panel info -->
   <text x="${rightX}" y="68"
-    font-size="20" font-weight="700"
-    font-family="Noto Sans Thai, sans-serif"
-    fill="#7A6A50">🐾 PobPet · ตามหาน้อง</text>
+    font-size="20" fill="#7A6A50">🐾 PobPet · ตามหาน้อง</text>
 
   <text x="${rightX}" y="${opts.name.length > 8 ? 158 : 170}"
-    font-size="${opts.name.length > 10 ? 62 : 74}"
-    font-weight="900"
-    font-family="Noto Sans Thai, sans-serif"
+    font-size="${opts.name.length > 10 ? 56 : 64}" 
     fill="${COLORS.ink}">${displayName}</text>
 
   ${opts.breed ? `<text x="${rightX}" y="210"
-    font-size="26" font-weight="600"
-    font-family="Noto Sans Thai, sans-serif"
-    fill="#5A4E46">${opts.breed.slice(0,20)}</text>` : ''}
+    font-size="24" fill="#5A4E46">${opts.breed.slice(0,20)}</text>` : ''}
 
-  <rect x="${rightX}" y="228" width="${Math.min(opts.province.length * 18 + 80, 360)}" height="50"
-    rx="25" fill="white" stroke="${COLORS.ink}" stroke-width="2.5"/>
-  <text x="${rightX + 44}" y="260"
-    font-size="24" font-weight="700"
-    font-family="Noto Sans Thai, sans-serif"
-    fill="${COLORS.ink}">📍 ${opts.province || 'ไม่ระบุพื้นที่'}</text>
+  <rect x="${rightX}" y="238" width="${Math.min(opts.province.length * 18 + 80, 320)}" height="46"
+    rx="23" fill="white" stroke="${COLORS.ink}" stroke-width="2.5"/>
+  <text x="${rightX + 44}" y="268"
+    font-size="22" fill="${COLORS.ink}">📍 ${opts.province || 'ไม่ระบุพื้นที่'}</text>
 
-  <rect x="${rightX}" y="296" width="240" height="46"
+  <rect x="${rightX}" y="296" width="220" height="46"
     rx="23" fill="${cfg.bg}" stroke="${cfg.text}" stroke-width="2.5"/>
   <text x="${rightX + 20}" y="326"
-    font-size="22" font-weight="700"
-    font-family="Noto Sans Thai, sans-serif"
-    fill="${cfg.text}">${label}</text>
+    font-size="20" fill="${cfg.text}">${label}</text>
 
   ${opts.reward > 0 ? `
-  <rect x="${rightX}" y="356" width="280" height="46"
+  <rect x="${rightX}" y="356" width="260" height="46"
     rx="23" fill="#FEF8DC" stroke="#E8B800" stroke-width="2.5"/>
   <text x="${rightX + 20}" y="386"
-    font-size="22" font-weight="700"
-    font-family="Noto Sans Thai, sans-serif"
-    fill="#A07800">💰 มีรางวัล ${opts.reward.toLocaleString()} บาท</text>` : ''}
+    font-size="20" fill="#A07800">💰 รางวัล ${opts.reward.toLocaleString()} บาท</text>` : ''}
 
-  <rect x="${rightX}" y="490" width="${1200 - rightX - 48}" height="72"
-    rx="12" fill="${COLORS.ink}"/>
-  <rect x="${rightX + 4}" y="494" width="${1200 - rightX - 48}" height="72"
-    rx="12" fill="rgba(0,0,0,.15)" style="z-index:-1"/>
+  <rect x="${rightX}" y="490" width="${1200 - rightX - 48}" height="72" rx="12" fill="${COLORS.ink}"/>
+  <rect x="${rightX + 4}" y="494" width="${1200 - rightX - 48}" height="72" rx="12" fill="rgba(0,0,0,.15)" style="z-index:-1"/>
   <text x="${rightX + (1200 - rightX - 48)/2}" y="535"
-    font-size="26" font-weight="700"
-    font-family="Noto Sans Thai, sans-serif"
-    fill="#F5EDD8"
-    text-anchor="middle">ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🏠</text>
+    font-size="24" fill="#F5EDD8" text-anchor="middle">ช่วยแชร์พาน้องกลับบ้าน 🏠</text>
 
   <text x="${rightX + (1200 - rightX - 48)/2}" y="590"
-    font-size="18" font-weight="500"
-    font-family="Noto Sans Thai, sans-serif"
-    fill="#9A8E86"
-    text-anchor="middle">pawfind-eta.vercel.app</text>
+    font-size="16" fill="#9A8E86" text-anchor="middle">pawfind-eta.vercel.app</text>
 
-  <rect x="1100" y="0" width="100" height="100"
-    fill="${cfg.text}"
-    stroke="${COLORS.ink}" stroke-width="4"/>
+  <rect x="1100" y="0" width="100" height="100" fill="${cfg.text}" stroke="${COLORS.ink}" stroke-width="4"/>
   <line x1="1100" y1="0" x2="1100" y2="100" stroke="${COLORS.ink}" stroke-width="4"/>
   <line x1="1100" y1="100" x2="1200" y2="100" stroke="${COLORS.ink}" stroke-width="4"/>
-  <text x="1150" y="62"
-    font-size="40" text-anchor="middle">🐾</text>
+  <text x="1150" y="62" font-size="40" text-anchor="middle">🐾</text>
 </svg>`
 }
 
@@ -143,7 +139,6 @@ export async function POST(req: NextRequest) {
     const { petId } = await req.json()
     if (!petId) return NextResponse.json({ error: 'petId required' }, { status: 400 })
 
-    // 💡 1. ใช้ Admin Client ทันทีเพื่อดึงข้อมูลข้ามกฎ RLS ของ Supabase
     const admin = createAdminClient()
     const { data: pet, error: petErr } = await admin
       .from('pets')
@@ -156,7 +151,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Pet not found or RLS blocked' }, { status: 404 })
     }
 
-    // ── 2. หา primary image URL ──────────────────────────
     const images     = (pet.pet_images as any[]) || []
     const primaryRaw = images.find((i:any) => i.is_primary)?.storage_url
                     || images[0]?.storage_url
@@ -164,13 +158,14 @@ export async function POST(req: NextRequest) {
                     || ''
     const imageUrl = primaryRaw.startsWith('http') ? primaryRaw : ''
 
-    // ── 3. โหลดรูปสัตว์ ──────────────────────────────────
     const petImageBuf = imageUrl ? await fetchPetImage(imageUrl) : null
     const hasImage    = !!petImageBuf
 
-    // ── 4. สร้าง Canvas 1200×630 ──────────────────────────
+    // 💡 โหลดฟอนต์ภาษาไทยมาก่อนวาด SVG
+    const fontB64 = await getThaiFontBase64()
+
     const W = 1200, H = 630
-    const leftW = hasImage ? 460 : 0
+    const leftW = hasImage ? 600 : 0 // 💡 ปรับขนาดรูปสัตว์ให้กว้างขึ้นเป็น 600px[cite: 6]
 
     const svgOverlay = buildSvg({
       name:     pet.name || 'ไม่ทราบชื่อ',
@@ -179,6 +174,7 @@ export async function POST(req: NextRequest) {
       status:   pet.status,
       reward:   pet.reward_amount || 0,
       hasImage,
+      fontB64 // 💡 ส่งฟอนต์เข้าไปใน SVG
     })
 
     const baseImage = await sharp(Buffer.from(svgOverlay))
@@ -189,22 +185,20 @@ export async function POST(req: NextRequest) {
     let finalBuffer: Buffer
 
     if (hasImage && petImageBuf) {
+      // 💡 Resize รูปสัตว์ให้เข้ากับสัดส่วนใหม่ 600x630
       const petResized = await sharp(petImageBuf)
         .resize(leftW, H, { fit: 'cover', position: 'center' })
         .png()
         .toBuffer()
 
       finalBuffer = await sharp(baseImage)
-        .composite([
-          { input: petResized, top: 0, left: 0 },
-        ])
+        .composite([{ input: petResized, top: 0, left: 0 }])
         .png()
         .toBuffer()
     } else {
       finalBuffer = baseImage
     }
 
-    // ── 5. Upload ไปยัง Supabase Storage (Bucket: pet-images) ──
     const fileName = `og/${petId}.png`
     const { error: uploadErr } = await admin.storage
       .from('pet-images')
@@ -218,14 +212,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: uploadErr.message }, { status: 500 })
     }
 
-    // ── 6. ดึง public URL ─────────────────────────────────
     const { data: urlData } = admin.storage
       .from('pet-images')
       .getPublicUrl(fileName)
 
     const ogUrl = urlData.publicUrl
 
-    // ── 7. บันทึก URL กลับใน pets table ──────────────────
     const { error: updateErr } = await admin.from('pets')
       .update({ og_image_url: ogUrl })
       .eq('id', petId)
