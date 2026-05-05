@@ -21,13 +21,13 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   
-  // สร้าง Client ไว้ข้างนอกเพื่อความคงที่
   const [supabase] = useState(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ))
 
   const fetchInitialData = useCallback(async (userId: string) => {
+    // ปรับ Query ให้เรียบง่ายที่สุดเพื่อลด Error 400
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
@@ -35,7 +35,12 @@ export default function NotificationBell() {
       .order('created_at', { ascending: false })
       .limit(5)
 
-    if (!error && data) {
+    if (error) {
+      console.error('❌ Error fetching notifications:', error.message)
+      return
+    }
+
+    if (data) {
       setNotifications(data)
       setUnreadCount(data.filter(n => !n.is_read).length)
     }
@@ -45,33 +50,36 @@ export default function NotificationBell() {
     let channel: any = null
 
     const setupRealtime = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      // ตรวจสอบ Session ให้มั่นใจก่อนเริ่ม (แก้ Error 406)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) return
 
-      await fetchInitialData(user.id)
+      const userId = session.user.id
+      await fetchInitialData(userId)
 
-      // เริ่มการเชื่อมต่อ Realtime
+      // เริ่มการเชื่อมต่อ Realtime แบบระบุช่องชัดเจน
       channel = supabase
-        .channel(`public:notifications:user_id=eq.${user.id}`)
+        .channel(`notifications_user_${userId}`)
         .on('postgres_changes', 
           { 
             event: 'INSERT', 
             schema: 'public', 
             table: 'notifications',
-            filter: `user_id=eq.${user.id}` 
+            filter: `user_id=eq.${userId}` 
           }, 
           (payload) => {
+            console.log('🔔 New notification received!', payload.new)
             const newNotif = payload.new as Notification
             setNotifications(prev => {
               if (prev.some(n => n.id === newNotif.id)) return prev
-              return [newNotif, ...prev].slice(0, 5)
+              const updated = [newNotif, ...prev]
+              return updated.slice(0, 5)
             })
             setUnreadCount(prev => prev + 1)
-            // เพิ่มเสียงแจ้งเตือนสั้นๆ (ถ้าต้องการ)
           }
         )
         .subscribe((status) => {
-          console.log('📡 สถานะการเชื่อมต่อ Realtime:', status)
+          console.log('📡 Realtime status:', status)
         })
     }
 
@@ -93,14 +101,14 @@ export default function NotificationBell() {
   }, [])
 
   const markAsRead = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) return
 
     setUnreadCount(0)
     await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('user_id', user.id)
+      .eq('user_id', session.user.id)
       .eq('is_read', false)
   }
 
@@ -108,9 +116,9 @@ export default function NotificationBell() {
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => { setIsOpen(!isOpen); if(!isOpen) markAsRead(); }}
-        className="relative p-2 text-ori-ink-l hover:bg-ori-cream rounded-full transition-all focus:outline-none"
+        className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-all focus:outline-none"
       >
-        <Bell className="w-6 h-6" />
+        <Bell className="w-6 h-6 text-ori-ink-l" />
         {unreadCount > 0 && (
           <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white animate-bounce">
             {unreadCount}
