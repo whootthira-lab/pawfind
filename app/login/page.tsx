@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { 
   LogIn, Mail, Loader2, CheckCircle2, AlertCircle, 
-  UserPlus, MapPin, Phone, Camera, Link as LinkIcon, Cake 
+  UserPlus, MapPin, Phone, Camera, Link as LinkIcon, Cake, UserCircle 
 } from 'lucide-react'
 
 export default function LoginPage() {
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   const [formData, setFormData] = useState({
+    display_name: '', // 💡 เพิ่มชื่อที่จะใช้แสดง
     first_name: '',
     last_name: '',
     birth_date: '',
@@ -74,7 +75,6 @@ export default function LoginPage() {
     setLoading(true)
     setMessage(null)
 
-    // ✅ แก้ไข: ใช้ .maybeSingle() แทน .single() เพื่อป้องกัน Error หากไม่เจอข้อมูล
     const { data, error } = await supabase
       .from('profiles')
       .select('email')
@@ -89,10 +89,8 @@ export default function LoginPage() {
     }
 
     if (data) {
-      // มีข้อมูลอยู่แล้ว ส่ง OTP เพื่อล็อกอิน
       await handleSendOTP(email)
     } else {
-      // ไม่มีข้อมูล เปลี่ยนไปหน้าลงทะเบียน
       setStep('register')
       setLoading(false)
     }
@@ -118,11 +116,16 @@ export default function LoginPage() {
 
   const handleRegisterAndLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!formData.display_name) {
+      setMessage({ type: 'error', text: 'กรุณากรอกชื่อโปรไฟล์ที่จะใช้แสดงผล' })
+      return
+    }
+
     setLoading(true)
     
+    // 💡 ส่งข้อมูลไปยัง Supabase Auth Metadata
     const metadata = {
       ...formData,
-      display_name: `${formData.first_name} ${formData.last_name}`,
       email
     }
 
@@ -211,6 +214,20 @@ export default function LoginPage() {
                     disabled={uploading}
                   />
                 </label>
+              </div>
+
+              {/* 💡 ช่องชื่อโปรไฟล์ที่จะใช้แสดง */}
+              <div className="md:col-span-2 space-y-1">
+                <label className="font-black text-sm ml-1 flex items-center gap-1 uppercase text-ori-orange-d">
+                  <UserCircle size={16}/> ชื่อโปรไฟล์ที่จะใช้แสดง (Display Name)
+                </label>
+                <input 
+                  required 
+                  placeholder="เช่น kruth_apex (ไม่ต้องแสดงชื่อจริง)" 
+                  className="w-full border-4 border-black rounded-xl p-4 font-bold text-lg focus:bg-orange-50 outline-none transition-colors shadow-paper-sm" 
+                  onChange={e => setFormData({...formData, display_name: e.target.value})} 
+                />
+                <p className="text-[10px] font-bold text-gray-400 ml-1 italic">* ชื่อนี้จะถูกใช้เป็นตัวตนของคุณบนแพลตฟอร์ม</p>
               </div>
 
               <div className="space-y-1">

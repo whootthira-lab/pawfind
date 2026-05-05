@@ -205,6 +205,10 @@ function ReportForm() {
             <label className="font-bold text-lg">อำเภอ/เขต</label>
             <input type="text" value={district} onChange={(e) => setDistrict(e.target.value)} className="ori-input" />
           </div>
+	  <div className="flex flex-col gap-2">
+            <label className="font-bold text-lg">ตำบล/แขวง</label>
+            <input type="text" value={district} onChange={(e) => setDistrict(e.target.value)} className="ori-input" />
+          </div>
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">ประเภท</label>
             <select value={type} onChange={(e) => setType(e.target.value)} className="ori-input">
@@ -256,7 +260,7 @@ function ReportForm() {
           </div>
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">ตำหนิหรือลักษณะพิเศษ</label>
-            <textarea value={distinctiveFeatures} onChange={(e) => setDistinctiveFeatures(e.target.value)} rows={3} className="ori-input" placeholder="หางกุด, ปลอกคอสีแดง, ขี้กลัว..." />
+            <textarea value={distinctiveFeatures} onChange={(e) => setDistinctiveFeatures(e.target.value)} rows={3} className="ori-input" placeholder="เช่น มีถุเท้าขาว,หางกุด, ปลอกคอสีแดง, ขี้กลัว..." />
           </div>
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">ช่องทางติดต่อ</label>
