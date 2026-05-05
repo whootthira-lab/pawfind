@@ -8,13 +8,17 @@ export async function POST(req: NextRequest) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   
-  // Allow anonymous submissions for testing
-  const ownerId = user?.id || null
+  // 💡 บังคับว่าต้องมี User ID เท่านั้น ป้องกันปัญหา "ประกาศไม่มีเจ้าของ" (Ghost Post)
+  if (!user) {
+    return NextResponse.json({ error: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง' }, { status: 401 })
+  }
+
+  const ownerId = user.id
 
   try {
     const body = await req.json()
     
-    // 💡 ดึงข้อมูลพิกัด (latitude, longitude) และสี (color) ออกมาจาก body
+    // 💡 ดึงข้อมูลพิกัด สี และ "ตำบล/แขวง (sub_district)" ออกมาจาก body ให้ชัดเจน
     const { 
       images, 
       markingImageIndexes = [], 
@@ -23,6 +27,7 @@ export async function POST(req: NextRequest) {
       latitude,
       longitude,
       color: userColor,
+      sub_district, // 💡 เพิ่มการรับค่า ตำบล/แขวง
       ...petData 
     } = body
 
@@ -42,20 +47,20 @@ export async function POST(req: NextRequest) {
     )
     const finalEmbedding = weightedAverageEmbedding(embeddingInputs)
 
-    // 3. Save pet data (ใช้ admin client เพื่อบายพาส RLS)
+    // 3. Save pet data (ใช้ admin client เพื่อบายพาส RLS สำหรับการ Insert)
     const adminSupabase = createAdminClient()
     const { data: pet, error: petError } = await adminSupabase
       .from('pets')
       .insert({
         ...petData,
         species: type,
-        user_id: ownerId,
+        user_id: ownerId, // 💡 บันทึกผูกกับ ID ของคุณวุฒิ์ธิระแน่นอน 100%
+        sub_district: sub_district || null, // 💡 บันทึก ตำบล/แขวง ลงฐานข้อมูล
         distinctive_features: distinctive_features || "",
-        latitude: latitude || null,   // 💡 บันทึกพิกัดรุ้ง
-        longitude: longitude || null, // 💡 บันทึกพิกัดแวง
+        latitude: latitude || null,
+        longitude: longitude || null,
         ai_description: analysis.full_description || "",
         breed: analysis.breed || "ไม่ระบุ",
-        // 💡 ใช้สีที่ผู้ใช้กรอกมา (userColor) ถ้าไม่มีค่อยใช้ที่ AI วิเคราะห์ (main_color)
         color: userColor || analysis.main_color || "ไม่ระบุ",
         embedding: `[${finalEmbedding.join(',')}]`,
         image_url: images[0]
