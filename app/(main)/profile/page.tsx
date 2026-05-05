@@ -1,21 +1,22 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { MatchResultCard } from '@/components/pet/MatchResult'
 import { ResolveButton } from '@/components/pet/ResolveButton'
-import { User, Package, CheckCircle, Loader2, PlusCircle, Bell } from 'lucide-react'
+import { User, CheckCircle, Loader2, PlusCircle, Bell } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ProfilePage() {
-  const [activeTab, setActiveTab] = useState<'posts' | 'resolved'>('posts') // ลบ 'comments' ออกจาก State
+  const [activeTab, setActiveTab] = useState<'posts' | 'resolved'>('posts')
   const [user, setUser] = useState<any>(null)
   const [myPets, setMyPets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  const supabase = createBrowserClient(
+  // 💡 ใช้ useMemo ป้องกันการสร้าง instance ใหม่ทุกครั้งที่ Render (ลด Warning)
+  const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  ), [])
 
   const fetchAllData = useCallback(async () => {
     try {
@@ -27,23 +28,26 @@ export default function ProfilePage() {
 
       setUser(session.user)
 
-      // ดึงเฉพาะข้อมูลประกาศและแจ้งเตือนที่เกี่ยวข้อง (ตัด saved_pets และ comments ออกเพื่อเลี่ยง Error 406)[cite: 1, 5]
+      // 💡 แก้ไข: ตัด notifications(id, is_read) ออกเพื่อป้องกัน Query พัง[cite: 12]
       const { data: pets, error: petsError } = await supabase
         .from('pets')
         .select(`
           *,
-          pet_images(storage_url, is_primary),
-          notifications(id, is_read)
+          pet_images(storage_url, is_primary)
         `)
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
 
+      // เช็ค Error เผื่อไว้ดูใน Console เวลามีปัญหา
+      if (petsError) {
+        console.error('❌ Supabase Query Error:', petsError.message)
+      }
+
       if (pets) {
         const formattedPets = pets.map((p: any) => {
-          const unreadCount = p.notifications?.filter((n: any) => !n.is_read).length || 0
           return {
             ...p,
-            unread_count: unreadCount,
+            unread_count: 0, // 💡 ตั้งเป็น 0 ไว้ก่อน ระหว่างรอทำระบบแจ้งเตือน
             province: p.province || p.district || 'ไม่ระบุพิกัด',
             image_url: p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
               || p.pet_images?.[0]?.storage_url 
@@ -85,7 +89,7 @@ export default function ProfilePage() {
         </Link>
       </div>
 
-      {/* Tabs - ลบปุ่มคอมเมนต์ออกแล้ว */}
+      {/* Tabs */}
       <div className="flex flex-wrap gap-4 border-b-4 border-ori-ink pb-2">
         <button onClick={() => setActiveTab('posts')} className={`pb-2 px-4 font-black text-lg transition-all ${activeTab === 'posts' ? 'text-ori-orange border-b-4 border-ori-orange -mb-[12px]' : 'text-ori-ink-l'}`}>
           📦 ประกาศของฉัน ({activePosts.length})
@@ -101,7 +105,7 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {activePosts.map(pet => (
               <div key={pet.id} className="flex flex-col gap-3 relative">
-                {/* Badge แจ้งเตือนบนการ์ด[cite: 1, 5] */}
+                {/* Badge แจ้งเตือนบนการ์ด */}
                 {pet.unread_count > 0 && (
                   <div className="absolute -top-2 -right-2 z-20 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-black shadow-paper-sm flex items-center gap-1 animate-bounce">
                     <Bell size={12} fill="white" /> {pet.unread_count} แจ้งเตือนใหม่!
