@@ -7,7 +7,7 @@ import { createEmbedding, weightedAverageEmbedding } from '@/lib/ai/embed'
 export async function POST(req: NextRequest) {
   const supabase = createClient()
   
-  // 1. ตรวจสอบสิทธิ์ผู้ใช้: บังคับล็อกอินเพื่อผูก user_id กับประกาศ[cite: 11]
+  // 1. ตรวจสอบสิทธิ์ผู้ใช้: บังคับล็อกอินเพื่อผูก user_id กับประกาศ
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   
   if (authError || !user) {
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     
-    // 2. แยกข้อมูลจาก Body รวมถึง ตำบล/แขวง (sub_district)[cite: 3, 11]
+    // 2. แยกข้อมูลจาก Body[cite: 3, 11]
     const { 
       images, 
       markingImageIndexes = [], 
@@ -39,28 +39,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'กรุณาอัปโหลดรูปภาพอย่างน้อย 1 รูป' }, { status: 400 })
     }
 
-    // --- ส่วนประมวลผล AI (ปรับปรุงให้ยืดหยุ่นต่อ Error 503) ---
+    // --- ส่วนประมวลผล AI (Resilient Logic) ---
     let analysis = { 
       full_description: "ข้อมูลอยู่ระหว่างการประมวลผลโดย AI", 
       breed: "ไม่ระบุ", 
       main_color: "ไม่ระบุ" 
     };
-    let finalEmbedding = new Array(1536).fill(0); // ค่าเริ่มต้นสำหรับ Vector Search[cite: 11]
+    let finalEmbedding = new Array(1536).fill(0); 
 
     try {
-      // พยายามวิเคราะห์รูปภาพด้วย Gemini[cite: 11]
-      analysis = await analyzePetImages(images)
+      // 💡 แก้ไข Type Error: รับค่าใส่ตัวแปรชั่วคราวก่อนตรวจสอบ undefined
+      const aiResult = await analyzePetImages(images)
+      
+      // มั่นใจว่าเป็น string แน่นอนด้วยการใช้ || fallback[cite: 11]
+      analysis = {
+        full_description: aiResult.full_description || analysis.full_description,
+        breed: aiResult.breed || analysis.breed,
+        main_color: aiResult.main_color || analysis.main_color
+      }
       
       const embeddingInputs = await Promise.all(
         images.map(async (_: string, i: number) => ({
-          vector: await createEmbedding(analysis.full_description || ""),
+          vector: await createEmbedding(analysis.full_description),
           weight: markingImageIndexes.includes(i) ? 3.0 : 1.0
         }))
       )
       finalEmbedding = weightedAverageEmbedding(embeddingInputs)
     } catch (aiErr) {
-      // หาก AI ล่ม (503) จะบันทึกข้อมูลที่ User กรอกมาลงไปก่อน เพื่อไม่ให้หน้า Profile ว่างเปล่า
-      console.warn('⚠️ AI Analysis skipped due to high demand (503). Saving basic data instead.')
+      // หาก Gemini ล่ม (503) ระบบจะข้ามไปบันทึกข้อมูลพื้นฐานทันที[cite: 1, 11]
+      console.warn('⚠️ AI Analysis skipped (503). Saving basic data instead.')
     }
     // -----------------------------------------------------
 
@@ -71,17 +78,17 @@ export async function POST(req: NextRequest) {
       .insert({
         ...petData,
         species: type, 
-        user_id: ownerId, // ผูกกับ ID ของผู้ใช้งานเพื่อให้แสดงในหน้า Profile[cite: 11]
-        sub_district: sub_district || null, // บันทึกข้อมูลตำบล/แขวง[cite: 11]
+        user_id: ownerId, 
+        sub_district: sub_district || null, 
         distinctive_features: distinctive_features || "",
         latitude: latitude || null,
         longitude: longitude || null,
-        ai_description: analysis.full_description || "",
-        breed: analysis.breed || "ไม่ระบุ",
-        color: userColor || analysis.main_color || "ไม่ระบุ",
+        ai_description: analysis.full_description,
+        breed: analysis.breed,
+        color: userColor || analysis.main_color,
         embedding: `[${finalEmbedding.join(',')}]`,
         image_url: images[0],
-        is_resolved: false // ตั้งค่าเริ่มต้นให้ประกาศยังดำเนินการอยู่[cite: 8, 10]
+        is_resolved: false 
       })
       .select()
       .single()
