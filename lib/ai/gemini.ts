@@ -51,12 +51,9 @@ export async function analyzePetImages(imageUrlsOrBase64: string[]): Promise<Ana
         const result = await model.generateContent([ANALYZE_PET_PROMPT, ...imageParts]);
         const text = result.response.text();
         
-        // 💡 แก้ไขไม้ตาย: ใช้ new RegExp() ป้องกัน VS Code ปัดบรรทัดพัง
-        const cleanText = text
-          .replace(new RegExp('```json', 'gi'), '')
-          .replace(new RegExp('
-```', 'g'), '')
-          .trim();
+        // 💡 แก้ไขระดับไม้ตาย: ใช้รหัส \x60 แทนการพิมพ์สัญลักษณ์ backtick
+        // รับรองว่า VS Code จะไม่มาหั่นบรรทัดตรงนี้อีกต่อไปครับ!
+        const cleanText = text.replace(/\x60\x60\x60json/gi, '').replace(/\x60\x60\x60/g, '').trim();
         
         console.log(`✅ [AI System] วิเคราะห์สำเร็จด้วย ${modelName}`);
         return JSON.parse(cleanText) as AnalyzeResponse;
