@@ -27,7 +27,7 @@ export default function NotificationBell() {
   ))
 
   const fetchInitialData = useCallback(async (userId: string) => {
-    // ปรับ Query ให้เรียบง่ายที่สุดเพื่อลด Error 400
+    // ปรับ Query ให้ลดโอกาสเกิด Error 400
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
@@ -36,7 +36,7 @@ export default function NotificationBell() {
       .limit(5)
 
     if (error) {
-      console.error('❌ Error fetching notifications:', error.message)
+      console.error('❌ ดึงข้อมูลแจ้งเตือนพลาด:', error.message)
       return
     }
 
@@ -50,14 +50,14 @@ export default function NotificationBell() {
     let channel: any = null
 
     const setupRealtime = async () => {
-      // ตรวจสอบ Session ให้มั่นใจก่อนเริ่ม (แก้ Error 406)
+      // ใช้ getSession เพื่อแก้ Error 406
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.user) return
 
       const userId = session.user.id
       await fetchInitialData(userId)
 
-      // เริ่มการเชื่อมต่อ Realtime แบบระบุช่องชัดเจน
+      // เริ่มการเชื่อมต่อ Realtime แบบเจาะจง User
       channel = supabase
         .channel(`notifications_user_${userId}`)
         .on('postgres_changes', 
@@ -68,18 +68,17 @@ export default function NotificationBell() {
             filter: `user_id=eq.${userId}` 
           }, 
           (payload) => {
-            console.log('🔔 New notification received!', payload.new)
+            console.log('🔔 มีแจ้งเตือนใหม่:', payload.new)
             const newNotif = payload.new as Notification
             setNotifications(prev => {
               if (prev.some(n => n.id === newNotif.id)) return prev
-              const updated = [newNotif, ...prev]
-              return updated.slice(0, 5)
+              return [newNotif, ...prev].slice(0, 5)
             })
             setUnreadCount(prev => prev + 1)
           }
         )
         .subscribe((status) => {
-          console.log('📡 Realtime status:', status)
+          console.log('📡 สถานะเชื่อมต่อ Realtime:', status)
         })
     }
 
@@ -116,9 +115,9 @@ export default function NotificationBell() {
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => { setIsOpen(!isOpen); if(!isOpen) markAsRead(); }}
-        className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-all focus:outline-none"
+        className="relative p-2 text-ori-ink-l hover:bg-ori-cream rounded-full transition-all focus:outline-none"
       >
-        <Bell className="w-6 h-6 text-ori-ink-l" />
+        <Bell className="w-6 h-6" />
         {unreadCount > 0 && (
           <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white animate-bounce">
             {unreadCount}
