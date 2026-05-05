@@ -8,7 +8,7 @@ if (!process.env.GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// 💡 Helper Function: แปลง URL กลับเป็น Format ที่ Gemini เข้าใจ (Buffer -> Base64)
+// 💡 Helper Function: แปลง URL กลับเป็น Format ที่ Gemini เข้าใจ
 async function fetchImageAsPart(urlOrBase64: string) {
   if (urlOrBase64.startsWith('data:image') || !urlOrBase64.startsWith('http')) {
       const base64Data = urlOrBase64.replace(/^data:image\/\w+;base64,/, "");
@@ -29,8 +29,8 @@ async function fetchImageAsPart(urlOrBase64: string) {
   };
 }
 
-// วิเคราะห์รูปสัตว์ — รองรับทั้ง Base64 และ Public URL พร้อมระบบสลับโมเดล (Fallback)
-export async function analyzePetImages(imageUrlsOrBase64: string[]): Promise<AnalyzeResponse null |> {
+// 💡 บรรทัดนี้คือจุดที่ VS Code ชอบแอบเติมแท็กปิดให้ ต้องมีแค่นี้เพียวๆ ครับ
+export async function analyzePetImages(imageUrlsOrBase64: string[]): Promise<AnalyzeResponse | null> {
   const modelsToTry = [
     "gemini-2.5-flash", 
     "gemini-1.5-flash", 
@@ -52,8 +52,8 @@ export async function analyzePetImages(imageUrlsOrBase64: string[]): Promise<Ana
         const result = await model.generateContent([ANALYZE_PET_PROMPT, ...imageParts]);
         const text = result.response.text();
         
-        // 💡 แก้ไขแล้ว: ดึงให้อยู่บรรทัดเดียวกันทั้งหมด ห้ามมี Enter แทรกตรงกลาง
-        const cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const cleanText = text.replace(/```json/gi, '').replace(/
+```/g, '').trim();
         
         console.log(`✅ [AI System] วิเคราะห์สำเร็จด้วย ${modelName}`);
         return JSON.parse(cleanText) as AnalyzeResponse;
@@ -75,7 +75,7 @@ export async function analyzePetImages(imageUrlsOrBase64: string[]): Promise<Ana
   }
 }
 
-// ตรวจว่ามีสัตว์ในรูปไหม — ปรับให้รองรับ URL ด้วย
+// ตรวจว่ามีสัตว์ในรูปไหม
 export async function validatePetImage(imageUrlOrBase64: string): Promise<boolean> {
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
