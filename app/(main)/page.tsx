@@ -1,6 +1,5 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
-// 💡 ลบ Facebook ออกจากการ import แล้ว
 import { 
   Search, 
   PlusCircle, 
@@ -9,7 +8,8 @@ import {
   TrendingUp, 
   Wallet,
   ArrowRight,
-  ChevronDown
+  ChevronDown,
+  Share2
 } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -30,76 +30,112 @@ export default function LandingPage() {
   const financialStats = {
     revenue: 12500,
     expense: 8400,
-    costPerFound: 420,
-    bankAccount: "xxx-x-xxxxx-x (ธนาคารไทยพาณิชย์)"
   }
+  
+  // คำนวณเปอร์เซ็นต์สำหรับกราฟแท่ง
+  const total = Math.max(financialStats.revenue, financialStats.expense, 1)
+  const revPercent = (financialStats.revenue / total) * 100
+  const expPercent = (financialStats.expense / total) * 100
+
+  // ดึงรูปสัตว์แบบสุ่มน่ารักๆ เพื่อดึงดูดการสนับสนุน
+  const randomAnimalImg = "https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=400&auto=format&fit=crop"
 
   return (
     <div className="flex flex-col gap-12 pb-20">
       
+      {/* --- Section 1: Hero & Action Buttons --- */}
       <section className="bg-white border-4 border-black rounded-3xl p-8 md:p-12 shadow-paper text-center overflow-visible">
         <h1 className="text-4xl md:text-6xl font-black mb-4">PobPet 🐾</h1>
         <p className="text-xl font-bold text-gray-600 mb-8">หาสัตว์หายด้วย AI และพลังของชุมชน</p>
         
-        <div className="flex flex-col md:flex-row gap-6 justify-center">
+        <div className="flex flex-col md:flex-row gap-4 justify-center flex-wrap">
           <div className="relative group">
-            <button className="w-full md:w-72 bg-wagashi-matcha border-2 border-black p-5 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all">
-              <Search size={24} /> ค้นหาน้องสัตว์ <ChevronDown size={20} />
+            <button className="w-full md:w-64 bg-wagashi-matcha border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all">
+              <Search size={22} /> ค้นหาน้องสัตว์ <ChevronDown size={18} />
             </button>
             <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute top-full left-0 w-full bg-white border-4 border-black rounded-2xl mt-3 p-2 z-50 shadow-paper transition-all">
-              <Link href="/search?status=lost" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 last:border-0 text-black">🚨 ตามหาเจ้าของ</Link>
-              <Link href="/search?status=found" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 last:border-0 text-black">👀 พบน้องหลงทาง</Link>
+              <Link href="/search?status=lost" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">🚨 ตามหาเจ้าของ</Link>
+              <Link href="/search?status=found" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">👀 พบน้องหลงทาง</Link>
               <Link href="/search?status=adoption" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left text-black">💖 หาบ้านใหม่</Link>
             </div>
           </div>
 
           <div className="relative group">
-            <button className="w-full md:w-72 bg-black text-white border-2 border-black p-5 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all">
-              <PlusCircle size={24} /> ลงประกาศใหม่ <ChevronDown size={20} />
+            <button className="w-full md:w-64 bg-black text-white border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all">
+              <PlusCircle size={22} /> ลงประกาศใหม่ <ChevronDown size={18} />
             </button>
             <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute top-full left-0 w-full bg-white border-4 border-black rounded-2xl mt-3 p-2 z-50 shadow-paper transition-all">
-              <Link href="/report?type=lost" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 last:border-0 text-black">📢 แจ้งสัตว์หาย</Link>
-              <Link href="/report?type=found" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 last:border-0 text-black">📍 แจ้งพบสัตว์หลง</Link>
+              <Link href="/report?type=lost" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">📢 แจ้งสัตว์หาย</Link>
+              <Link href="/report?type=found" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">📍 แจ้งพบสัตว์หลง</Link>
               <Link href="/report?type=adoption" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left text-black">🏠 หาบ้านให้น้อง</Link>
             </div>
           </div>
+
+          {/* 💡 ปุ่มแชร์แพลตฟอร์มไปที่ Facebook */}
+          <a 
+            href={`https://www.facebook.com/sharer/sharer.php?u=https://pawfind-eta.vercel.app`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full md:w-auto bg-[#1877F2] text-white border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all"
+          >
+            <Share2 size={22} /> แชร์แพลตฟอร์ม
+          </a>
         </div>
       </section>
 
-      <div className="flex flex-col gap-4">
+      {/* --- Section 2: Financial Dashboard & Donation --- */}
+      <div className="flex flex-col gap-6">
         <h2 className="text-2xl font-black px-2 flex items-center gap-2">
-          <TrendingUp className="text-ori-orange" /> รายงานความคืบหน้าและต้นทุน
+          <TrendingUp className="text-ori-orange" /> รายงานความคืบหน้าและทุนสนับสนุน
         </h2>
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white border-4 border-black p-8 rounded-3xl shadow-paper">
-            <div className="flex items-center gap-3 mb-2 text-green-600">
-              <TrendingUp size={24} />
-              <h3 className="text-lg font-black">รายรับรวม</h3>
+        
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          {/* 💡 ปรับเป็น Bar Graph ดูง่ายขึ้น ลบกล่องต้นทุนออก */}
+          <div className="bg-white border-4 border-black p-8 rounded-3xl shadow-paper flex flex-col justify-center">
+            <h3 className="text-xl font-black mb-6 border-b-4 border-black pb-2 inline-block">📊 กราฟรายรับ - รายจ่าย</h3>
+            
+            <div className="mb-6">
+              <div className="flex justify-between mb-2">
+                <span className="font-black text-green-600 flex items-center gap-2"><TrendingUp size={20}/> รายรับ / สนับสนุน</span>
+                <span className="font-black text-green-600 text-lg">฿{financialStats.revenue.toLocaleString()}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-8 border-2 border-black overflow-hidden shadow-inner">
+                <div className="bg-green-500 h-8 transition-all duration-1000" style={{ width: `${revPercent}%` }}></div>
+              </div>
             </div>
-            <p className="text-4xl font-black">฿{financialStats.revenue.toLocaleString()}</p>
-            <div className="mt-4 pt-4 border-t-2 border-dashed border-gray-200">
-              <p className="text-xs font-bold text-gray-500 uppercase">สนับสนุนโครงการที่:</p>
-              <p className="text-sm font-black text-ori-ink">{financialStats.bankAccount}</p>
+
+            <div>
+              <div className="flex justify-between mb-2">
+                <span className="font-black text-red-500 flex items-center gap-2"><Wallet size={20}/> รายจ่ายสะสม</span>
+                <span className="font-black text-red-500 text-lg">฿{financialStats.expense.toLocaleString()}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-8 border-2 border-black overflow-hidden shadow-inner">
+                <div className="bg-red-500 h-8 transition-all duration-1000" style={{ width: `${expPercent}%` }}></div>
+              </div>
+              <p className="text-xs font-bold text-gray-400 mt-2 text-right">*รวมค่า API, AI และ Server</p>
             </div>
           </div>
 
-          <div className="bg-white border-4 border-black p-8 rounded-3xl shadow-paper">
-            <div className="flex items-center gap-3 mb-2 text-red-500">
-              <Wallet size={24} />
-              <h3 className="text-lg font-black">รายจ่ายสะสม</h3>
+          {/* 💡 โซนระดมทุนพร้อม QR Code และรูปน้องหมา */}
+          <div className="bg-ori-orange text-white border-4 border-black p-8 rounded-3xl shadow-paper flex flex-col items-center text-center justify-center gap-4 relative overflow-hidden">
+            <h3 className="text-2xl font-black z-10">ร่วมสมทบทุนเพื่อให้น้องๆ <br/>ได้มีโอกาสกลับบ้าน 💖</h3>
+            <p className="font-bold opacity-90 z-10">ทุกการสนับสนุนช่วยต่อลมหายใจและ<br/>เป็นค่าเซิร์ฟเวอร์ AI ในการค้นหา</p>
+            
+            <div className="flex gap-4 mt-2 z-10">
+              <img src="/qr-donate.jpg" alt="QR Code รับบริจาค" className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white shadow-paper-sm object-cover bg-white" />
+              <img src={randomAnimalImg} alt="น้องสัตว์เลี้ยง" className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white shadow-paper-sm object-cover" />
             </div>
-            <p className="text-4xl font-black">฿{financialStats.expense.toLocaleString()}</p>
-            <p className="text-sm font-bold text-gray-400 mt-2 italic">*รวมค่า AI และ Server</p>
+            
+            <p className="font-black bg-white text-ori-orange px-4 py-2 rounded-xl mt-2 z-10 shadow-paper-sm border-2 border-black">
+              ชื่อบัญชี: วุฒิ์ธิระ ครุฑขุนทด (KRUTH APEX)
+            </p>
           </div>
 
-          <div className="bg-ori-orange text-white border-4 border-black p-8 rounded-3xl shadow-paper flex flex-col justify-center">
-            <h3 className="text-xl font-black mb-1">ความสำเร็จ 🏆</h3>
-            <p className="text-sm font-bold opacity-90 mb-4 text-white">ต้นทุนในการหาสัตว์เจอ 1 ครั้ง:</p>
-            <p className="text-4xl font-black">฿{financialStats.costPerFound}</p>
-          </div>
         </section>
       </div>
 
+      {/* --- Section 3: Contact Channels --- */}
       <section className="bg-wagashi-sora border-4 border-black rounded-3xl p-8 shadow-paper">
         <h2 className="text-2xl font-black mb-6">ติดต่อเจ้าหน้าที่ / สอบถามเพิ่มเติม 📢</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -108,7 +144,6 @@ export default function LandingPage() {
           </a>
           <a href="https://facebook.com/YOUR_PAGE" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
             <div className="bg-[#1877F2] p-2 rounded-lg text-white">
-              {/* 💡 วาดไอคอน Facebook ด้วยโค้ด SVG สดๆ เพื่อแก้ปัญหา Build พัง */}
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
             </div> Facebook
           </a>
@@ -121,26 +156,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-washi border-4 border-black rounded-3xl p-8 shadow-paper text-center">
-        <h2 className="text-3xl font-black mb-10">3 ขั้นตอนง่ายๆ</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-          <div className="flex flex-col items-center">
-            <div className="w-24 h-24 bg-wagashi-sakura border-4 border-black rounded-full flex items-center justify-center text-5xl mb-4 shadow-paper-sm">📸</div>
-            <h3 className="font-black text-xl mb-2">1. ส่งรูปภาพ</h3>
-            <p className="font-bold text-gray-600">อัปโหลดรูปสัตว์เลี้ยงที่หาย หรือรูปที่คุณพบเจอ</p>
-          </div>
-          <div className="flex flex-col items-center">
-            <div className="w-24 h-24 bg-wagashi-matcha border-4 border-black rounded-full flex items-center justify-center text-5xl mb-4 shadow-paper-sm">🤖</div>
-            <h3 className="font-black text-xl mb-2">2. AI วิเคราะห์</h3>
-            <p className="font-bold text-gray-600">ระบบ AI Vision จะวิเคราะห์จุดเด่นและจับคู่ให้ทันที</p>
-          </div>
-          <div className="flex flex-col items-center">
-            <div className="w-24 h-24 bg-wagashi-kinako border-4 border-black rounded-full flex items-center justify-center text-5xl mb-4 shadow-paper-sm">🤝</div>
-            <h3 className="font-black text-xl mb-2">3. พาพบเจ้าของ</h3>
-            <p className="font-bold text-gray-600">ประสานงานช่วยเหลือเพื่อส่งน้องกลับบ้านอย่างปลอดภัย</p>
-          </div>
-        </div>
-      </section>
     </div>
   )
 }

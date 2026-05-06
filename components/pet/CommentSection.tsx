@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-import { MessageCircle, Send, User, Trash2, Edit2, X, Check } from 'lucide-react'
+// 💡 เพิ่ม ImagePlus และ Loader2 สำหรับระบบอัปโหลดรูป
+import { MessageCircle, Send, User, Trash2, Edit2, X, Check, ImagePlus, Loader2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { th } from 'date-fns/locale'
 
@@ -13,7 +14,11 @@ export function CommentSection({ petId }: { petId: string }) {
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState<any>(null)
 
-  // 💡 ใช้ useMemo เพื่อป้องกันการสร้าง Instance ใหม่ทุกครั้งที่ Render (แก้ Warning)
+  // 💡 State และ Ref สำหรับจัดการรูปภาพ
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -28,7 +33,6 @@ export function CommentSection({ petId }: { petId: string }) {
     if (data) setComments(data)
   }, [petId, supabase])
 
-  // 💡 เพิ่ม useCallback เพื่อความเสถียรของ Dependency ใน useEffect (แก้ Warning)
   const checkUser = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     setUser(user)
@@ -38,7 +42,6 @@ export function CommentSection({ petId }: { petId: string }) {
     fetchComments()
     checkUser()
 
-    // Realtime: อัปเดตเมื่อมีการ INSERT, UPDATE, หรือ DELETE
     const channel = supabase
       .channel(`comments-${petId}`)
       .on(
@@ -49,33 +52,78 @@ export function CommentSection({ petId }: { petId: string }) {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [petId, fetchComments, checkUser, supabase]) // 💡 ใส่ Dependency ครบถ้วนตาม Log[cite: 11, 12]
+  }, [petId, fetchComments, checkUser, supabase])
+
+  // 💡 ฟังก์ชันจัดการเมื่อเลือกรูปภาพ
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('รูปภาพต้องมีขนาดไม่เกิน 5MB')
+        return
+      }
+      setImageFile(file)
+      setImagePreview(URL.createObjectURL(file))
+    }
+  }
+
+  // 💡 ฟังก์ชันลบรูปที่เลือกก่อนส่ง
+  const removeImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   const handleSend = async () => {
-    if (!newComment.trim() || !user || loading) return
+    // เช็คว่าต้องมีข้อความ หรือ รูปภาพ อย่างใดอย่างหนึ่งถึงจะส่งได้
+    if ((!newComment.trim() && !imageFile) || !user || loading) return
     setLoading(true)
     
-    // 💡 ปรับการดึงชื่อให้ลำดับความสำคัญคือ Display Name > First Name > Email
-    const displayName = user.user_metadata?.display_name || 
-                        user.user_metadata?.first_name || 
-                        user.email?.split('@')[0] || 
-                        'ผู้ใช้งาน';
+    try {
+      let imageUrl = null
 
-    const { error } = await supabase.from('comments').insert({
-      pet_id: petId,
-      user_id: user.id,
-      content: newComment.trim(),
-      user_name: displayName,
-      user_avatar: user.user_metadata?.avatar_url || null
-    })
+      // 💡 1. อัปโหลดรูปขึ้น Storage Bucket ก่อน (ถ้ามี)
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop()
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('comment-images')
+          .upload(fileName, imageFile)
 
-    if (error) {
+        if (uploadError) throw uploadError
+
+        const { data: urlData } = supabase.storage.from('comment-images').getPublicUrl(fileName)
+        imageUrl = urlData.publicUrl
+      }
+
+      const displayName = user.user_metadata?.display_name || 
+                          user.user_metadata?.first_name || 
+                          user.email?.split('@')[0] || 
+                          'ผู้ใช้งาน'
+
+      // 💡 2. บันทึกข้อมูลลง Database พร้อมลิงก์รูป (ถ้ามี)
+      const { error } = await supabase.from('comments').insert({
+        pet_id: petId,
+        user_id: user.id,
+        content: newComment.trim(),
+        user_name: displayName,
+        user_avatar: user.user_metadata?.avatar_url || null,
+        image_url: imageUrl // เพิ่มฟิลด์นี้
+      })
+
+      if (error) throw error
+
+      // 💡 3. ส่งเสร็จแล้ว เคลียร์ค่าทั้งหมด
+      setNewComment('')
+      removeImage()
+
+    } catch (error: any) {
       console.error('Error sending:', error.message)
       alert('ไม่สามารถส่งได้: ' + error.message)
-    } else {
-      setNewComment('')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleDelete = async (id: string) => {
@@ -135,7 +183,21 @@ export function CommentSection({ petId }: { petId: string }) {
                 <button onClick={() => setEditingId(null)} className="p-1 bg-gray-400 text-white rounded-md shadow-paper-sm hover:scale-110 transition-transform"><X size={16}/></button>
               </div>
             ) : (
-              <p className="text-ori-ink-m text-sm ml-10 break-words leading-relaxed">{comment.content}</p>
+              <div className="ml-10">
+                {/* 💡 แสดงข้อความ */}
+                {comment.content && <p className="text-ori-ink-m text-sm break-words leading-relaxed">{comment.content}</p>}
+                
+                {/* 💡 แสดงรูปภาพแนบ (ถ้ามี) */}
+                {comment.image_url && (
+                  <div className="mt-3">
+                    <img 
+                      src={comment.image_url} 
+                      alt="รูปภาพแนบในคอมเมนต์" 
+                      className="max-w-full sm:max-w-xs rounded-xl border-2 border-ori-ink shadow-paper-sm object-cover" 
+                    />
+                  </div>
+                )}
+              </div>
             )}
 
             {user && user.id === comment.user_id && editingId !== comment.id && (
@@ -166,22 +228,58 @@ export function CommentSection({ petId }: { petId: string }) {
       </div>
 
       {user ? (
-        <div className="flex gap-2 bg-white p-2 rounded-2xl border-2 border-ori-ink shadow-paper-sm focus-within:ring-2 ring-orange-500/20 transition-all">
-          <input
-            type="text"
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="เขียนข้อความให้กำลังใจหรือแจ้งเบาะแส..."
-            className="flex-1 bg-transparent px-3 py-2 outline-none text-sm font-bold"
-          />
-          <button 
-            onClick={handleSend} 
-            disabled={loading || !newComment.trim()} 
-            className={`p-3 rounded-xl transition-all ${loading || !newComment.trim() ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-orange-500 text-white hover:bg-orange-600 active:translate-y-1 shadow-paper-sm'}`}
-          >
-            <Send size={20} className={loading ? 'animate-pulse' : ''} />
-          </button>
+        <div className="flex flex-col gap-2 bg-white p-3 rounded-2xl border-2 border-ori-ink shadow-paper-sm focus-within:ring-2 ring-orange-500/20 transition-all">
+          
+          {/* 💡 พรีวิวรูปภาพก่อนส่ง */}
+          {imagePreview && (
+            <div className="relative inline-block w-fit mb-2">
+              <img src={imagePreview} alt="Preview" className="h-24 rounded-xl border-2 border-ori-ink object-cover" />
+              <button 
+                onClick={removeImage} 
+                className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full border-2 border-ori-ink hover:scale-110 transition-transform shadow-paper-sm"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-end gap-2">
+            <input
+              type="text"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              placeholder="เขียนข้อความหรือแจ้งเบาะแส..."
+              className="flex-1 bg-transparent px-2 py-2 outline-none text-sm font-bold"
+            />
+            
+            {/* 💡 Input ซ่อนสำหรับเลือกรูปภาพ */}
+            <input 
+              type="file" 
+              accept="image/*" 
+              ref={fileInputRef} 
+              onChange={handleImageSelect} 
+              className="hidden" 
+            />
+            
+            {/* 💡 ปุ่มกดเรียก Input เลือกรูปภาพ */}
+            <button 
+              type="button"
+              onClick={() => fileInputRef.current?.click()} 
+              className="p-2 text-ori-ink-m hover:text-ori-orange transition-colors rounded-xl"
+              title="แนบรูปภาพ"
+            >
+              <ImagePlus size={24} />
+            </button>
+
+            <button 
+              onClick={handleSend} 
+              disabled={loading || (!newComment.trim() && !imageFile)} 
+              className={`p-3 rounded-xl transition-all ${loading || (!newComment.trim() && !imageFile) ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-orange-500 text-white hover:bg-orange-600 active:translate-y-1 shadow-paper-sm'}`}
+            >
+              {loading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+            </button>
+          </div>
         </div>
       ) : (
         <div className="text-center p-6 bg-gray-50 rounded-2xl border-4 border-dashed border-gray-300">
