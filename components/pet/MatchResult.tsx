@@ -14,7 +14,7 @@ interface PetResult {
   province: string
   image_url: string
   status: string
-  user_id?: string // เพิ่มเพื่อตรวจสอบความเป็นเจ้าของ
+  user_id?: string 
   match_percentage?: number
 }
 
@@ -22,8 +22,8 @@ export function MatchResultCard({ result }: { result: PetResult }) {
   const router = useRouter()
   const [isPinned, setIsPinned] = useState(false)
   const [isLoadingPin, setIsLoadingPin] = useState(false)
-  const [isNavigating, setIsNavigating] = useState(false) // 💡 สำหรับปุ่มดูรายละเอียด
-  const [isDeleting, setIsDeleting] = useState(false)    // 💡 สำหรับปุ่มลบ
+  const [isNavigating, setIsNavigating] = useState(false) 
+  const [isDeleting, setIsDeleting] = useState(false)    
   const [isCheckingInitial, setIsCheckingInitial] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
 
@@ -32,7 +32,6 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // ตรวจสอบสถานะ Pin และ User ID
   useEffect(() => {
     const checkStatus = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -48,7 +47,6 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     checkStatus()
   }, [supabase, result.id])
 
-  // ฟังก์ชันสลับสถานะ Pin (Bookmark)
   const handleTogglePin = async (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
     if (!userId) { alert('กรุณาเข้าสู่ระบบก่อนครับ'); router.push('/login'); return }
@@ -68,7 +66,6 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     finally { setIsLoadingPin(false) }
   }
 
-  // ฟังก์ชันลบประกาศ
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
     if (!confirm("🚨 ยืนยันการลบประกาศนี้? ข้อมูลจะหายถาวรไม่สามารถกู้คืนได้")) return
@@ -92,14 +89,14 @@ export function MatchResultCard({ result }: { result: PetResult }) {
   const formatSrc = (src: string) =>
     src?.startsWith('http') ? src : `data:image/jpeg;base64,${src}`
 
+  // 💡 อัปเดตข้อความบนป้ายสถานะให้ตรงตามความต้องการ
   const statusCfg: Record<string, { label: string; color: string }> = {
-    lost:     { label: 'สัตว์หาย',    color: '#D94F1E' },
-    found:    { label: 'พบหลงทาง',   color: '#2D6A2D' },
-    adoption: { label: 'หาบ้าน',      color: '#1A5EA8' },
+    lost:     { label: '🚨 ประกาศตามหาน้อง', color: '#D94F1E' },
+    found:    { label: '👀 พบน้องหลงทาง',   color: '#2D6A2D' },
+    adoption: { label: '💖 หาบ้านให้น้อง',      color: '#1A5EA8' },
   }
   const cfg = statusCfg[result.status] || { label: result.status, color: '#1A1208' }
 
-  // ตรวจสอบว่าเป็นเจ้าของประกาศหรือไม่
   const isOwner = userId === result.user_id
 
   return (
@@ -137,16 +134,16 @@ export function MatchResultCard({ result }: { result: PetResult }) {
       <div className="p-4 flex flex-grow flex-col gap-2">
         <h3 className="font-display font-black text-xl text-ori-ink truncate">{result.name || 'ไม่ทราบชื่อ'}</h3>
         <p className="text-sm text-ori-ink-l font-medium truncate">{result.breed || 'ไม่ระบุสายพันธุ์'}</p>
-        <div className="flex items-center gap-1.5 text-sm font-bold text-ori-ink-m bg-ori-cream border border-ori-cream-d rounded-lg px-3 py-1.5 w-fit">
-          <MapPin size={14} />
-          <span className="truncate">{result.province}</span>
+        
+        {/* 💡 เปลี่ยน w-fit เป็น w-full และ span ใช้ line-clamp-2 เพื่อให้ข้อมูลพิกัดยาวยาวไม่ถูกตัดหายไป */}
+        <div className="flex items-start gap-1.5 text-sm font-bold text-ori-ink-m bg-ori-cream border border-ori-cream-d rounded-lg px-3 py-1.5 w-full">
+          <MapPin size={14} className="shrink-0 mt-0.5" />
+          <span className="line-clamp-2">{result.province}</span>
         </div>
       </div>
 
       {/* ── Action Buttons (CTA) ── */}
       <div className="px-4 pb-4 space-y-2">
-        
-        {/* 1. ปุ่มดูรายละเอียด (พร้อม Spinner) */}
         <button
           onClick={() => { setIsNavigating(true); router.push(`/pet/${result.id}`) }}
           disabled={isNavigating}
@@ -156,7 +153,6 @@ export function MatchResultCard({ result }: { result: PetResult }) {
           {isNavigating ? 'กำลังโหลด...' : 'ดูรายละเอียด'} <ArrowRight size={16} />
         </button>
 
-        {/* 2. ปุ่มจัดการ (แก้ไข/ลบ) - จะขึ้นเฉพาะเจ้าของประกาศเท่านั้น */}
         {isOwner && (
           <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-dashed border-ori-ink/20">
             <Link 

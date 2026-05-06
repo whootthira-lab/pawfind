@@ -51,18 +51,19 @@ function SearchContent() {
 
     if (data) {
       const formattedPets = data.map((p: any) => {
-        // 💡 1. นำ ตำบล อำเภอ จังหวัด มาเรียงต่อกันให้สวยงาม
+        // 1. นำ ตำบล อำเภอ จังหวัด มาเรียงต่อกันให้สวยงาม
         const addressParts = []
         if (p.tambon) addressParts.push(`ต.${p.tambon}`)
         if (p.district) addressParts.push(`อ.${p.district}`)
         if (p.province) addressParts.push(`จ.${p.province}`)
         
-        let fullAddress = addressParts.length > 0 ? addressParts.join(' ') : 'ไม่ระบุพิกัด'
+        let fullAddress = addressParts.length > 0 ? addressParts.join(' ') : 'ไม่ระบุที่อยู่'
 
-        // 💡 2. ถ้าเป็นสถานะ 'found' (พบสัตว์หลง) และมีพิกัด ให้โชว์พิกัดคร่าวๆ (ทศนิยม 3 ตำแหน่ง)
+        // 2. ซ่อนพิกัดโหมดอื่น และโชว์เฉพาะ 'found' เท่านั้น
+        // 💡 เพิ่ม Number() ป้องกัน Error กรณีฐานข้อมูลส่งมาเป็น String
         if (p.status === 'found' && p.latitude && p.longitude) {
-          const roughLat = p.latitude.toFixed(3) 
-          const roughLng = p.longitude.toFixed(3)
+          const roughLat = Number(p.latitude).toFixed(3) 
+          const roughLng = Number(p.longitude).toFixed(3)
           fullAddress += ` (📍 พิกัดใกล้เคียง: ${roughLat}, ${roughLng})`
         }
 
@@ -70,7 +71,7 @@ function SearchContent() {
           id: p.id,
           name: p.name,
           breed: p.breed,
-          province: fullAddress, // 💡 ส่งที่อยู่ที่จัดเรียงแล้วไปให้การ์ดแสดงผล
+          province: fullAddress, 
           status: p.status,
           image_url: p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
             || p.pet_images?.[0]?.storage_url 
@@ -122,7 +123,8 @@ function SearchContent() {
           className="w-full bg-white border-4 border-black rounded-2xl px-5 py-4 font-black shadow-paper-sm appearance-none cursor-pointer hover:-translate-y-1 transition-transform focus:outline-none focus:ring-4 focus:ring-ori-orange/30 text-lg text-black"
         >
           <option value="all">🔍 ดูทั้งหมด</option>
-          <option value="lost">🚨 ดูการแจ้งหาย</option>
+          {/* 💡 เปลี่ยนข้อความเป็น "ประกาศตามหาน้อง" ให้ตรงกับหน้าอื่น */}
+          <option value="lost">🚨 ประกาศตามหาน้อง</option>
           <option value="found">👀 ดูประกาศพบสัตว์หลง</option>
           <option value="adoption">💖 หาบ้านให้น้อง</option>
         </select>

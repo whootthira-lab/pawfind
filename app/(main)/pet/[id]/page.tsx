@@ -178,9 +178,9 @@ export default async function PetProfilePage({ params }: Props) {
               </div>
               <div className="flex flex-col items-end gap-2">
                 <span className="bg-wagashi-matcha border-2 border-black px-4 py-2 rounded-lg font-bold shadow-paper-sm text-lg text-center min-w-[140px]">
-                  {pet.status === 'lost' ? '🚨 ตามหาเจ้าของ' : pet.status === 'found' ? '👀 พบน้องหลงทาง' : '💖 หาบ้านใหม่'}
+                  {pet.status === 'lost' ? '🚨 ปรกาศตามหาเจ้าน้อง' : pet.status === 'found' ? '👀 พบน้องหลงทาง' : '💖 หาบ้านใหม่'}
                 </span>
-                <ShareButton petName={pet.name || 'น้องสัตว์เลี้ยง'} status={pet.status === 'lost' ? 'ตามหาเจ้าของ' : 'พบน้องหลงทาง'} petId={params.id} />
+                <ShareButton petName={pet.name || 'น้องสัตว์เลี้ยง'} status={pet.status === 'lost' ? 'ประกาศตามหาเจ้าน้อง' : 'พบน้องหลงทาง'} petId={params.id} />
                 {pet.reward_amount > 0 && (
                   <span className="bg-red-500 text-white border-2 border-black px-3 py-1 rounded font-bold shadow-paper-sm">
                     💰 รางวัล {pet.reward_amount.toLocaleString()} บาท
