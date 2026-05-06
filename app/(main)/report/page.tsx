@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay'
@@ -23,7 +23,7 @@ const CDN = {
   tambons:   'https://cdn.jsdelivr.net/gh/kongvut/thai-province-data@master/api_tambon.json',
 }
 
-// ── In-memory cache (โหลดครั้งเดียวต่อ session) ──────────────
+// ── In-memory cache ──────────────
 const CACHE: {
   provinces?: Province[]
   amphures?:  Amphure[]
@@ -36,96 +36,6 @@ async function fetchWithCache<T>(key: keyof typeof CACHE, url: string): Promise<
   const data = await res.json() as T[]
   CACHE[key] = data as any
   return data
-}
-
-// ══════════════════════════════════════════════════════════════
-// GOOGLE MAPS GEOCODING
-// ══════════════════════════════════════════════════════════════
-interface GeoResult {
-  province: string
-  amphure:  string
-  tambon:   string
-  postcode: string
-}
-
-async function reverseGeocode(lat: number, lng: number): Promise<GeoResult | null> {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-  if (!apiKey) {
-    console.warn('[Geocoding] NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ไม่ได้ตั้งค่า')
-    return null
-  }
-
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}&language=th`
-
-  try {
-    const res  = await fetch(url)
-    const data = await res.json()
-
-    if (data.status !== 'OK' || !data.results?.length) return null
-
-    // ── รวม components จากหลาย results เพื่อเพิ่มโอกาสเจอข้อมูลครบ ──
-    // Google บางครั้งแตก result ออกเป็นหลายชุด เช่น ระดับ locality vs admin
-    const allComponents: any[] = data.results.flatMap(
-      (r: any) => r.address_components ?? []
-    )
-
-    // ── Helper: หาค่าแรกที่ match type ใด type หนึ่งใน priority list ──
-    const getFirst = (...types: string[]): string => {
-      for (const type of types) {
-        const found = allComponents.find(c => c.types.includes(type))
-        if (found?.long_name) return found.long_name
-      }
-      return ''
-    }
-
-    // ── จังหวัด: administrative_area_level_1 เท่านั้น ──────────────
-    const rawProvince = getFirst('administrative_area_level_1')
-
-    // ── อำเภอ/เขต: level_2 ──────────────────────────────────────────
-    const rawAmphure  = getFirst('administrative_area_level_2')
-
-    // ── ตำบล/แขวง: ต้องลอง fallback หลายชั้น ─────────────────────────
-    // ลำดับความน่าเชื่อถือในไทย:
-    //   1. administrative_area_level_3  → ตำบล ชนบท (ส่วนใหญ่)
-    //   2. sublocality_level_1          → แขวง กรุงเทพฯ/เมืองใหญ่
-    //   3. sublocality_level_2          → แขวงย่อย บางพื้นที่
-    //   4. sublocality                  → generic fallback
-    //   5. neighborhood                 → บางครั้ง Google ใส่ชื่อตำบลไว้ที่นี่
-    //   6. locality                     → last resort ระดับเมือง/ตำบล
-    const rawTambon = getFirst(
-      'administrative_area_level_3',
-      'sublocality_level_1',
-      'sublocality_level_2',
-      'sublocality',
-      'neighborhood',
-      'locality',
-    )
-
-    const rawPostcode = getFirst('postal_code')
-
-    // ── ตัด prefix ภาษาไทยที่ Google บางครั้งใส่มาด้วย ──────────────
-    const clean = (s: string, prefixes: string[]) => {
-      let out = s.trim()
-      for (const p of prefixes) {
-        if (out.startsWith(p)) { out = out.slice(p.length).trim(); break }
-      }
-      return out
-    }
-
-    const result: GeoResult = {
-      province: clean(rawProvince, ['จังหวัด']),
-      amphure:  clean(rawAmphure,  ['อำเภอ', 'เขต']),
-      tambon:   clean(rawTambon,   ['ตำบล', 'แขวง']),
-      postcode: rawPostcode,
-    }
-
-    console.log('[Geocoding] Result:', result)
-    return result
-
-  } catch (err) {
-    console.error('[Geocoding] Error:', err)
-    return null
-  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -165,7 +75,6 @@ function ReportForm() {
   // ── Location ─────────────────────────────────────────────────
   const [location,       setLocation]       = useState<{ lat: number; lng: number } | null>(null)
   const [isGettingLoc,   setIsGettingLoc]   = useState(false)
-  const [isGeocoding,    setIsGeocoding]    = useState(false)
 
   // ══════════════════════════════════════════════════════════════
   // Load dropdown data from CDN on mount
@@ -174,7 +83,6 @@ function ReportForm() {
     const load = async () => {
       try {
         setDataLoading(true)
-        // โหลด province + amphure พร้อมกัน (tambon โหลดทีหลังตาม amphure)
         const [p, a] = await Promise.all([
           fetchWithCache<Province>('provinces', CDN.provinces),
           fetchWithCache<Amphure>('amphures',   CDN.amphures),
@@ -193,9 +101,7 @@ function ReportForm() {
   // ── Filter amphures เมื่อ province เปลี่ยน ───────────────────
   useEffect(() => {
     if (!province || !provinces.length) { setFilteredAmphures([]); return }
-    const matched = provinces.find(p =>
-      p.name_th === province || p.name_en === province
-    )
+    const matched = provinces.find(p => p.name_th === province)
     if (!matched) { setFilteredAmphures([]); return }
     setFilteredAmphures(amphures.filter(a => a.province_id === matched.id))
     setAmphure('')
@@ -219,82 +125,13 @@ function ReportForm() {
     loadTambons()
   }, [amphure, filteredAmphures])
 
-  // sync status จาก URL
   useEffect(() => {
     const s = searchParams.get('status')
     if (s) setStatus(s)
   }, [searchParams])
 
   // ══════════════════════════════════════════════════════════════
-  // TEXT CLEANER — ตัด prefix ไทยทั้งหมดที่ Google อาจแนบมา
-  // ══════════════════════════════════════════════════════════════
-  const PROVINCE_PREFIXES = ['จังหวัด', 'จ.', 'จ ']
-  const AMPHURE_PREFIXES  = ['อำเภอ', 'อ.', 'อ ', 'เขต', 'ข.']
-  const TAMBON_PREFIXES   = ['ตำบล', 'ต.', 'ต ', 'แขวง', 'ทบ.']
-
-  function cleanAdminName(raw: string, prefixes: string[]): string {
-    let s = raw.trim()
-    let changed = true
-    while (changed) {
-      changed = false
-      for (const p of prefixes) {
-        if (s.startsWith(p)) { s = s.slice(p.length).trim(); changed = true }
-      }
-    }
-    return s
-  }
-
-  // ══════════════════════════════════════════════════════════════
-  // FUZZY MATCH — Levenshtein distance (zero dependency)
-  // ══════════════════════════════════════════════════════════════
-  function levenshtein(a: string, b: string): number {
-    const m = a.length, n = b.length
-    const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
-      Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
-    )
-    for (let i = 1; i <= m; i++)
-      for (let j = 1; j <= n; j++)
-        dp[i][j] = a[i-1] === b[j-1]
-          ? dp[i-1][j-1]
-          : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
-    return dp[m][n]
-  }
-
-  function fuzzyFind<T extends { name_th: string }>(
-    query: string,
-    list: T[],
-    threshold = 3
-  ): T | null {
-    if (!query || !list.length) return null
-    const q = query.trim()
-
-    // 1. Exact
-    const exact = list.find(item => item.name_th === q)
-    if (exact) return exact
-
-    // 2. Includes
-    const inc = list.find(item =>
-      item.name_th.includes(q) || q.includes(item.name_th)
-    )
-    if (inc) return inc
-
-    // 3. Levenshtein
-    let best: T | null = null
-    let bestDist = Infinity
-    for (const item of list) {
-      const dist = levenshtein(q, item.name_th)
-      if (dist < bestDist) { bestDist = dist; best = item }
-    }
-    if (best && bestDist <= threshold) {
-      console.log(`[Fuzzy] "${q}" → "${best.name_th}" (dist=${bestDist})`)
-      return best
-    }
-    console.warn(`[Fuzzy] ไม่เจอ "${q}" (best dist=${bestDist})`)
-    return null
-  }
-
-  // ══════════════════════════════════════════════════════════════
-  // Get GPS → Geocode → Clean → Fuzzy Match → Auto-fill
+  // Get GPS Only (No Geocoding)
   // ══════════════════════════════════════════════════════════════
   const handleGetLocation = useCallback(() => {
     setIsGettingLoc(true)
@@ -307,50 +144,9 @@ function ReportForm() {
     }
 
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude
-        const lng = pos.coords.longitude
-        setLocation({ lat, lng })
+      (pos) => {
+        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         setIsGettingLoc(false)
-
-        setIsGeocoding(true)
-        try {
-          const geo = await reverseGeocode(lat, lng)
-          if (!geo) return
-
-          // ── Step 1: Clean raw text จาก Google ──────────────────
-          const cleanProv = cleanAdminName(geo.province, PROVINCE_PREFIXES)
-          const cleanAmp  = cleanAdminName(geo.amphure,  AMPHURE_PREFIXES)
-          const cleanTamb = cleanAdminName(geo.tambon,   TAMBON_PREFIXES)
-          console.log('[Geocode] cleaned →', { cleanProv, cleanAmp, cleanTamb })
-
-          // ── Step 2: Fuzzy match จังหวัด ────────────────────────
-          const pMatch = fuzzyFind(cleanProv, provinces)
-          if (!pMatch) {
-            setProvince(cleanProv); setAmphure(cleanAmp); setTambon(cleanTamb)
-            return
-          }
-          setProvince(pMatch.name_th)
-
-          // ── Step 3: Fuzzy match อำเภอ ───────────────────────────
-          const filtA  = amphures.filter(a => a.province_id === pMatch.id)
-          const aMatch = fuzzyFind(cleanAmp, filtA)
-          if (!aMatch) {
-            setAmphure(cleanAmp); setTambon(cleanTamb)
-            return
-          }
-          setAmphure(aMatch.name_th)
-
-          // ── Step 4: Fuzzy match ตำบล ────────────────────────────
-          const allT   = await fetchWithCache<Tambon>('tambons', CDN.tambons)
-          const filtT  = allT.filter(t => t.amphure_id === aMatch.id)
-          const tMatch = fuzzyFind(cleanTamb, filtT, 4)
-          if (tMatch) setTambon(tMatch.name_th)
-          else        setTambon(cleanTamb)
-
-        } finally {
-          setIsGeocoding(false)
-        }
       },
       (err) => {
         setIsGettingLoc(false)
@@ -363,7 +159,7 @@ function ReportForm() {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     )
-  }, [provinces, amphures])
+  }, [])
 
   // ══════════════════════════════════════════════════════════════
   // Image upload
@@ -405,8 +201,8 @@ function ReportForm() {
           type,
           status,
           province,
-          district:  amphure,     // API ใช้ district = อำเภอ
-          tambon,                  // เพิ่ม tambon field
+          district:  amphure,     
+          tambon,                  
           color,
           contact_info:         contactInfo,
           reward_amount:        reward ? parseInt(reward) : 0,
@@ -436,8 +232,6 @@ function ReportForm() {
     adoption: { title:'ประกาศหาบ้านให้น้อง 💖', desc:'ลงประกาศหาบ้านใหม่ที่อบอุ่นให้กับน้องๆ',               bgClass:'bg-wagashi-matcha border-ori-green-d' },
   }
   const config = pageConfig[status] || pageConfig.lost
-
-  // ── Dropdown shared className ─────────────────────────────────
   const selectCls = 'ori-input cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
 
   return (
@@ -446,7 +240,6 @@ function ReportForm() {
         {loading && <LoadingOverlay message="AI กำลังวิเคราะห์และบันทึกข้อมูล..." />}
       </AnimatePresence>
 
-      {/* Header */}
       <div className={`${config.bgClass} border-[3px] rounded-2xl shadow-paper p-8 text-center transition-colors duration-300`}>
         <h1 className="text-3xl font-black mb-3">{config.title}</h1>
         <p className="font-bold text-gray-800">{config.desc}</p>
@@ -462,7 +255,6 @@ function ReportForm() {
           </div>
         )}
 
-        {/* ── Images ── */}
         <div className="flex flex-col gap-2">
           <label className="font-bold text-lg">รูปภาพสัตว์เลี้ยง <span className="text-red-500">*</span> (1-5 รูป)</label>
           <div className="border-[3px] border-dashed border-ori-ink-l rounded-xl p-8 text-center bg-ori-cream hover:bg-yellow-50 transition-colors cursor-pointer relative">
@@ -490,14 +282,12 @@ function ReportForm() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-          {/* ── Name ── */}
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">ชื่อสัตว์เลี้ยง</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
               className="ori-input" placeholder="ไม่ทราบชื่อเว้นว่างไว้" />
           </div>
 
-          {/* ── Type ── */}
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">ประเภทสัตว์</label>
             <select value={type} onChange={e => setType(e.target.value)} className={selectCls}>
@@ -509,7 +299,6 @@ function ReportForm() {
             </select>
           </div>
 
-          {/* ── Status ── */}
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">สถานะ</label>
             <select value={status} onChange={e => setStatus(e.target.value)} className={selectCls}>
@@ -519,47 +308,40 @@ function ReportForm() {
             </select>
           </div>
 
-          {/* ── Color ── */}
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">สีของสัตว์เลี้ยง <span className="text-red-500">*</span></label>
             <input type="text" value={color} onChange={e => setColor(e.target.value)}
               required className="ori-input" placeholder="เช่น สีน้ำตาลขาว, ลายสลิด" />
           </div>
 
-          {/* ────────────────────────────────────────────────────────
-              GPS Button + Address Dropdowns (3 ระดับ)
-          ──────────────────────────────────────────────────────── */}
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">
               ตำแหน่งที่{status === 'found' ? 'พบสัตว์' : 'อยู่ปัจจุบัน'}
             </label>
 
-            {/* GPS Button */}
+            {/* 💡 ปรับปรุงปุ่ม GPS ไม่ต้องพึ่ง Google API */}
             <Button type="button" onClick={handleGetLocation}
-              disabled={isGettingLoc || isGeocoding}
+              disabled={isGettingLoc}
               className={`w-full py-5 border-[3px] border-ori-ink rounded-xl shadow-paper font-bold text-base transition-all flex items-center justify-center gap-2
                 ${location
                   ? 'bg-ori-green-bg hover:bg-green-200 text-ori-green-d'
                   : 'bg-ori-yellow-bg hover:bg-yellow-200 text-ori-ink'}`}>
               {isGettingLoc ? (
                 <><Loader2 size={20} className="animate-spin" /> กำลังดึงพิกัด...</>
-              ) : isGeocoding ? (
-                <><Loader2 size={20} className="animate-spin" /> กำลังแปลงพิกัดเป็นที่อยู่...</>
               ) : location ? (
                 <><MapPinCheckInside size={22} /> บันทึกพิกัดแล้ว — กดอีกครั้งเพื่ออัปเดต ✅</>
               ) : (
-                <><MapPin size={22} /> แชร์พิกัดปัจจุบัน (ระบบจะกรอกที่อยู่ให้อัตโนมัติ)</>
+                <><MapPin size={22} /> บันทึกพิกัดแผนที่ (สำหรับระบบ AI)</>
               )}
             </Button>
 
             {location && (
-              <p className="text-xs font-mono text-center text-ori-ink-l">
-                📍 {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+              <p className="text-xs font-mono text-center text-ori-ink-l mt-1">
+                📍 พิกัดที่ถูกบันทึก: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
               </p>
             )}
 
-            {/* ── Province Dropdown ── */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
               <div className="flex flex-col gap-1">
                 <label className="font-bold text-sm text-ori-ink-m">จังหวัด <span className="text-red-500">*</span></label>
                 {dataLoading ? (
@@ -577,7 +359,6 @@ function ReportForm() {
                 )}
               </div>
 
-              {/* ── Amphure Dropdown ── */}
               <div className="flex flex-col gap-1">
                 <label className="font-bold text-sm text-ori-ink-m">อำเภอ / เขต</label>
                 <select value={amphure} onChange={e => setAmphure(e.target.value)}
@@ -590,7 +371,6 @@ function ReportForm() {
                 </select>
               </div>
 
-              {/* ── Tambon Dropdown ── */}
               <div className="flex flex-col gap-1">
                 <label className="font-bold text-sm text-ori-ink-m">ตำบล / แขวง</label>
                 <select value={tambon} onChange={e => setTambon(e.target.value)}
@@ -604,20 +384,17 @@ function ReportForm() {
               </div>
             </div>
 
-            <p className="text-xs text-ori-ink-l italic">
-              * กดปุ่ม GPS แล้วระบบจะเลือก จังหวัด / อำเภอ / ตำบล ให้อัตโนมัติ
-              หรือเลือกเองจาก Dropdown ได้
+            <p className="text-xs text-ori-ink-l italic text-center mt-2">
+              * กรุณากดปุ่มเพื่อบันทึกพิกัด และเลือกพื้นที่ จังหวัด/อำเภอ/ตำบล จากตัวเลือกด้านบน
             </p>
           </div>
 
-          {/* ── Reward ── */}
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">เงินรางวัล (บาท)</label>
             <input type="number" value={reward} onChange={e => setReward(e.target.value)}
               className="ori-input" placeholder="0 (เว้นว่างได้)" min="0" />
           </div>
 
-          {/* ── Distinctive Features ── */}
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">ตำหนิหรือลักษณะพิเศษ</label>
             <textarea value={distinctiveFeatures} onChange={e => setDistinctiveFeatures(e.target.value)}
@@ -625,7 +402,6 @@ function ReportForm() {
               placeholder="เช่น มีถุงเท้าขาว, หางกุด, ปลอกคอสีแดง, ขี้กลัว..." />
           </div>
 
-          {/* ── Contact ── */}
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">ช่องทางติดต่อ <span className="text-red-500">*</span></label>
             <input type="text" value={contactInfo} onChange={e => setContactInfo(e.target.value)}
@@ -643,9 +419,6 @@ function ReportForm() {
   )
 }
 
-// ══════════════════════════════════════════════════════════════
-// EXPORT — ครอบด้วย Suspense
-// ══════════════════════════════════════════════════════════════
 export default function ReportPage() {
   return (
     <Suspense fallback={<LoadingOverlay message="กำลังโหลดแบบฟอร์ม..." />}>
