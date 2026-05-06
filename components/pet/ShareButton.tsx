@@ -5,6 +5,8 @@ import { useState } from 'react'
 import { Share2, Check, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
+import { trackEvent } from '@/lib/analytics'
+
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
 
 interface ShareButtonProps {
@@ -75,8 +77,13 @@ export default function ShareButton({ petName, status, petId }: ShareButtonProps
           text: shareText,
           url: pageUrl,
         })
+        trackEvent('share_clicked', {
+          targetId: petId,
+          platform: 'native_share',
+          metadata: { petName, status },
+        })
       } catch {
-        // user cancelled
+        // user cancelled — ไม่ track
       }
       return
     }
@@ -90,6 +97,11 @@ export default function ShareButton({ petName, status, petId }: ShareButtonProps
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
     setOpen(false)
+    trackEvent('share_clicked', {
+      targetId: petId,
+      platform: 'copy_link',
+      metadata: { petName, status },
+    })
   }
 
   // ── Open platform popup ──
@@ -97,6 +109,11 @@ export default function ShareButton({ petName, status, petId }: ShareButtonProps
     const url = platform.build(pageUrl, shareText)
     window.open(url, '_blank', 'width=600,height=500,noopener,noreferrer')
     setOpen(false)
+    trackEvent('share_clicked', {
+      targetId: petId,
+      platform: platform.name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+      metadata: { petName, status },
+    })
   }
 
   return (
