@@ -156,7 +156,7 @@ export function MatchResultCard({ result }: { result: PetResult }) {
         {isOwner && (
           <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-dashed border-ori-ink/20">
             <Link 
-              href={`/pet/edit/${result.id}`}
+              href={`/pet/${result.id}/edit`}
               className="flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 border-ori-ink bg-blue-50 text-blue-700 text-xs font-black hover:bg-blue-100 transition-colors"
             >
               <Edit3 size={14} /> แก้ไข
