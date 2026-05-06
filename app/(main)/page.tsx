@@ -1,19 +1,17 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
+// 💡 ลบ Facebook ออกจากการ import แล้ว
 import { 
   Search, 
   PlusCircle, 
   MessageCircle, 
-  Facebook, 
   Phone, 
   TrendingUp, 
   Wallet,
   ArrowRight,
   ChevronDown
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
-// 💡 1. ตั้งค่า Metadata สำหรับแชร์หน้าแรก
 export const metadata: Metadata = {
   title: 'PobPet | หาสัตว์หายด้วย AI',
   description: 'ช่วยพาเพื่อนรักสี่ขากลับบ้านด้วยระบบค้นหาอัจฉริยะและพลังชุมชนชาวด่านขุนทด',
@@ -29,24 +27,21 @@ export const metadata: Metadata = {
 }
 
 export default function LandingPage() {
-  // 💡 ข้อมูลสมมติสำหรับแสดงผลประกอบการ (ปรับเปลี่ยนตัวเลขจริงได้ที่นี่)
   const financialStats = {
     revenue: 12500,
     expense: 8400,
-    costPerFound: 420, // ต้นทุนเฉลี่ยต่อการหาสัตว์เจอ 1 ราย
+    costPerFound: 420,
     bankAccount: "xxx-x-xxxxx-x (ธนาคารไทยพาณิชย์)"
   }
 
   return (
     <div className="flex flex-col gap-12 pb-20">
       
-      {/* --- Section 1: Hero & Smart Mode Selection (Dropdown Style) --- */}
       <section className="bg-white border-4 border-black rounded-3xl p-8 md:p-12 shadow-paper text-center overflow-visible">
         <h1 className="text-4xl md:text-6xl font-black mb-4">PobPet 🐾</h1>
         <p className="text-xl font-bold text-gray-600 mb-8">หาสัตว์หายด้วย AI และพลังของชุมชน</p>
         
         <div className="flex flex-col md:flex-row gap-6 justify-center">
-          {/* Dropdown: ค้นหาน้อง */}
           <div className="relative group">
             <button className="w-full md:w-72 bg-wagashi-matcha border-2 border-black p-5 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all">
               <Search size={24} /> ค้นหาน้องสัตว์ <ChevronDown size={20} />
@@ -58,7 +53,6 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Dropdown: ลงประกาศ */}
           <div className="relative group">
             <button className="w-full md:w-72 bg-black text-white border-2 border-black p-5 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all">
               <PlusCircle size={24} /> ลงประกาศใหม่ <ChevronDown size={20} />
@@ -72,7 +66,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- Section 2: Financial Dashboard (ความโปร่งใสของโครงการ) --- */}
       <div className="flex flex-col gap-4">
         <h2 className="text-2xl font-black px-2 flex items-center gap-2">
           <TrendingUp className="text-ori-orange" /> รายงานความคืบหน้าและต้นทุน
@@ -107,7 +100,6 @@ export default function LandingPage() {
         </section>
       </div>
 
-      {/* --- Section 3: Contact Channels --- */}
       <section className="bg-wagashi-sora border-4 border-black rounded-3xl p-8 shadow-paper">
         <h2 className="text-2xl font-black mb-6">ติดต่อเจ้าหน้าที่ / สอบถามเพิ่มเติม 📢</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -115,7 +107,10 @@ export default function LandingPage() {
             <div className="bg-[#00B900] p-2 rounded-lg text-white"><MessageCircle size={20} /></div> Line OA
           </a>
           <a href="https://facebook.com/YOUR_PAGE" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
-            <div className="bg-[#1877F2] p-2 rounded-lg text-white"><Facebook size={20} /></div> Facebook
+            <div className="bg-[#1877F2] p-2 rounded-lg text-white">
+              {/* 💡 วาดไอคอน Facebook ด้วยโค้ด SVG สดๆ เพื่อแก้ปัญหา Build พัง */}
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
+            </div> Facebook
           </a>
           <a href="tel:0800000000" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
             <div className="bg-ori-orange p-2 rounded-lg text-white"><Phone size={20} /></div> 080-XXX-XXXX
@@ -126,7 +121,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- Section 4: 3 Steps (Simplified) --- */}
       <section className="bg-washi border-4 border-black rounded-3xl p-8 shadow-paper text-center">
         <h2 className="text-3xl font-black mb-10">3 ขั้นตอนง่ายๆ</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
