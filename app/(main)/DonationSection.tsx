@@ -47,7 +47,6 @@ export default function DonationSection() {
   }, [images])
 
   return (
-    // 💡 เปลี่ยนจาก lg:flex-row เป็น xl:flex-row เพื่อให้จอกลางๆ แสดงผลแบบบนลงล่าง จะได้ไม่เบียดกัน
     <section className="bg-ori-orange text-white border-4 border-black p-6 md:p-10 rounded-3xl shadow-paper flex flex-col xl:flex-row items-center gap-10 relative overflow-hidden">
       
       {/* ── ฝั่งซ้าย: ข้อความและ QR Code ── */}
@@ -59,27 +58,23 @@ export default function DonationSection() {
           ทุกการสนับสนุนช่วยต่อลมหายใจให้แพลตฟอร์มนี้ได้ไปต่อ
         </p>
         
-        {/* 💡 ปรับกล่อง QR Code ให้หดตัวได้ดีขึ้น */}
-        <div className="flex flex-col md:flex-row items-center gap-6 bg-white/10 p-5 md:p-6 rounded-3xl border-4 border-black backdrop-blur-sm w-full max-w-2xl">
-          {/* QR Code (กำหนด shrink-0 เพื่อไม่ให้รูปโดนบีบจนเบี้ยว) */}
-          <img src="/qr-code.jpg" alt="QR Code รับบริจาค" className="w-32 h-32 md:w-40 md:h-40 rounded-2xl border-4 border-black shadow-paper-sm object-cover bg-white shrink-0" />
+        {/* 💡 ปรับกล่อง QR Code ให้เรียงลงมาด้านล่าง */}
+        <div className="flex flex-col items-center gap-4 bg-white/10 p-5 md:p-6 rounded-3xl border-4 border-black backdrop-blur-sm w-fit max-w-full">
+          {/* QR Code ขยายขนาดให้ชัดขึ้น */}
+          <img 
+            src="/qr-code.jpg" 
+            alt="QR Code รับบริจาค" 
+            className="w-40 h-40 md:w-48 md:h-48 rounded-2xl border-4 border-black shadow-paper-sm object-cover bg-white shrink-0" 
+          />
           
-          {/* ข้อมูลบัญชี */}
-          <div className="flex flex-col gap-3 w-full">
-            <div className="bg-white text-ori-orange font-black py-3 px-4 md:px-6 rounded-xl border-4 border-black shadow-paper-sm text-base md:text-lg flex flex-row items-center justify-between gap-2">
-              <span className="text-gray-500 shrink-0">ชื่อบัญชี:</span>
-              <span className="text-right truncate">KRUTH APEX</span>
-            </div>
-            <div className="bg-white text-ori-orange font-black py-3 px-4 md:px-6 rounded-xl border-4 border-black shadow-paper-sm text-base md:text-lg flex flex-row items-center justify-between gap-2">
-              <span className="text-gray-500 shrink-0">ธนาคาร:</span>
-              <span className="text-right truncate">กสิกรไทย (KBank)</span>
-            </div>
+          {/* ข้อมูลบัญชี จัดกึ่งกลาง */}
+          <div className="bg-white text-ori-orange font-black py-2.5 px-6 rounded-xl border-4 border-black shadow-paper-sm text-base md:text-lg text-center w-full whitespace-nowrap">
+            ชื่อบัญชี: KRUTH APEX
           </div>
         </div>
       </div>
 
       {/* ── ฝั่งขวา: รูปภาพสลับอัตโนมัติ ── */}
-      {/* 💡 กำหนดขนาดสูงสุดให้รูปภาพ และจัดกึ่งกลางกรณีจอเล็ก */}
       <div className="w-full max-w-md xl:w-[450px] aspect-square md:h-[400px] border-4 border-black rounded-3xl overflow-hidden shadow-paper bg-white relative shrink-0 z-10 mx-auto">
         <AnimatePresence mode='wait'>
           {images.length > 0 && (
@@ -96,7 +91,6 @@ export default function DonationSection() {
           )}
         </AnimatePresence>
         
-        {/* ป้ายแปะมุมรูป */}
         <div className="absolute top-4 right-4 bg-white px-4 py-2 rounded-xl border-4 border-black font-black text-ori-orange text-sm shadow-paper-sm z-10">
           เพื่อนๆ ของเรา 🐾
         </div>
