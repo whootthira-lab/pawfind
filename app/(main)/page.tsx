@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
+// 🚨 สังเกตว่าบรรทัดนี้ไม่มีคำว่า Youtube หรือ Facebook แล้วครับ
 import { 
   Search, 
   PlusCircle, 
@@ -7,8 +8,7 @@ import {
   TrendingUp, 
   Wallet,
   ChevronDown,
-  Share2,
-  Youtube
+  Share2
 } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -111,17 +111,13 @@ export default function LandingPage() {
 
           <div className="bg-ori-orange text-white border-4 border-black p-8 rounded-3xl shadow-paper flex flex-col items-center text-center justify-center gap-4 relative overflow-hidden">
             <h3 className="text-2xl font-black z-10 leading-tight">ร่วมสมทบทุนเพื่อให้น้องๆ <br/>ได้มีโอกาสกลับบ้าน 💖</h3>
-            {/* 💡 แก้ไขข้อความสนับสนุนใหม่ */}
             <p className="font-bold opacity-90 z-10">ทุกการสนับสนุนช่วยต่อลมหายใจให้เราได้ไปต่อ</p>
             
             <div className="flex gap-4 mt-2 z-10">
               <img src="/qr-code.jpg" alt="QR Code รับบริจาค" className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white shadow-paper-sm object-cover bg-white" />
-              
-              {/* 💡 นำรูปโปสเตอร์หลัก (home-og.png) มาแสดงเพื่อสื่อถึงประกาศสัตว์หายและสัตว์หลง */}
               <img src="/home-og.png" alt="ประกาศสัตว์หายและพบสัตว์หลง" className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white shadow-paper-sm object-cover bg-white object-center" />
             </div>
             
-            {/* 💡 แก้ไขชื่อบัญชี */}
             <p className="font-black bg-white text-ori-orange px-4 py-2 rounded-xl mt-2 z-10 shadow-paper-sm border-2 border-black">
               ชื่อบัญชี: KRUTH APEX
             </p>
