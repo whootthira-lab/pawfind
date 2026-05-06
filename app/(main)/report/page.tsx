@@ -40,7 +40,7 @@ function ReportForm() {
   }, [searchParams])
 
   // ══════════════════════════════════════════════════════════════
-  // Get GPS Only (No Geocoding)
+  // Get GPS Only
   // ══════════════════════════════════════════════════════════════
   const handleGetLocation = useCallback(() => {
     setIsGettingLoc(true)
@@ -117,8 +117,9 @@ function ReportForm() {
           reward_amount:        reward ? parseInt(reward) : 0,
           distinctive_features: distinctiveFeatures,
           images,
-          latitude:  location?.lat ?? null,
-          longitude: location?.lng ?? null,
+          // 💡 ถ้าไม่ใช่การแจ้งพบสัตว์หลง จะไม่ส่งพิกัด GPS ไปบันทึก
+          latitude:  status === 'found' ? (location?.lat ?? null) : null,
+          longitude: status === 'found' ? (location?.lng ?? null) : null,
           markingImageIndexes: [],
         }),
       })
@@ -228,29 +229,33 @@ function ReportForm() {
               ตำแหน่งที่{status === 'found' ? 'พบสัตว์' : 'อยู่ปัจจุบัน'}
             </label>
 
-            <Button type="button" onClick={handleGetLocation}
-              disabled={isGettingLoc}
-              className={`w-full py-5 border-[3px] border-ori-ink rounded-xl shadow-paper font-bold text-base transition-all flex items-center justify-center gap-2
-                ${location
-                  ? 'bg-ori-green-bg hover:bg-green-200 text-ori-green-d'
-                  : 'bg-ori-yellow-bg hover:bg-yellow-200 text-ori-ink'}`}>
-              {isGettingLoc ? (
-                <><Loader2 size={20} className="animate-spin" /> กำลังดึงพิกัด...</>
-              ) : location ? (
-                <><MapPinCheckInside size={22} /> บันทึกพิกัดแล้ว — กดอีกครั้งเพื่ออัปเดต ✅</>
-              ) : (
-                <><MapPin size={22} /> บันทึกพิกัดแผนที่ (สำหรับระบบ AI)</>
-              )}
-            </Button>
+            {/* 💡 ซ่อน/แสดงปุ่ม GPS เฉพาะสถานะ found */}
+            {status === 'found' && (
+              <div className="flex flex-col gap-2 mb-1">
+                <Button type="button" onClick={handleGetLocation}
+                  disabled={isGettingLoc}
+                  className={`w-full py-5 border-[3px] border-ori-ink rounded-xl shadow-paper font-bold text-base transition-all flex items-center justify-center gap-2
+                    ${location
+                      ? 'bg-ori-green-bg hover:bg-green-200 text-ori-green-d'
+                      : 'bg-ori-yellow-bg hover:bg-yellow-200 text-ori-ink'}`}>
+                  {isGettingLoc ? (
+                    <><Loader2 size={20} className="animate-spin" /> กำลังดึงพิกัด...</>
+                  ) : location ? (
+                    <><MapPinCheckInside size={22} /> บันทึกพิกัดแล้ว — กดอีกครั้งเพื่ออัปเดต ✅</>
+                  ) : (
+                    <><MapPin size={22} /> บันทึกพิกัดแผนที่จุดที่พบ (สำหรับให้เจ้าของตามหา)</>
+                  )}
+                </Button>
 
-            {location && (
-              <p className="text-xs font-mono text-center text-ori-ink-l mt-1">
-                📍 พิกัดที่ถูกบันทึก: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-              </p>
+                {location && (
+                  <p className="text-xs font-mono text-center text-ori-ink-l">
+                    📍 พิกัดที่ถูกบันทึก: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                  </p>
+                )}
+              </div>
             )}
 
-            {/* 💡 เปลี่ยนเป็นช่องให้พิมพ์ข้อความ */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1">
               <div className="flex flex-col gap-1">
                 <label className="font-bold text-sm text-ori-ink-m">จังหวัด <span className="text-red-500">*</span></label>
                 <input type="text" value={province} onChange={e => setProvince(e.target.value)}
@@ -271,7 +276,9 @@ function ReportForm() {
             </div>
 
             <p className="text-xs text-ori-ink-l italic text-center mt-2">
-              * กรุณากดปุ่มพิกัด และพิมพ์ที่อยู่ให้ครบถ้วนเพื่อความแม่นยำในการค้นหา
+              {status === 'found'
+                ? '* กรุณากดปุ่มเพื่อบันทึกพิกัด และพิมพ์ที่อยู่ให้ครบถ้วนเพื่อความแม่นยำในการค้นหา'
+                : '* กรุณาพิมพ์ที่อยู่ให้ครบถ้วนเพื่อความแม่นยำในการค้นหา'}
             </p>
           </div>
 
