@@ -1,9 +1,11 @@
+// app/(main)/profile/page.tsx
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { MatchResultCard } from '@/components/pet/MatchResult'
 import { ResolveButton } from '@/components/pet/ResolveButton'
-import { User, CheckCircle, Loader2, PlusCircle, Bell } from 'lucide-react'
+// 💡 เพิ่ม MessageSquare สำหรับไอคอนคอมเมนต์
+import { User, CheckCircle, Loader2, PlusCircle, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ProfilePage() {
@@ -18,7 +20,7 @@ export default function ProfilePage() {
   ), [])
 
   const fetchAllData = useCallback(async () => {
-    setLoading(true) // 💡 แสดง Spinner ทุกครั้งที่รีเฟรชข้อมูล
+    setLoading(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.user) {
@@ -28,11 +30,13 @@ export default function ProfilePage() {
 
       setUser(session.user)
 
+      // 💡 จุดที่แก้ไข: เพิ่ม comments(count) เข้าไปใน Query
       const { data: pets, error: petsError } = await supabase
         .from('pets')
         .select(`
           *,
-          pet_images(storage_url, is_primary)
+          pet_images(storage_url, is_primary),
+          comments(count) 
         `)
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
@@ -42,7 +46,8 @@ export default function ProfilePage() {
       if (pets) {
         const formattedPets = pets.map((p: any) => ({
           ...p,
-          unread_count: 0,
+          // 💡 ดึงตัวเลขจำนวนคอมเมนต์มาเก็บไว้
+          unread_count: p.comments?.[0]?.count || 0,
           province: p.province || p.district || 'ไม่ระบุพิกัด',
           image_url: p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
             || p.pet_images?.[0]?.storage_url 
@@ -62,7 +67,6 @@ export default function ProfilePage() {
   const activePosts = myPets.filter(p => !p.is_resolved)
   const resolvedPosts = myPets.filter(p => p.is_resolved)
 
-  // 💡 Spinner ตัวใหญ่สำหรับหน้า Profile
   if (loading && myPets.length === 0) return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
       <Loader2 className="animate-spin text-ori-orange" size={60} />
@@ -106,10 +110,15 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {activePosts.map(pet => (
               <div key={pet.id} className="flex flex-col gap-4 relative">
-                {/* 💡 การ์ดที่แก้ไขแล้วจะมีปุ่ม แก้ไข/ลบ ในตัวครับ */}
+                {/* 💡 Badge แจ้งเตือนจำนวนคอมเมนต์บนมุมการ์ด */}
+                {pet.unread_count > 0 && (
+                  <div className="absolute -top-3 -left-3 z-30 bg-ori-orange text-white min-w-[32px] h-32 px-2 rounded-full flex items-center justify-center border-4 border-ori-ink shadow-paper-sm font-black text-sm animate-bounce">
+                    <MessageSquare size={14} className="mr-1" /> {pet.unread_count}
+                  </div>
+                )}
+                
                 <MatchResultCard result={pet} />
                 
-                {/* 💡 ปุ่มสถานะความสำเร็จ */}
                 <ResolveButton 
                   petId={pet.id} 
                   status={pet.status} 
