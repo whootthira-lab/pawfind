@@ -4,12 +4,11 @@ import {
   Search, 
   PlusCircle, 
   MessageCircle, 
-  Phone, 
   TrendingUp, 
   Wallet,
-  ArrowRight,
   ChevronDown,
-  Share2
+  Share2,
+  Youtube // 💡 นำเข้าไอคอน YouTube
 } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -32,13 +31,12 @@ export default function LandingPage() {
     expense: 8400,
   }
   
-  // คำนวณเปอร์เซ็นต์สำหรับกราฟแท่ง
   const total = Math.max(financialStats.revenue, financialStats.expense, 1)
   const revPercent = (financialStats.revenue / total) * 100
   const expPercent = (financialStats.expense / total) * 100
 
-  // ดึงรูปสัตว์แบบสุ่มน่ารักๆ เพื่อดึงดูดการสนับสนุน
-  const randomAnimalImg = "https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=400&auto=format&fit=crop"
+  // 💡 ดึงรูปสัตว์แบบการ์ตูน/ภาพวาด (Cartoon/Illustration) น่ารักๆ มาแสดงแทน
+  const cartoonAnimalImg = "https://images.unsplash.com/photo-1589883661923-6476cb0ae9f2?q=80&w=400&auto=format&fit=crop"
 
   return (
     <div className="flex flex-col gap-12 pb-20">
@@ -49,34 +47,33 @@ export default function LandingPage() {
         <p className="text-xl font-bold text-gray-600 mb-8">หาสัตว์หายด้วย AI และพลังของชุมชน</p>
         
         <div className="flex flex-col md:flex-row gap-4 justify-center flex-wrap">
-          <div className="relative group">
+          <div className="relative group z-30">
             <button className="w-full md:w-64 bg-wagashi-matcha border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all">
               <Search size={22} /> ค้นหาน้องสัตว์ <ChevronDown size={18} />
             </button>
-            <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute top-full left-0 w-full bg-white border-4 border-black rounded-2xl mt-3 p-2 z-50 shadow-paper transition-all">
+            <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute top-full left-0 w-full bg-white border-4 border-black rounded-2xl mt-3 p-2 shadow-paper transition-all">
               <Link href="/search?status=lost" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">🚨 ตามหาเจ้าของ</Link>
               <Link href="/search?status=found" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">👀 พบน้องหลงทาง</Link>
               <Link href="/search?status=adoption" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left text-black">💖 หาบ้านใหม่</Link>
             </div>
           </div>
 
-          <div className="relative group">
+          <div className="relative group z-20">
             <button className="w-full md:w-64 bg-black text-white border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all">
               <PlusCircle size={22} /> ลงประกาศใหม่ <ChevronDown size={18} />
             </button>
-            <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute top-full left-0 w-full bg-white border-4 border-black rounded-2xl mt-3 p-2 z-50 shadow-paper transition-all">
+            <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute top-full left-0 w-full bg-white border-4 border-black rounded-2xl mt-3 p-2 shadow-paper transition-all">
               <Link href="/report?type=lost" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">📢 แจ้งสัตว์หาย</Link>
               <Link href="/report?type=found" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">📍 แจ้งพบสัตว์หลง</Link>
               <Link href="/report?type=adoption" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left text-black">🏠 หาบ้านให้น้อง</Link>
             </div>
           </div>
 
-          {/* 💡 ปุ่มแชร์แพลตฟอร์มไปที่ Facebook */}
           <a 
             href={`https://www.facebook.com/sharer/sharer.php?u=https://pawfind-eta.vercel.app`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full md:w-auto bg-[#1877F2] text-white border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all"
+            className="w-full md:w-auto bg-[#1877F2] text-white border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all z-10"
           >
             <Share2 size={22} /> แชร์แพลตฟอร์ม
           </a>
@@ -90,8 +87,6 @@ export default function LandingPage() {
         </h2>
         
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          {/* 💡 ปรับเป็น Bar Graph ดูง่ายขึ้น ลบกล่องต้นทุนออก */}
           <div className="bg-white border-4 border-black p-8 rounded-3xl shadow-paper flex flex-col justify-center">
             <h3 className="text-xl font-black mb-6 border-b-4 border-black pb-2 inline-block">📊 กราฟรายรับ - รายจ่าย</h3>
             
@@ -117,14 +112,16 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* 💡 โซนระดมทุนพร้อม QR Code และรูปน้องหมา */}
           <div className="bg-ori-orange text-white border-4 border-black p-8 rounded-3xl shadow-paper flex flex-col items-center text-center justify-center gap-4 relative overflow-hidden">
-            <h3 className="text-2xl font-black z-10">ร่วมสมทบทุนเพื่อให้น้องๆ <br/>ได้มีโอกาสกลับบ้าน 💖</h3>
+            <h3 className="text-2xl font-black z-10 leading-tight">ร่วมสมทบทุนเพื่อให้น้องๆ <br/>ได้มีโอกาสกลับบ้าน 💖</h3>
             <p className="font-bold opacity-90 z-10">ทุกการสนับสนุนช่วยต่อลมหายใจและ<br/>เป็นค่าเซิร์ฟเวอร์ AI ในการค้นหา</p>
             
             <div className="flex gap-4 mt-2 z-10">
-              <img src="/qr-donate.jpg" alt="QR Code รับบริจาค" className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white shadow-paper-sm object-cover bg-white" />
-              <img src={randomAnimalImg} alt="น้องสัตว์เลี้ยง" className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white shadow-paper-sm object-cover" />
+              {/* 💡 ดึงรูป qr-code.jpg ที่คุณวุฒิ์ธิระเซฟไว้ในโฟลเดอร์ public */}
+              <img src="/qr-code.jpg" alt="QR Code รับบริจาค" className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white shadow-paper-sm object-cover bg-white" />
+              
+              {/* 💡 รูปสัตว์แบบการ์ตูน */}
+              <img src={cartoonAnimalImg} alt="น้องสัตว์เลี้ยง" className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white shadow-paper-sm object-cover bg-white" />
             </div>
             
             <p className="font-black bg-white text-ori-orange px-4 py-2 rounded-xl mt-2 z-10 shadow-paper-sm border-2 border-black">
@@ -147,12 +144,20 @@ export default function LandingPage() {
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
             </div> Facebook
           </a>
-          <a href="tel:0800000000" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
-            <div className="bg-ori-orange p-2 rounded-lg text-white"><Phone size={20} /></div> 080-XXX-XXXX
+          
+          {/* 💡 ช่องทาง TikTok (วาดโลโก้ TikTok ด้วย SVG) */}
+          <a href="https://tiktok.com/@YOUR_TIKTOK" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
+            <div className="bg-black p-2 rounded-lg text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"></path></svg>
+            </div> TikTok
           </a>
-          <Link href="/about" className="flex items-center gap-3 bg-black text-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all">
-            <ArrowRight size={20} /> เกี่ยวกับ PobPet
-          </Link>
+
+          {/* 💡 ช่องทาง YouTube */}
+          <a href="https://youtube.com/@YOUR_YOUTUBE" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
+            <div className="bg-[#FF0000] p-2 rounded-lg text-white">
+              <Youtube size={20} />
+            </div> YouTube
+          </a>
         </div>
       </section>
 
