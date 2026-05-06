@@ -7,40 +7,6 @@ import { LoadingOverlay } from '@/components/ui/LoadingOverlay'
 import { AnimatePresence } from 'framer-motion'
 import { MapPin, MapPinCheckInside, Loader2 } from 'lucide-react'
 
-// ══════════════════════════════════════════════════════════════
-// TYPES
-// ══════════════════════════════════════════════════════════════
-interface Province { id: number; name_th: string; name_en: string }
-interface Amphure  { id: number; name_th: string; name_en: string; province_id: number }
-interface Tambon   { id: number; name_th: string; name_en: string; amphure_id: number; zip_code: number }
-
-// ══════════════════════════════════════════════════════════════
-// CDN URLs — jsDelivr cache (เร็ว, ไม่มี CORS)
-// ══════════════════════════════════════════════════════════════
-const CDN = {
-  provinces: 'https://cdn.jsdelivr.net/gh/kongvut/thai-province-data@master/api_province.json',
-  amphures:  'https://cdn.jsdelivr.net/gh/kongvut/thai-province-data@master/api_amphure.json',
-  tambons:   'https://cdn.jsdelivr.net/gh/kongvut/thai-province-data@master/api_tambon.json',
-}
-
-// ── In-memory cache ──────────────
-const CACHE: {
-  provinces?: Province[]
-  amphures?:  Amphure[]
-  tambons?:   Tambon[]
-} = {}
-
-async function fetchWithCache<T>(key: keyof typeof CACHE, url: string): Promise<T[]> {
-  if (CACHE[key]) return CACHE[key] as T[]
-  const res  = await fetch(url)
-  const data = await res.json() as T[]
-  CACHE[key] = data as any
-  return data
-}
-
-// ══════════════════════════════════════════════════════════════
-// MAIN FORM COMPONENT
-// ══════════════════════════════════════════════════════════════
 function ReportForm() {
   const router       = useRouter()
   const searchParams = useSearchParams()
@@ -59,71 +25,14 @@ function ReportForm() {
   const [reward,             setReward]             = useState('')
   const [images,             setImages]             = useState<string[]>([])
 
-  // ── Address (3 levels) ───────────────────────────────────────
+  // ── Address (3 levels - Text Input) ──────────────────────────
   const [province,     setProvince]     = useState('')
   const [amphure,      setAmphure]      = useState('')  // อำเภอ/เขต
   const [tambon,       setTambon]       = useState('')  // ตำบล/แขวง
 
-  // ── Dropdown data ────────────────────────────────────────────
-  const [provinces,    setProvinces]    = useState<Province[]>([])
-  const [amphures,     setAmphures]     = useState<Amphure[]>([])
-  const [tambons,      setTambons]      = useState<Tambon[]>([])
-  const [filteredAmphures, setFilteredAmphures] = useState<Amphure[]>([])
-  const [filteredTambons,  setFilteredTambons]  = useState<Tambon[]>([])
-  const [dataLoading,  setDataLoading]  = useState(true)
-
   // ── Location ─────────────────────────────────────────────────
   const [location,       setLocation]       = useState<{ lat: number; lng: number } | null>(null)
   const [isGettingLoc,   setIsGettingLoc]   = useState(false)
-
-  // ══════════════════════════════════════════════════════════════
-  // Load dropdown data from CDN on mount
-  // ══════════════════════════════════════════════════════════════
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setDataLoading(true)
-        const [p, a] = await Promise.all([
-          fetchWithCache<Province>('provinces', CDN.provinces),
-          fetchWithCache<Amphure>('amphures',   CDN.amphures),
-        ])
-        setProvinces(p)
-        setAmphures(a)
-      } catch (e) {
-        console.error('[CDN] Failed to load address data:', e)
-      } finally {
-        setDataLoading(false)
-      }
-    }
-    load()
-  }, [])
-
-  // ── Filter amphures เมื่อ province เปลี่ยน ───────────────────
-  useEffect(() => {
-    if (!province || !provinces.length) { setFilteredAmphures([]); return }
-    const matched = provinces.find(p => p.name_th === province)
-    if (!matched) { setFilteredAmphures([]); return }
-    setFilteredAmphures(amphures.filter(a => a.province_id === matched.id))
-    setAmphure('')
-    setTambon('')
-    setFilteredTambons([])
-  }, [province, provinces, amphures])
-
-  // ── Filter tambons เมื่อ amphure เปลี่ยน ─────────────────────
-  useEffect(() => {
-    if (!amphure || !filteredAmphures.length) { setFilteredTambons([]); return }
-
-    const loadTambons = async () => {
-      const matched = filteredAmphures.find(a => a.name_th === amphure)
-      if (!matched) { setFilteredTambons([]); return }
-
-      const allTambons = await fetchWithCache<Tambon>('tambons', CDN.tambons)
-      setTambons(allTambons)
-      setFilteredTambons(allTambons.filter(t => t.amphure_id === matched.id))
-      setTambon('')
-    }
-    loadTambons()
-  }, [amphure, filteredAmphures])
 
   useEffect(() => {
     const s = searchParams.get('status')
@@ -319,7 +228,6 @@ function ReportForm() {
               ตำแหน่งที่{status === 'found' ? 'พบสัตว์' : 'อยู่ปัจจุบัน'}
             </label>
 
-            {/* 💡 ปรับปรุงปุ่ม GPS ไม่ต้องพึ่ง Google API */}
             <Button type="button" onClick={handleGetLocation}
               disabled={isGettingLoc}
               className={`w-full py-5 border-[3px] border-ori-ink rounded-xl shadow-paper font-bold text-base transition-all flex items-center justify-center gap-2
@@ -341,51 +249,29 @@ function ReportForm() {
               </p>
             )}
 
+            {/* 💡 เปลี่ยนเป็นช่องให้พิมพ์ข้อความ */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
               <div className="flex flex-col gap-1">
                 <label className="font-bold text-sm text-ori-ink-m">จังหวัด <span className="text-red-500">*</span></label>
-                {dataLoading ? (
-                  <div className="ori-input flex items-center gap-2 text-ori-ink-l">
-                    <Loader2 size={16} className="animate-spin" /> กำลังโหลด...
-                  </div>
-                ) : (
-                  <select value={province} onChange={e => setProvince(e.target.value)}
-                    required className={selectCls}>
-                    <option value="">-- เลือกจังหวัด --</option>
-                    {provinces.map(p => (
-                      <option key={p.id} value={p.name_th}>{p.name_th}</option>
-                    ))}
-                  </select>
-                )}
+                <input type="text" value={province} onChange={e => setProvince(e.target.value)}
+                  required className="ori-input" placeholder="เช่น นครราชสีมา" />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="font-bold text-sm text-ori-ink-m">อำเภอ / เขต</label>
-                <select value={amphure} onChange={e => setAmphure(e.target.value)}
-                  disabled={!province || !filteredAmphures.length}
-                  className={selectCls}>
-                  <option value="">-- เลือกอำเภอ --</option>
-                  {filteredAmphures.map(a => (
-                    <option key={a.id} value={a.name_th}>{a.name_th}</option>
-                  ))}
-                </select>
+                <label className="font-bold text-sm text-ori-ink-m">อำเภอ / เขต <span className="text-red-500">*</span></label>
+                <input type="text" value={amphure} onChange={e => setAmphure(e.target.value)}
+                  required className="ori-input" placeholder="เช่น ด่านขุนทด" />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="font-bold text-sm text-ori-ink-m">ตำบล / แขวง</label>
-                <select value={tambon} onChange={e => setTambon(e.target.value)}
-                  disabled={!amphure || !filteredTambons.length}
-                  className={selectCls}>
-                  <option value="">-- เลือกตำบล --</option>
-                  {filteredTambons.map(t => (
-                    <option key={t.id} value={t.name_th}>{t.name_th}</option>
-                  ))}
-                </select>
+                <label className="font-bold text-sm text-ori-ink-m">ตำบล / แขวง <span className="text-red-500">*</span></label>
+                <input type="text" value={tambon} onChange={e => setTambon(e.target.value)}
+                  required className="ori-input" placeholder="เช่น ด่านขุนทด" />
               </div>
             </div>
 
             <p className="text-xs text-ori-ink-l italic text-center mt-2">
-              * กรุณากดปุ่มเพื่อบันทึกพิกัด และเลือกพื้นที่ จังหวัด/อำเภอ/ตำบล จากตัวเลือกด้านบน
+              * กรุณากดปุ่มพิกัด และพิมพ์ที่อยู่ให้ครบถ้วนเพื่อความแม่นยำในการค้นหา
             </p>
           </div>
 
