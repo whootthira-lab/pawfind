@@ -1,10 +1,9 @@
 'use client'
 import { useState, useEffect, Suspense, useCallback, useMemo } from 'react'
-import { useSearchParams, useRouter, usePathname } from 'next/navigation' // 💡 เพิ่ม useRouter และ usePathname
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { MatchResultCard } from '@/components/pet/MatchResult'
 import { RadiusExpander } from '@/components/search/RadiusExpander'
-// 💡 เพิ่ม ChevronDown สำหรับ Dropdown
 import { Search, Loader2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 
 function SearchContent() {
@@ -28,7 +27,6 @@ function SearchContent() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), [])
 
-  // 💡 ห่อด้วย useCallback เพื่อแก้ Warning ตอน Build Vercel
   const fetchPets = useCallback(async (pageNumber: number) => {
     setLoading(true)
 
@@ -52,20 +50,37 @@ function SearchContent() {
     const { data, error } = await query
 
     if (data) {
-      const formattedPets = data.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        breed: p.breed,
-        province: p.province || p.district || 'ไม่ระบุพิกัด',
-        status: p.status,
-        image_url: p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
-          || p.pet_images?.[0]?.storage_url 
-          || (p.images && p.images.length > 0 ? p.images[0] : '')
-      }))
+      const formattedPets = data.map((p: any) => {
+        // 💡 1. นำ ตำบล อำเภอ จังหวัด มาเรียงต่อกันให้สวยงาม
+        const addressParts = []
+        if (p.tambon) addressParts.push(`ต.${p.tambon}`)
+        if (p.district) addressParts.push(`อ.${p.district}`)
+        if (p.province) addressParts.push(`จ.${p.province}`)
+        
+        let fullAddress = addressParts.length > 0 ? addressParts.join(' ') : 'ไม่ระบุพิกัด'
+
+        // 💡 2. ถ้าเป็นสถานะ 'found' (พบสัตว์หลง) และมีพิกัด ให้โชว์พิกัดคร่าวๆ (ทศนิยม 3 ตำแหน่ง)
+        if (p.status === 'found' && p.latitude && p.longitude) {
+          const roughLat = p.latitude.toFixed(3) 
+          const roughLng = p.longitude.toFixed(3)
+          fullAddress += ` (📍 พิกัดใกล้เคียง: ${roughLat}, ${roughLng})`
+        }
+
+        return {
+          id: p.id,
+          name: p.name,
+          breed: p.breed,
+          province: fullAddress, // 💡 ส่งที่อยู่ที่จัดเรียงแล้วไปให้การ์ดแสดงผล
+          status: p.status,
+          image_url: p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
+            || p.pet_images?.[0]?.storage_url 
+            || (p.images && p.images.length > 0 ? p.images[0] : '')
+        }
+      })
       setPets(formattedPets)
     }
     setLoading(false)
-  }, [currentTab, supabase]) // 💡 ใส่ Dependencies ให้ถูกต้อง
+  }, [currentTab, supabase])
 
   useEffect(() => {
     setPage(0)
@@ -86,7 +101,6 @@ function SearchContent() {
     }
   }
 
-  // 💡 ฟังก์ชันเมื่อผู้ใช้เลือก Dropdown ให้เปลี่ยน URL
   const handleTabChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newTab = e.target.value
     router.push(`${pathname}?tab=${newTab}&radius=${radius}`)
@@ -101,7 +115,6 @@ function SearchContent() {
         <p className="font-bold text-lg text-gray-700">ค้นหาสัตว์เลี้ยงที่หายไป หรืออุปการะเพื่อนใหม่</p>
       </div>
 
-      {/* 💡 เปลี่ยนปุ่มทั้ง 4 เป็น Dropdown List ตามที่ต้องการ */}
       <div className="relative w-full sm:w-80 mb-2 z-10">
         <select
           value={currentTab}

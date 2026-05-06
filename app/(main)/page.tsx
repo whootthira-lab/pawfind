@@ -1,15 +1,14 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
-// 🚨 สังเกตว่าบรรทัดนี้ไม่มีคำว่า Youtube หรือ Facebook แล้วครับ
 import { 
   Search, 
   PlusCircle, 
   MessageCircle, 
-  TrendingUp, 
-  Wallet,
   ChevronDown,
-  Share2
+  Share2,
+  Heart
 } from 'lucide-react'
+import DonationSection from './DonationSection' // 💡 นำเข้าคอมโพเนนต์ส่วนรับบริจาคที่เราเพิ่งสร้าง
 
 export const metadata: Metadata = {
   title: 'PobPet | หาสัตว์หายด้วย AI',
@@ -26,15 +25,6 @@ export const metadata: Metadata = {
 }
 
 export default function LandingPage() {
-  const financialStats = {
-    revenue: 12500,
-    expense: 8400,
-  }
-  
-  const total = Math.max(financialStats.revenue, financialStats.expense, 1)
-  const revPercent = (financialStats.revenue / total) * 100
-  const expPercent = (financialStats.expense / total) * 100
-
   return (
     <div className="flex flex-col gap-12 pb-20">
       
@@ -77,53 +67,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- Section 2: Financial Dashboard & Donation --- */}
+      {/* --- Section 2: Donation Section (Expanded) --- */}
       <div className="flex flex-col gap-6">
         <h2 className="text-2xl font-black px-2 flex items-center gap-2">
-          <TrendingUp className="text-ori-orange" /> รายงานความคืบหน้าและทุนสนับสนุน
+          <Heart className="text-ori-orange" fill="currentColor" size={28} /> ทุนสนับสนุนโครงการ
         </h2>
         
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white border-4 border-black p-8 rounded-3xl shadow-paper flex flex-col justify-center">
-            <h3 className="text-xl font-black mb-6 border-b-4 border-black pb-2 inline-block">📊 กราฟรายรับ - รายจ่าย</h3>
-            
-            <div className="mb-6">
-              <div className="flex justify-between mb-2">
-                <span className="font-black text-green-600 flex items-center gap-2"><TrendingUp size={20}/> รายรับ / สนับสนุน</span>
-                <span className="font-black text-green-600 text-lg">฿{financialStats.revenue.toLocaleString()}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-8 border-2 border-black overflow-hidden shadow-inner">
-                <div className="bg-green-500 h-8 transition-all duration-1000" style={{ width: `${revPercent}%` }}></div>
-              </div>
-            </div>
+        {/* 💡 ดึงคอมโพเนนต์รับบริจาคแบบเต็มจอมาใช้งาน */}
+        <DonationSection />
 
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="font-black text-red-500 flex items-center gap-2"><Wallet size={20}/> รายจ่ายสะสม</span>
-                <span className="font-black text-red-500 text-lg">฿{financialStats.expense.toLocaleString()}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-8 border-2 border-black overflow-hidden shadow-inner">
-                <div className="bg-red-500 h-8 transition-all duration-1000" style={{ width: `${expPercent}%` }}></div>
-              </div>
-              <p className="text-xs font-bold text-gray-400 mt-2 text-right">*รวมค่า API, AI และ Server</p>
-            </div>
-          </div>
-
-          <div className="bg-ori-orange text-white border-4 border-black p-8 rounded-3xl shadow-paper flex flex-col items-center text-center justify-center gap-4 relative overflow-hidden">
-            <h3 className="text-2xl font-black z-10 leading-tight">ร่วมสมทบทุนเพื่อให้น้องๆ <br/>ได้มีโอกาสกลับบ้าน 💖</h3>
-            <p className="font-bold opacity-90 z-10">ทุกการสนับสนุนช่วยต่อลมหายใจให้เราได้ไปต่อ</p>
-            
-            <div className="flex gap-4 mt-2 z-10">
-              <img src="/qr-code.jpg" alt="QR Code รับบริจาค" className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white shadow-paper-sm object-cover bg-white" />
-              <img src="/home-og.png" alt="ประกาศสัตว์หายและพบสัตว์หลง" className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white shadow-paper-sm object-cover bg-white object-center" />
-            </div>
-            
-            <p className="font-black bg-white text-ori-orange px-4 py-2 rounded-xl mt-2 z-10 shadow-paper-sm border-2 border-black">
-              ชื่อบัญชี: KRUTH APEX
-            </p>
-          </div>
-
-        </section>
       </div>
 
       {/* --- Section 3: Contact Channels --- */}

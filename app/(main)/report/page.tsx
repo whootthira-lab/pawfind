@@ -40,7 +40,7 @@ function ReportForm() {
   }, [searchParams])
 
   // ══════════════════════════════════════════════════════════════
-  // Get GPS Only
+  // Get GPS Only (No Geocoding)
   // ══════════════════════════════════════════════════════════════
   const handleGetLocation = useCallback(() => {
     setIsGettingLoc(true)
@@ -117,9 +117,9 @@ function ReportForm() {
           reward_amount:        reward ? parseInt(reward) : 0,
           distinctive_features: distinctiveFeatures,
           images,
-          // 💡 ถ้าไม่ใช่การแจ้งพบสัตว์หลง จะไม่ส่งพิกัด GPS ไปบันทึก
-          latitude:  status === 'found' ? (location?.lat ?? null) : null,
-          longitude: status === 'found' ? (location?.lng ?? null) : null,
+          // 💡 ส่งพิกัด GPS เสมอเพื่อให้ AI ใช้คำนวณระยะทางได้
+          latitude:  location?.lat ?? null,
+          longitude: location?.lng ?? null,
           markingImageIndexes: [],
         }),
       })
@@ -165,6 +165,7 @@ function ReportForm() {
           </div>
         )}
 
+        {/* --- Image Upload --- */}
         <div className="flex flex-col gap-2">
           <label className="font-bold text-lg">รูปภาพสัตว์เลี้ยง <span className="text-red-500">*</span> (1-5 รูป)</label>
           <div className="border-[3px] border-dashed border-ori-ink-l rounded-xl p-8 text-center bg-ori-cream hover:bg-yellow-50 transition-colors cursor-pointer relative">
@@ -224,34 +225,47 @@ function ReportForm() {
               required className="ori-input" placeholder="เช่น สีน้ำตาลขาว, ลายสลิด" />
           </div>
 
+          {/* --- Location Section --- */}
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">
               ตำแหน่งที่{status === 'found' ? 'พบสัตว์' : 'อยู่ปัจจุบัน'}
             </label>
 
-            {/* 💡 ซ่อน/แสดงปุ่ม GPS เฉพาะสถานะ found */}
-            {status === 'found' && (
-              <div className="flex flex-col gap-2 mb-1">
-                <Button type="button" onClick={handleGetLocation}
-                  disabled={isGettingLoc}
-                  className={`w-full py-5 border-[3px] border-ori-ink rounded-xl shadow-paper font-bold text-base transition-all flex items-center justify-center gap-2
-                    ${location
-                      ? 'bg-ori-green-bg hover:bg-green-200 text-ori-green-d'
-                      : 'bg-ori-yellow-bg hover:bg-yellow-200 text-ori-ink'}`}>
-                  {isGettingLoc ? (
-                    <><Loader2 size={20} className="animate-spin" /> กำลังดึงพิกัด...</>
-                  ) : location ? (
-                    <><MapPinCheckInside size={22} /> บันทึกพิกัดแล้ว — กดอีกครั้งเพื่ออัปเดต ✅</>
-                  ) : (
-                    <><MapPin size={22} /> บันทึกพิกัดแผนที่จุดที่พบ (สำหรับให้เจ้าของตามหา)</>
-                  )}
-                </Button>
-
-                {location && (
-                  <p className="text-xs font-mono text-center text-ori-ink-l">
-                    📍 พิกัดที่ถูกบันทึก: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-                  </p>
+            <div className="flex flex-col gap-2 mb-2">
+              <Button type="button" onClick={handleGetLocation}
+                disabled={isGettingLoc}
+                className={`w-full py-5 border-[3px] border-ori-ink rounded-xl shadow-paper font-bold text-base transition-all flex items-center justify-center gap-2
+                  ${location
+                    ? 'bg-ori-green-bg hover:bg-green-200 text-ori-green-d'
+                    : 'bg-ori-yellow-bg hover:bg-yellow-200 text-ori-ink'}`}>
+                {isGettingLoc ? (
+                  <><Loader2 size={20} className="animate-spin" /> กำลังดึงพิกัด...</>
+                ) : location ? (
+                  <><MapPinCheckInside size={22} /> บันทึกพิกัดแผนที่แล้ว — กดอีกครั้งเพื่ออัปเดต ✅</>
+                ) : (
+                  <><MapPin size={22} /> {status === 'found' ? '📍 บันทึกพิกัดแผนที่จุดที่พบ' : '📍 แชร์พิกัดสำหรับระบบ AI (ข้อมูลลับ)'}</>
                 )}
+              </Button>
+
+              {location && (
+                <p className="text-xs font-mono text-center text-ori-ink-l">
+                  พิกัด: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                </p>
+              )}
+            </div>
+
+            {/* 💡 Disclaimer Text */}
+            {status === 'found' ? (
+              <div className="bg-blue-50 border-2 border-blue-200 p-3 rounded-xl mb-2">
+                <p className="text-sm font-bold text-blue-700 text-center">
+                  📢 ระบบจะแสดงข้อมูลพิกัดนี้คร่าวๆ บนหน้าประกาศ เพื่อให้เจ้าของใช้เป็นเบาะแสในการตามหา
+                </p>
+              </div>
+            ) : (
+              <div className="bg-orange-50 border-2 border-orange-200 p-3 rounded-xl mb-2">
+                <p className="text-sm font-bold text-orange-700 text-center">
+                  🔒 พิกัดนี้ใช้เพื่อให้ AI ตรวจจับระยะกับสัตว์ที่มีการแจ้งพบเห็นเท่านั้น <br/>ข้อมูลจะเป็นความลับและจะไม่แสดงพิกัดนี้ในหน้าประกาศ
+                </p>
               </div>
             )}
 
@@ -276,9 +290,7 @@ function ReportForm() {
             </div>
 
             <p className="text-xs text-ori-ink-l italic text-center mt-2">
-              {status === 'found'
-                ? '* กรุณากดปุ่มเพื่อบันทึกพิกัด และพิมพ์ที่อยู่ให้ครบถ้วนเพื่อความแม่นยำในการค้นหา'
-                : '* กรุณาพิมพ์ที่อยู่ให้ครบถ้วนเพื่อความแม่นยำในการค้นหา'}
+              * กรุณาพิมพ์ที่อยู่ (จังหวัด/อำเภอ/ตำบล) ให้ครบถ้วนเพื่อแสดงเป็นข้อมูลสาธารณะในหน้าประกาศ
             </p>
           </div>
 
