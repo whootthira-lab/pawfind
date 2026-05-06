@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
+// 💡 ถอด Youtube ออกจากการ import แล้ว
 import { 
   Search, 
   PlusCircle, 
@@ -7,8 +8,7 @@ import {
   TrendingUp, 
   Wallet,
   ChevronDown,
-  Share2,
-  Youtube // 💡 นำเข้าไอคอน YouTube
+  Share2
 } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -35,7 +35,6 @@ export default function LandingPage() {
   const revPercent = (financialStats.revenue / total) * 100
   const expPercent = (financialStats.expense / total) * 100
 
-  // 💡 ดึงรูปสัตว์แบบการ์ตูน/ภาพวาด (Cartoon/Illustration) น่ารักๆ มาแสดงแทน
   const cartoonAnimalImg = "https://images.unsplash.com/photo-1589883661923-6476cb0ae9f2?q=80&w=400&auto=format&fit=crop"
 
   return (
@@ -117,10 +116,7 @@ export default function LandingPage() {
             <p className="font-bold opacity-90 z-10">ทุกการสนับสนุนช่วยต่อลมหายใจและ<br/>เป็นค่าเซิร์ฟเวอร์ AI ในการค้นหา</p>
             
             <div className="flex gap-4 mt-2 z-10">
-              {/* 💡 ดึงรูป qr-code.jpg ที่คุณวุฒิ์ธิระเซฟไว้ในโฟลเดอร์ public */}
               <img src="/qr-code.jpg" alt="QR Code รับบริจาค" className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white shadow-paper-sm object-cover bg-white" />
-              
-              {/* 💡 รูปสัตว์แบบการ์ตูน */}
               <img src={cartoonAnimalImg} alt="น้องสัตว์เลี้ยง" className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white shadow-paper-sm object-cover bg-white" />
             </div>
             
@@ -145,17 +141,19 @@ export default function LandingPage() {
             </div> Facebook
           </a>
           
-          {/* 💡 ช่องทาง TikTok (วาดโลโก้ TikTok ด้วย SVG) */}
           <a href="https://tiktok.com/@YOUR_TIKTOK" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
             <div className="bg-black p-2 rounded-lg text-white">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"></path></svg>
             </div> TikTok
           </a>
 
-          {/* 💡 ช่องทาง YouTube */}
+          {/* 💡 ช่องทาง YouTube (วาดไอคอนด้วย SVG แทนการเรียกจาก lucide-react) */}
           <a href="https://youtube.com/@YOUR_YOUTUBE" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
             <div className="bg-[#FF0000] p-2 rounded-lg text-white">
-              <Youtube size={20} />
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33 2.78 2.78 0 0 0 1.94 2c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33z"></path>
+                <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
+              </svg>
             </div> YouTube
           </a>
         </div>
