@@ -149,8 +149,8 @@ export function MatchResultCard({ result }: { result: PetResult }) {
           {isLoadingPin ? <Loader2 size={18} className="animate-spin" /> : isPinned ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
         </motion.button>
 
-        {/* Image */}
-        <div className="relative h-48 overflow-hidden border-b-2 border-ori-ink shrink-0"
+        {/* 💡 Image (เปลี่ยนเป็น w-full aspect-square) */}
+        <div className="relative w-full aspect-square overflow-hidden border-b-2 border-ori-ink shrink-0"
           style={{ background: 'linear-gradient(135deg, #FDE8ED, #E4F0E5)' }}>
           <img src={formatSrc(result.image_url)} alt={result.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />

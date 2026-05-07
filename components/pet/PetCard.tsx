@@ -48,8 +48,8 @@ export function PetCard({ pet }: { pet: Pet }) {
 
   return (
     <div className="ori-card flex flex-col group">
-      {/* ── Image ── */}
-      <div className="relative h-48 overflow-hidden border-b-2 border-ori-ink shrink-0"
+      {/* 💡 Image (เปลี่ยนเป็น w-full aspect-square) ── */}
+      <div className="relative w-full aspect-square overflow-hidden border-b-2 border-ori-ink shrink-0"
         style={{ background: `linear-gradient(135deg, ${cfg.bg}, #E8F3E8)` }}>
         {imgUrl ? (
           <img
