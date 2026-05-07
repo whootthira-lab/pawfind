@@ -10,6 +10,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 
+// 👇 เพิ่มการ import Button เข้ามาแล้วครับ
+import { Button } from '@/components/ui/button'
+
 const expertiseOptions = [
   { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
   { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
@@ -195,7 +198,8 @@ export default function ProfilePage() {
             {/* Avatar Update Section */}
             <div className="md:col-span-2 flex items-center gap-6 bg-gray-50 p-4 rounded-2xl border-2 border-dashed border-gray-300">
                <div className="w-20 h-20 rounded-full border-2 border-black overflow-hidden bg-white shrink-0">
-                  <img src={profile.avatar_url || '/placeholder-user.png'} className="w-full h-full object-cover" />
+                  {/* 👇 เพิ่ม alt attribute เพื่อแก้ Warning */}
+                  <img src={profile.avatar_url || '/placeholder-user.png'} alt="Avatar" className="w-full h-full object-cover" />
                </div>
                <div className="flex flex-col gap-2">
                   <label className="cursor-pointer bg-white border-2 border-black px-4 py-2 rounded-xl font-bold text-sm hover:bg-gray-100 transition-all flex items-center gap-2">
