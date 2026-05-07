@@ -20,16 +20,15 @@ export default function RecentPetsGrid() {
       try {
         const { data, error } = await supabase
           .from('pets')
-          .select('*, pet_images(storage_url, is_primary), comments(count)') // ดึง comments เพื่อโชว์จำนวนแชท
+          .select('*, pet_images(storage_url, is_primary), comments(count)')
           .order('created_at', { ascending: false })
-          .limit(6) 
+          .limit(3) // 💡 จำกัดการดึงข้อมูลให้มาแค่ 3 รายการล่าสุด
         
         if (error) throw error;
 
         if (data) {
           const formatted = data.map(p => ({
             ...p,
-            // 💡 แก้ไขการดึงรูปภาพให้ครอบคลุมทั้งระบบเก่าและใหม่
             image_url: p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
               || p.pet_images?.[0]?.storage_url 
               || (p.images && p.images.length > 0 ? p.images[0] : null)
@@ -58,7 +57,8 @@ export default function RecentPetsGrid() {
       </h2>
       
       {pets.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        // 💡 ปรับ Grid ให้รองรับ 3 การ์ดพอดีในจอขนาดใหญ่
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {pets.map(pet => (
             <MatchResultCard key={pet.id} result={pet} />
           ))}
