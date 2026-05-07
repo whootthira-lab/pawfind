@@ -8,7 +8,7 @@ import {
   Share2,
   Heart
 } from 'lucide-react'
-import DonationSection from './DonationSection' // 💡 นำเข้าคอมโพเนนต์ส่วนรับบริจาคที่เราเพิ่งสร้าง
+import DonationSection from './DonationSection'
 
 export const metadata: Metadata = {
   title: 'PobPet | หาสัตว์หายด้วย AI',
@@ -67,13 +67,27 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* --- Section 1.5: Vision / Social Enterprise (ส่วนที่เพิ่มใหม่) --- */}
+      <div className="w-full max-w-5xl mx-auto px-4 -mt-4">
+        <div className="bg-wagashi-kinako/30 border-4 border-black rounded-3xl p-6 md:p-10 shadow-paper text-center relative overflow-hidden">
+          <div className="absolute top-4 left-4 text-ori-orange/20 text-5xl hidden md:block select-none pointer-events-none">🐾</div>
+          <div className="absolute bottom-4 right-4 text-ori-green/20 text-5xl hidden md:block select-none pointer-events-none">🌿</div>
+          
+          <p className="font-bold text-lg md:text-xl leading-relaxed text-black relative z-10">
+            <span className="font-black text-ori-orange-d text-2xl">PobPet</span> เรามีจุดมุ่งหมายในการขับเคลื่อนเพื่อให้สังคมดีขึ้นจากจุดเล็กๆ เพื่อส่งต่อความหวังและสิ่งดีๆ โดยดำเนินการตามแนวทางของ 
+            <span className="font-black text-ori-green-d bg-white px-3 py-1.5 rounded-xl border-2 border-black inline-block mx-2 shadow-paper-sm my-2">ธุรกิจเพื่อสังคม (Social Enterprise)</span> 
+            เพื่อช่วยให้สังคมดีขึ้นทีละนิดเท่าที่ทำได้ ทุกคนอยู่ได้และเติบโตไปด้วยกัน 💖
+          </p>
+        </div>
+      </div>
+
       {/* --- Section 2: Donation Section (Expanded) --- */}
       <div className="flex flex-col gap-6">
         <h2 className="text-2xl font-black px-2 flex items-center gap-2">
           <Heart className="text-ori-orange" fill="currentColor" size={28} /> ทุนสนับสนุนโครงการ
         </h2>
         
-        {/* 💡 ดึงคอมโพเนนต์รับบริจาคแบบเต็มจอมาใช้งาน */}
+        {/* คอมโพเนนต์รับบริจาคแบบเต็มจอ */}
         <DonationSection />
 
       </div>
@@ -85,13 +99,13 @@ export default function LandingPage() {
           <a href="https://line.me/ti/p/~YOUR_LINE_ID" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
             <div className="bg-[#00B900] p-2 rounded-lg text-white"><MessageCircle size={20} /></div> Line OA
           </a>
-          <a href="https://facebook.com/YOUR_PAGE" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
+          <a href="https://www.facebook.com/profile.php?id=61564284895721" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
             <div className="bg-[#1877F2] p-2 rounded-lg text-white">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
             </div> Facebook
           </a>
           
-          <a href="https://tiktok.com/@YOUR_TIKTOK" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
+          <a href="https://www.tiktok.com/@pobpet0?_r=1&_t=ZS-969j6BVBTl7" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
             <div className="bg-black p-2 rounded-lg text-white">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"></path></svg>
             </div> TikTok

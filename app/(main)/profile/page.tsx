@@ -9,8 +9,6 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-
-// 👇 เพิ่มการ import Button เข้ามาแล้วครับ
 import { Button } from '@/components/ui/button'
 
 const expertiseOptions = [
@@ -33,11 +31,13 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
-  // ── State สำหรับข้อมูลโปรไฟล์ทั้งหมด ──
+  // ── State สำหรับข้อมูลโปรไฟล์ทั้งหมด (เพิ่มเพศและอาชีพแล้ว) ──
   const [profile, setProfile] = useState({
     display_name: '',
     first_name: '',
     last_name: '',
+    gender: '',        // 💡 เพิ่ม เพศ
+    occupation: '',    // 💡 เพิ่ม อาชีพ
     phone_number: '',
     line_id: '',
     avatar_url: '',
@@ -76,6 +76,8 @@ export default function ProfilePage() {
           display_name: pData.display_name || '',
           first_name: pData.first_name || '',
           last_name: pData.last_name || '',
+          gender: pData.gender || '',              // 💡 ดึงข้อมูล เพศ
+          occupation: pData.occupation || '',      // 💡 ดึงข้อมูล อาชีพ
           phone_number: pData.phone_number || '',
           line_id: pData.line_id || '',
           avatar_url: pData.avatar_url || '',
@@ -154,7 +156,7 @@ export default function ProfilePage() {
       <div className="bg-white border-4 border-ori-ink rounded-3xl p-8 shadow-paper flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
         <div className="w-32 h-32 rounded-full border-4 border-ori-ink overflow-hidden bg-ori-orange text-white shadow-paper-sm shrink-0 relative group">
           {profile.avatar_url ? (
-            <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+            <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
             <User size={60} className="m-auto mt-6" />
           )}
@@ -198,7 +200,6 @@ export default function ProfilePage() {
             {/* Avatar Update Section */}
             <div className="md:col-span-2 flex items-center gap-6 bg-gray-50 p-4 rounded-2xl border-2 border-dashed border-gray-300">
                <div className="w-20 h-20 rounded-full border-2 border-black overflow-hidden bg-white shrink-0">
-                  {/* 👇 เพิ่ม alt attribute เพื่อแก้ Warning */}
                   <img src={profile.avatar_url || '/placeholder-user.png'} alt="Avatar" className="w-full h-full object-cover" />
                </div>
                <div className="flex flex-col gap-2">
@@ -230,7 +231,33 @@ export default function ProfilePage() {
               <input value={profile.last_name} onChange={e => setProfile({...profile, last_name: e.target.value})} className="ori-input" />
             </div>
 
-            <div className="md:col-span-2 space-y-2">
+            {/* 💡 ส่วนที่เพิ่มเข้ามา: เพศ และ อาชีพ */}
+            <div className="space-y-2">
+              <label className="font-black text-sm">เพศ</label>
+              <select 
+                value={profile.gender} 
+                onChange={e => setProfile({...profile, gender: e.target.value})} 
+                className="ori-input bg-white cursor-pointer"
+              >
+                <option value="">ไม่ระบุ</option>
+                <option value="male">ชาย</option>
+                <option value="female">หญิง</option>
+                <option value="other">อื่นๆ</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="font-black text-sm">อาชีพ</label>
+              <input 
+                placeholder="เช่น ค้าขาย, พนักงานบริษัท, นักศึกษา..."
+                value={profile.occupation} 
+                onChange={e => setProfile({...profile, occupation: e.target.value})} 
+                className="ori-input" 
+              />
+            </div>
+            {/* ────────────────────────────────────── */}
+
+            <div className="md:col-span-2 space-y-2 pt-2">
               <label className="font-black text-sm flex items-center gap-1"><MapPin size={14}/> ที่อยู่ (จังหวัด/อำเภอ/ตำบล)</label>
               <div className="grid grid-cols-3 gap-2">
                 <input placeholder="จังหวัด" value={profile.province} onChange={e => setProfile({...profile, province: e.target.value})} className="ori-input text-sm" />

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { AnimatePresence, motion } from 'framer-motion'
+import Image from 'next/image'
 
 export default function DonationSection() {
   const [images, setImages] = useState<string[]>([])
@@ -52,23 +53,23 @@ export default function DonationSection() {
       {/* ── ฝั่งซ้าย: ข้อความและ QR Code ── */}
       <div className="flex-1 w-full z-10 flex flex-col items-center xl:items-start text-center xl:text-left">
         <h3 className="text-3xl md:text-5xl font-black mb-4 leading-tight">
-          ร่วมสมทบทุนเพื่อให้น้องๆ <br className="hidden md:block" />ได้มีโอกาสกลับบ้าน 💖
+          ร่วมสมทบทุนสนับสนุน <br className="hidden md:block" />ธุรกิจเพื่อสังคมของเรา 💖
         </h3>
-        <p className="text-lg md:text-xl font-bold opacity-90 mb-8">
-          ทุกการสนับสนุนช่วยต่อลมหายใจให้แพลตฟอร์มนี้ได้ไปต่อ
+        <p className="text-lg md:text-xl font-bold opacity-90 mb-8 max-w-lg">
+          สนับสนุนโครงการทำขาเทียมฟรีให้น้องๆ พัฒนาระบบ AI และสร้างอาชีพให้ชุมชนด่านขุนทด
         </p>
         
-        {/* 💡 ปรับกล่อง QR Code ให้เรียงลงมาด้านล่าง */}
         <div className="flex flex-col items-center gap-4 bg-white/10 p-5 md:p-6 rounded-3xl border-4 border-black backdrop-blur-sm w-fit max-w-full">
-          {/* QR Code ขยายขนาดให้ชัดขึ้น */}
-          <img 
-            src="/qr-code.jpg" 
-            alt="QR Code รับบริจาค" 
-            className="w-40 h-40 md:w-48 md:h-48 rounded-2xl border-4 border-black shadow-paper-sm object-cover bg-white shrink-0" 
-          />
+          <div className="w-40 h-40 md:w-48 md:h-48 relative rounded-2xl border-4 border-black shadow-paper-sm overflow-hidden shrink-0 bg-white">
+            <Image 
+              src="/qr-code.jpg" 
+              alt="QR Code รับบริจาค" 
+              fill
+              className="object-cover" 
+            />
+          </div>
           
-          {/* ข้อมูลบัญชี จัดกึ่งกลาง */}
-          <div className="bg-white text-ori-orange font-black py-2.5 px-6 rounded-xl border-4 border-black shadow-paper-sm text-base md:text-lg text-center w-full whitespace-nowrap">
+          <div className="bg-white text-ori-orange font-black py-2.5 px-6 rounded-xl border-4 border-black shadow-paper-sm text-base md:text-lg text-center w-full whitespace-nowrap tracking-wide">
             ชื่อบัญชี: KRUTH APEX
           </div>
         </div>
