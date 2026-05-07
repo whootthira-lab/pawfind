@@ -1,16 +1,17 @@
-// sitemap.ts
+// app/sitemap.ts
 import { createClient } from '@/lib/supabase/server'
 import { ALL_PROVINCES } from '@/lib/utils/provinces'
 
 export default async function sitemap() {
   const supabase = createClient()
   
-  // 💡 ปรับให้ดึงข้อมูลสัตว์ทุกตัว (ไม่จำกัดเฉพาะ status 'lost') เพื่อผลดีทาง SEO
+  // ดึงข้อมูลสัตว์ทุกตัว
   const { data: pets } = await supabase
     .from('pets')
     .select('id, updated_at')
     .limit(1000)
 
+  // ดึงข้อมูลบทความ
   const { data: posts } = await supabase
     .from('cms_posts')
     .select('slug, updated_at')
@@ -22,7 +23,7 @@ export default async function sitemap() {
     { url: baseUrl, priority: 1.0, changeFrequency: 'daily' as const },
     { url: `${baseUrl}/search`, priority: 0.9 },
     { url: `${baseUrl}/donate`, priority: 0.8 },
-    { url: `${baseUrl}/how-it-works', priority: 0.7 },
+    { url: `${baseUrl}/how-it-works`, priority: 0.7 }, // ✅ แก้ไขเครื่องหมายตรงนี้แล้วครับ
     
     // หน้าจังหวัดต่างๆ
     ...ALL_PROVINCES.map(p => ({
