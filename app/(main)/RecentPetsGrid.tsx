@@ -22,7 +22,7 @@ export default function RecentPetsGrid() {
           .from('pets')
           .select('*, pet_images(storage_url, is_primary), comments(count)')
           .order('created_at', { ascending: false })
-          .limit(3) // 💡 จำกัดการดึงข้อมูลให้มาแค่ 3 รายการล่าสุด
+          .limit(3) // 💡 ตรงนี้คือจุดที่จำกัดให้ดึงมาแค่ 3 รายการล่าสุดครับ
         
         if (error) throw error;
 
@@ -57,7 +57,6 @@ export default function RecentPetsGrid() {
       </h2>
       
       {pets.length > 0 ? (
-        // 💡 ปรับ Grid ให้รองรับ 3 การ์ดพอดีในจอขนาดใหญ่
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {pets.map(pet => (
             <MatchResultCard key={pet.id} result={pet} />

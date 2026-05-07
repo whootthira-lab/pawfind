@@ -69,19 +69,13 @@ export default function DonationSection() {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-6">
-            {/* QR Code */}
-            <div className="bg-white p-3 rounded-2xl border-4 border-black shadow-paper-sm hover:-translate-y-1 transition-transform">
-              <img src="/qr-code.jpg" alt="QR Code Donation" className="w-32 h-32 md:w-40 md:h-40 object-cover rounded-xl" />
-            </div>
-            
-            {/* ข้อมูลบัญชี */}
-            <div className="flex flex-col gap-3">
-              <div className="bg-white text-ori-ink font-black py-3 px-6 rounded-xl border-[4px] border-black shadow-paper-sm text-lg md:text-xl">
-                ชื่อบัญชี: PobPet
-              </div>
-              <div className="bg-white text-ori-ink font-black py-3 px-6 rounded-xl border-[4px] border-black shadow-paper-sm text-lg md:text-xl">
-                พร้อมเพย์ / KBank
-              </div>
+            {/* 💡 QR Code (ขยายขนาดใหญ่ขึ้น w-48 ถึง w-64 และจัดให้อยู่เดี่ยวๆ) */}
+            <div className="bg-white p-4 rounded-3xl border-4 border-black shadow-paper-sm hover:-translate-y-1 transition-transform inline-block">
+              <img 
+                src="/qr-code.jpg" 
+                alt="QR Code Donation" 
+                className="w-48 h-48 md:w-64 md:h-64 object-cover rounded-2xl" 
+              />
             </div>
           </div>
         </div>
@@ -90,6 +84,7 @@ export default function DonationSection() {
         <div className="w-full md:w-[350px] h-[350px] border-[4px] border-black rounded-[2rem] overflow-hidden shadow-paper bg-white relative shrink-0 z-10">
           <AnimatePresence mode='wait'>
             {images.length > 0 && (
+              // eslint-disable-next-line @next/next/no-img-element
               <motion.img
                 key={currentIndex}
                 src={images[currentIndex]}
