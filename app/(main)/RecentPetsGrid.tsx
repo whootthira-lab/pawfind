@@ -20,16 +20,19 @@ export default function RecentPetsGrid() {
       try {
         const { data, error } = await supabase
           .from('pets')
-          .select('*, pet_images(storage_url, is_primary), comments(count)')
+          .select('*, pet_images(storage_url, is_primary), comments(count)') // ดึง comments เพื่อโชว์จำนวนแชท
           .order('created_at', { ascending: false })
-          .limit(6) // ดึง 6 ตัวเพื่อทำ Grid 3x2
+          .limit(6) 
         
         if (error) throw error;
 
         if (data) {
           const formatted = data.map(p => ({
             ...p,
-            image_url: p.pet_images?.find((img: any) => img.is_primary)?.storage_url || p.pet_images?.[0]?.storage_url
+            // 💡 แก้ไขการดึงรูปภาพให้ครอบคลุมทั้งระบบเก่าและใหม่
+            image_url: p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
+              || p.pet_images?.[0]?.storage_url 
+              || (p.images && p.images.length > 0 ? p.images[0] : null)
           }))
           setPets(formatted)
         }
@@ -54,9 +57,8 @@ export default function RecentPetsGrid() {
         <Megaphone className="text-ori-orange" size={28} /> ประกาศล่าสุด
       </h2>
       
-      {/* ถ้ามีข้อมูลให้โชว์ Grid ถ้าไม่มีให้โชว์กล่องเปล่า */}
       {pets.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {pets.map(pet => (
             <MatchResultCard key={pet.id} result={pet} />
           ))}

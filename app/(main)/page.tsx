@@ -8,8 +8,8 @@ import {
   Share2,
   Heart
 } from 'lucide-react'
-import DonationSection from './DonationSection'
-import RecentPetsGrid from './RecentPetsGrid'
+import DonationSection from '@/components/DonationSection' // 💡 ปรับให้ตรงกับที่เก็บไฟล์
+import RecentPetsGrid from './RecentPetsGrid' // 💡 ปรับให้ตรงกับที่เก็บไฟล์ (ถ้าไม่ได้อยู่โฟลเดอร์เดียวกันให้แก้ path)
 
 export const metadata: Metadata = {
   title: 'PobPet | หาสัตว์หายด้วย AI',
@@ -29,20 +29,20 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col gap-14 pb-20">
       
-      {/* --- Section 1: Hero Banner (จัด Layout ใหม่) --- */}
+      {/* --- Section 1: Hero Banner --- */}
       <section className="bg-white border-4 border-black rounded-3xl p-8 md:p-12 shadow-paper text-center overflow-visible max-w-5xl mx-auto w-full mt-4">
         <h1 className="text-4xl md:text-6xl font-black mb-6 text-ori-ink">PobPet 🐾</h1>
         
-        {/* ข้อความวิสัยทัศน์ที่จัดระเบียบใหม่ให้มีช่องไฟสวยงาม */}
-        <div className="text-lg md:text-xl font-bold text-ori-ink-m mb-10 max-w-3xl mx-auto leading-[2.5]">
-          หาสัตว์หายด้วย AI โดยดำเนินการตามแนวทางของ <br className="hidden md:block" />
-          <span className="text-ori-green-d bg-ori-green-bg/40 px-4 py-2 rounded-xl border-2 border-ori-green inline-block mx-2 my-1 shadow-paper-sm">
+        {/* 💡 จัดระเบียบข้อความวิสัยทัศน์ */}
+        <p className="text-lg md:text-xl font-bold text-ori-ink-m mb-12 max-w-4xl mx-auto leading-loose md:leading-[2.5]">
+          หาสัตว์หายด้วย AI โดยดำเนินการตามแนวทางของ 
+          <span className="text-ori-green-d bg-ori-green-bg/40 px-4 py-2 rounded-xl border-2 border-ori-green inline-block mx-2 shadow-paper-sm whitespace-nowrap align-middle">
             ธุรกิจเพื่อสังคม (Social Enterprise)
-          </span> <br className="hidden md:block" />
+          </span> 
           เพื่อช่วยให้สังคมดีขึ้นทีละนิดเท่าที่ทำได้ ทุกคนอยู่ได้และเติบโตไปด้วยกัน 💖
-        </div>
+        </p>
         
-        <div className="flex flex-col md:flex-row gap-4 justify-center flex-wrap mt-2">
+        <div className="flex flex-col md:flex-row gap-4 justify-center flex-wrap">
           <div className="relative group z-30">
             <button className="w-full md:w-64 bg-wagashi-matcha border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all">
               <Search size={22} /> ค้นหาน้องสัตว์ <ChevronDown size={18} />
@@ -76,13 +76,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- Section 2: Recent Pets Grid (การ์ดประกาศล่าสุด 3x2 แถว) --- */}
+      {/* --- Section 2: Recent Pets Grid --- */}
       <RecentPetsGrid />
 
       {/* --- Section 3: Donation Section --- */}
       <div className="flex flex-col gap-6 max-w-6xl mx-auto w-full px-4">
         <h2 className="text-2xl font-black flex items-center gap-2 text-ori-ink">
-          <Heart className="text-ori-orange" fill="currentColor" size={28} /> ร่วมสมทบทุนเพื่อให้เราได้ไปต่อ
+          <Heart className="text-ori-orange" fill="currentColor" size={28} /> ทุนสนับสนุนโครงการ
         </h2>
         <DonationSection />
       </div>
