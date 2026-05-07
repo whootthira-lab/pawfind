@@ -55,8 +55,8 @@ export function Navbar() {
         {/* แก้ไขชื่อปุ่มและลิงก์สำหรับ Desktop ตรงนี้ */}
         <div className="hidden md:flex items-center gap-6 text-sm font-bold text-ori-ink-m">
           <Link href="/report?status=lost" className="hover:text-ori-orange transition-colors">🔔 ลงประกาศหาน้อง</Link>
-          <Link href="/report?status=found" className="hover:text-ori-blue transition-colors">👀 แจ้งพบสัตว์หลง</Link>
-          <Link href="/report?status=adoption" className="hover:text-ori-green transition-colors">💖 ประกาศหาบ้านให้น้อง</Link>
+          <Link href="/report?status=found" className="hover:text-ori-blue transition-colors">👀 ลงประกาศแจ้งพบสัตว์หลง</Link>
+          <Link href="/report?status=adoption" className="hover:text-ori-green transition-colors">💖 ลงประกาศหาบ้านให้น้อง</Link>
         </div>
         
         <div className="hidden md:flex items-center gap-2">

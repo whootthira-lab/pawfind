@@ -29,14 +29,17 @@ export function RadiusExpander({ resultCount }: { resultCount: number }) {
     <div className="bg-wagashi-kinako border-2 border-black p-4 rounded-lg shadow-paper my-4 flex flex-col md:flex-row items-center justify-between gap-4">
       <div>
         <span className="font-bold">📍 พบ {resultCount} รายการ</span>
-        <span className="ml-2">ในรัศมี {optimisticRadius} กม.</span>
+        {/* 💡 ปรับข้อความแสดงผล: ถ้าเป็น 9999 ให้ซ่อนคำว่า กม. */}
+        <span className="ml-2 font-medium text-gray-700">
+          {optimisticRadius === 9999 ? 'แบบไม่จำกัดระยะทาง' : `ในรัศมี ${optimisticRadius} กม.`}
+        </span>
       </div>
       
       <div className="flex items-center gap-2">
         <label htmlFor="radius-select" className="font-bold text-sm">ปรับระยะ (กม.):</label>
         <select 
           id="radius-select"
-          className="bg-white border-2 border-black px-3 py-1 font-bold rounded shadow-paper-sm focus:outline-none"
+          className="bg-white border-2 border-black px-3 py-1 font-bold rounded shadow-paper-sm focus:outline-none cursor-pointer"
           value={optimisticRadius}
           onChange={(e) => handleRadiusChange(parseInt(e.target.value))}
           disabled={isPending}
@@ -46,6 +49,8 @@ export function RadiusExpander({ resultCount }: { resultCount: number }) {
           <option value={20}>20</option>
           <option value={50}>50</option>
           <option value={100}>100</option>
+          {/* 💡 เพิ่มตัวเลือก "ไม่จำกัดระยะ" */}
+          <option value={9999}>ไม่จำกัดระยะ</option>
         </select>
       </div>
     </div>

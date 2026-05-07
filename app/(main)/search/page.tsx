@@ -160,9 +160,9 @@ function SearchContent() {
             className="w-full bg-white border-4 border-black rounded-2xl px-5 py-4 font-black shadow-paper-sm appearance-none cursor-pointer hover:-translate-y-1 transition-transform focus:outline-none focus:ring-4 focus:ring-ori-orange/30 text-lg text-black"
           >
             <option value="all">🔍 ดูทั้งหมด</option>
-            <option value="lost">🚨 ประกาศตามหาน้อง</option>
+            <option value="lost">🚨 ดูประกาศตามหาน้อง</option>
             <option value="found">👀 ดูประกาศพบสัตว์หลง</option>
-            <option value="adoption">💖 หาบ้านให้น้อง</option>
+            <option value="adoption">💖 ดูประกาศหาบ้านให้น้อง</option>
           </select>
           <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-black" size={24} />
         </div>
