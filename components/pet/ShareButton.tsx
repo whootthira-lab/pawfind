@@ -1,99 +1,101 @@
 'use client'
-// components/pet/ShareButton.tsx — แทนที่ไฟล์เดิม
+// components/pet/ShareButton.tsx
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Share2, Check, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-
-import { trackEvent } from '@/lib/analytics'
-
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
+import { trackEvent, buildShareUrl } from '@/lib/analytics'
+import { createBrowserClient } from '@supabase/ssr'
 
 interface ShareButtonProps {
   petName: string
-  status: string
-  petId: string          // ← เพิ่ม prop นี้ (ใส่ params.id จาก page.tsx)
+  status:  string
+  petId:   string
 }
 
 interface Platform {
-  name: string
-  icon: string
-  color: string
+  name:  string
+  icon:  string
+  key:   string   // ← ชื่อสั้นสำหรับ UTM + analytics
   build: (url: string, text: string) => string
 }
 
 const PLATFORMS: Platform[] = [
   {
-    name: 'Facebook',
-    icon: '📘',
-    color: '#1877F2',
-    // Facebook ไม่รับ text ใน URL — ใช้แค่ URL แล้วดึง OG tag เอง
+    name: 'Facebook', icon: '📘', key: 'facebook',
     build: (url) =>
       `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
   },
   {
-    name: 'X (Twitter)',
-    icon: '🐦',
-    color: '#000000',
+    name: 'X (Twitter)', icon: '🐦', key: 'twitter',
     build: (url, text) =>
       `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
   },
   {
-    name: 'LINE',
-    icon: '💬',
-    color: '#00B900',
+    name: 'LINE', icon: '💬', key: 'line',
     build: (url, text) =>
       `https://line.me/R/share?text=${encodeURIComponent(text + '\n' + url)}`,
   },
   {
-    name: 'Threads',
-    icon: '🧵',
-    color: '#000000',
+    name: 'Threads', icon: '🧵', key: 'threads',
     build: (url, text) =>
       `https://threads.net/intent/post?text=${encodeURIComponent(text + '\n' + url)}`,
   },
   {
-    name: 'WhatsApp',
-    icon: '📱',
-    color: '#25D366',
+    name: 'WhatsApp', icon: '📱', key: 'whatsapp',
     build: (url, text) =>
       `https://wa.me/?text=${encodeURIComponent(text + '\n' + url)}`,
   },
 ]
 
 export default function ShareButton({ petName, status, petId }: ShareButtonProps) {
-  const [copied, setCopied]     = useState(false)
-  const [open, setOpen]         = useState(false)
+  const [copied,  setCopied]  = useState(false)
+  const [open,    setOpen]    = useState(false)
+  const [userId,  setUserId]  = useState<string | null>(null)
 
-  const pageUrl  = `${BASE_URL}/pet/${petId}`
-  const shareText = `${status}: ${petName} - ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾`
+  // ── ดึง userId เพื่อใส่ใน ref layer ──────────────────────────
+  useEffect(() => {
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserId(session?.user?.id ?? null)
+    })
+  }, [])
 
-  // ── Native share (มือถือ iOS/Android) ──
+  const shareText = `${status}: ${petName} — ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾`
+
+  // ── Native share (มือถือ) ─────────────────────────────────────
   const handleNativeShare = async () => {
+    const shareUrl = buildShareUrl(petId, 'native_share', userId)
+
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${status}: ${petName} - Pobpet`,
-          text: shareText,
-          url: pageUrl,
+          title: `${status}: ${petName} - PobPet`,
+          text:  shareText,
+          url:   shareUrl,
         })
+        // track เฉพาะเมื่อแชร์สำเร็จ (user ไม่ cancel)
         trackEvent('share_clicked', {
           targetId: petId,
           platform: 'native_share',
-          metadata: { petName, status },
+          metadata: { petName, status, hasUserId: !!userId },
         })
       } catch {
-        // user cancelled — ไม่ track
+        // user กด cancel → ไม่ track
       }
       return
     }
-    // Desktop → เปิด dropdown
+    // Desktop → toggle dropdown
     setOpen(prev => !prev)
   }
 
-  // ── Copy link ──
+  // ── Copy link ────────────────────────────────────────────────
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(pageUrl)
+    const copyUrl = buildShareUrl(petId, 'copy_link', userId)
+    await navigator.clipboard.writeText(copyUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
     setOpen(false)
@@ -104,21 +106,22 @@ export default function ShareButton({ petName, status, petId }: ShareButtonProps
     })
   }
 
-  // ── Open platform popup ──
-  const openPlatform = (platform: Platform) => {
-    const url = platform.build(pageUrl, shareText)
+  // ── Platform popup ───────────────────────────────────────────
+  const openPlatform = (p: Platform) => {
+    // URL มี UTM ของ platform นั้นๆ → virality tracking ครบ
+    const shareUrl = buildShareUrl(petId, p.key, userId)
+    const url      = p.build(shareUrl, shareText)
     window.open(url, '_blank', 'width=600,height=500,noopener,noreferrer')
     setOpen(false)
     trackEvent('share_clicked', {
       targetId: petId,
-      platform: platform.name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-      metadata: { petName, status },
+      platform: p.key,
+      metadata: { petName, status, hasUserId: !!userId },
     })
   }
 
   return (
     <div className="relative">
-      {/* Main share button */}
       <div className="flex gap-2">
         <Button
           onClick={handleNativeShare}
@@ -128,7 +131,6 @@ export default function ShareButton({ petName, status, petId }: ShareButtonProps
           {copied ? 'คัดลอกแล้ว!' : 'แชร์โพสต์นี้'}
         </Button>
 
-        {/* Desktop: toggle dropdown */}
         <Button
           onClick={() => setOpen(prev => !prev)}
           className="bg-wagashi-sora text-black hover:bg-blue-300 border-2 border-black px-2 py-2 rounded-lg font-bold shadow-paper-sm hover:-translate-y-1 transition-all md:flex hidden"
@@ -138,37 +140,24 @@ export default function ShareButton({ petName, status, petId }: ShareButtonProps
         </Button>
       </div>
 
-      {/* Dropdown — platform chooser */}
       {open && (
         <div className="absolute right-0 top-full mt-2 z-50 bg-white border-2 border-black rounded-xl shadow-paper-lg overflow-hidden min-w-[200px]">
-          {PLATFORMS.map((p) => (
-            <button
-              key={p.name}
-              onClick={() => openPlatform(p)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left font-bold text-sm border-b border-gray-100 last:border-none"
-            >
+          {PLATFORMS.map(p => (
+            <button key={p.key} onClick={() => openPlatform(p)}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left font-bold text-sm border-b border-gray-100 last:border-none">
               <span className="text-xl">{p.icon}</span>
               <span>{p.name}</span>
             </button>
           ))}
-          {/* Copy link */}
-          <button
-            onClick={handleCopy}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left font-bold text-sm border-t-2 border-black bg-gray-50"
-          >
+          <button onClick={handleCopy}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left font-bold text-sm border-t-2 border-black bg-gray-50">
             <span className="text-xl">{copied ? '✅' : '🔗'}</span>
             <span>{copied ? 'คัดลอกแล้ว!' : 'คัดลอกลิงก์'}</span>
           </button>
         </div>
       )}
 
-      {/* Click outside to close */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setOpen(false)}
-        />
-      )}
+      {open && <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />}
     </div>
   )
 }
