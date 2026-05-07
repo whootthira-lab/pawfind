@@ -79,6 +79,7 @@ export default function DonationSection() {
       <div className="w-full max-w-md xl:w-[450px] aspect-square md:h-[400px] border-4 border-black rounded-3xl overflow-hidden shadow-paper bg-white relative shrink-0 z-10 mx-auto">
         <AnimatePresence mode='wait'>
           {images.length > 0 && (
+            // eslint-disable-next-line @next/next/no-img-element
             <motion.img
               key={currentIndex}
               src={images[currentIndex]}
