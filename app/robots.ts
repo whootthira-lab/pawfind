@@ -1,6 +1,8 @@
+// robots.ts
 import type { MetadataRoute } from 'next'
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
+// 💡 เปลี่ยน URL พื้นฐานให้เป็นโดเมนจริงของคุณ
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pobpet.com'
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -10,7 +12,6 @@ export default function robots(): MetadataRoute.Robots {
         allow: ['/', '/api/og'],
         disallow: ['/admin/', '/dashboard/', '/_next/'],
       },
-      // ✅ แยกกฎของ Facebook ออกมาให้ชัดเจน
       {
         userAgent: 'facebookexternalhit',
         allow: '/',

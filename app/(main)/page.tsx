@@ -45,7 +45,7 @@ export default function LandingPage() {
         <div className="flex flex-col md:flex-row gap-4 justify-center flex-wrap">
           <div className="relative group z-30">
             <button className="w-full md:w-64 bg-wagashi-matcha border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all">
-              <Search size={22} /> ค้นหาน้องสัตว์ <ChevronDown size={18} />
+              <Search size={22} /> ค้นหา <ChevronDown size={18} />
             </button>
             <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute top-full left-0 w-full bg-white border-4 border-black rounded-2xl mt-3 p-2 shadow-paper transition-all">
               <Link href="/search?status=lost" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">🚨 เข้าดูประกาศตามหาเจ้าของ</Link>
