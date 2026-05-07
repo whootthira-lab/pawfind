@@ -9,6 +9,7 @@ import {
   Heart
 } from 'lucide-react'
 import DonationSection from './DonationSection'
+import RecentPetsGrid from './RecentPetsGrid'
 
 export const metadata: Metadata = {
   title: 'PobPet | หาสัตว์หายด้วย AI',
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'PobPet หาสัตว์หายด้วย AI',
     description: 'แพลตฟอร์มตามหาสัตว์เลี้ยงอัจฉริยะ เพื่อทุกคน',
-    url: 'https://pawfind-eta.vercel.app',
+    url: 'https://pobpet.com',
     siteName: 'PobPet หาสัตว์หายด้วย AI',
     images: [{ url: '/home-og.png', width: 1200, height: 630 }],
     locale: 'th_TH',
@@ -28,10 +29,16 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col gap-12 pb-20">
       
-      {/* --- Section 1: Hero & Action Buttons --- */}
-      <section className="bg-white border-4 border-black rounded-3xl p-8 md:p-12 shadow-paper text-center overflow-visible">
+      {/* --- Section 1: Hero & Vision Banner --- */}
+      <section className="bg-white border-4 border-black rounded-3xl p-8 md:p-12 shadow-paper text-center overflow-visible max-w-6xl mx-auto w-full mt-4">
         <h1 className="text-4xl md:text-6xl font-black mb-4">PobPet 🐾</h1>
-        <p className="text-xl font-bold text-gray-600 mb-8">หาสัตว์หายด้วย AI และพลังของชุมชน</p>
+        
+        {/* ข้อความที่ยุบรวมใหม่ */}
+        <p className="text-lg md:text-xl font-bold text-gray-700 mb-10 max-w-4xl mx-auto leading-relaxed">
+          หาสัตว์หายด้วย AI โดยดำเนินการตามแนวทางของ 
+          <span className="text-ori-green-d bg-ori-green-bg px-2 py-1 rounded-xl mx-2 whitespace-nowrap border-2 border-ori-green/20">ธุรกิจเพื่อสังคม (Social Enterprise)</span> 
+          เพื่อช่วยให้สังคมดีขึ้นทีละนิดเท่าที่ทำได้ ทุกคนอยู่ได้และเติบโตไปด้วยกัน 💖
+        </p>
         
         <div className="flex flex-col md:flex-row gap-4 justify-center flex-wrap">
           <div className="relative group z-30">
@@ -57,7 +64,7 @@ export default function LandingPage() {
           </div>
 
           <a 
-            href={`https://www.facebook.com/sharer/sharer.php?u=https://pawfind-eta.vercel.app`}
+            href={`https://www.facebook.com/sharer/sharer.php?u=https://pobpet.com`}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full md:w-auto bg-[#1877F2] text-white border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all z-10"
@@ -67,33 +74,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- Section 1.5: Vision / Social Enterprise (ส่วนที่เพิ่มใหม่) --- */}
-      <div className="w-full max-w-5xl mx-auto px-4 -mt-4">
-        <div className="bg-wagashi-kinako/30 border-4 border-black rounded-3xl p-6 md:p-10 shadow-paper text-center relative overflow-hidden">
-          <div className="absolute top-4 left-4 text-ori-orange/20 text-5xl hidden md:block select-none pointer-events-none">🐾</div>
-          <div className="absolute bottom-4 right-4 text-ori-green/20 text-5xl hidden md:block select-none pointer-events-none">🌿</div>
-          
-          <p className="font-bold text-lg md:text-xl leading-relaxed text-black relative z-10">
-            <span className="font-black text-ori-orange-d text-2xl">PobPet</span> เรามีจุดมุ่งหมายในการขับเคลื่อนเพื่อให้สังคมดีขึ้นจากจุดเล็กๆ เพื่อส่งต่อความหวังและสิ่งดีๆ โดยดำเนินการตามแนวทางของ 
-            <span className="font-black text-ori-green-d bg-white px-3 py-1.5 rounded-xl border-2 border-black inline-block mx-2 shadow-paper-sm my-2">ธุรกิจเพื่อสังคม (Social Enterprise)</span> 
-            เพื่อช่วยให้สังคมดีขึ้นทีละนิดเท่าที่ทำได้ ทุกคนอยู่ได้และเติบโตไปด้วยกัน 💖
-          </p>
-        </div>
-      </div>
+      {/* --- Section 2: Recent Pets Grid (การ์ดประกาศล่าสุด 3x2 แถว) --- */}
+      <RecentPetsGrid />
 
-      {/* --- Section 2: Donation Section (Expanded) --- */}
-      <div className="flex flex-col gap-6">
-        <h2 className="text-2xl font-black px-2 flex items-center gap-2">
+      {/* --- Section 3: Donation Section --- */}
+      <div className="flex flex-col gap-6 max-w-6xl mx-auto w-full px-4">
+        <h2 className="text-2xl font-black flex items-center gap-2">
           <Heart className="text-ori-orange" fill="currentColor" size={28} /> ทุนสนับสนุนโครงการ
         </h2>
-        
-        {/* คอมโพเนนต์รับบริจาคแบบเต็มจอ */}
         <DonationSection />
-
       </div>
 
-      {/* --- Section 3: Contact Channels --- */}
-      <section className="bg-wagashi-sora border-4 border-black rounded-3xl p-8 shadow-paper">
+      {/* --- Section 4: Contact Channels --- */}
+      <section className="bg-wagashi-sora border-4 border-black rounded-3xl p-8 shadow-paper max-w-6xl mx-auto w-full mx-4 xl:mx-auto">
         <h2 className="text-2xl font-black mb-6">ติดต่อเจ้าหน้าที่ / สอบถามเพิ่มเติม 📢</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <a href="https://lin.ee/WM1T572" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white border-2 border-black p-4 rounded-xl font-bold shadow-paper-sm hover:scale-105 transition-all text-black">
