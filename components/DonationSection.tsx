@@ -77,7 +77,7 @@ export default function DonationSection() {
             {/* ข้อมูลบัญชี */}
             <div className="flex flex-col gap-3">
               <div className="bg-white text-ori-ink font-black py-3 px-6 rounded-xl border-[4px] border-black shadow-paper-sm text-lg md:text-xl">
-                ชื่อบัญชี: KRUTH APEX
+                ชื่อบัญชี: PobPet
               </div>
               <div className="bg-white text-ori-ink font-black py-3 px-6 rounded-xl border-[4px] border-black shadow-paper-sm text-lg md:text-xl">
                 พร้อมเพย์ / KBank

@@ -3,9 +3,72 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { LoadingOverlay } from '@/components/ui/LoadingOverlay'
-import { AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, MapPinCheckInside, Loader2 } from 'lucide-react'
+
+// ── 🤖 Component สำหรับหน้าโหลด AI แบบ Full Screen ──
+function ReportLoadingOverlay() {
+  const [loadingStep, setLoadingStep] = useState(0)
+
+  useEffect(() => {
+    // เปลี่ยนข้อความหลังจากผ่านไป 2 วินาที
+    const timer = setTimeout(() => {
+      setLoadingStep(1)
+    }, 2000)
+    return () => clearTimeout(timer)
+  }, [])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm"
+    >
+      {/* วงแหวนหุ่นยนต์กับแมวหมุนๆ */}
+      <div className="relative w-32 h-32 mb-8 flex items-center justify-center mx-auto">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+          className="absolute inset-0 border-8 border-dashed border-ori-orange rounded-full opacity-60"
+        />
+        <motion.div
+          animate={{ rotate: -360 }}
+          transition={{ repeat: Infinity, duration: 4, ease: "linear" }}
+          className="absolute inset-2 border-8 border-dotted border-wagashi-matcha rounded-full opacity-60"
+        />
+        <div className="absolute inset-0 m-4 flex items-center justify-center text-4xl gap-1 bg-white border-4 border-black rounded-full shadow-paper-sm z-10">
+          🤖🐾
+        </div>
+      </div>
+
+      <div className="h-20 flex items-center justify-center px-4 text-center">
+        <AnimatePresence mode="wait">
+          {loadingStep === 0 ? (
+            <motion.p
+              key="step0"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="text-xl md:text-2xl font-black text-ori-ink"
+            >
+              🧠 AI กำลังวิเคราะห์ลักษณะจากรูป<br className="hidden md:block"/>เพื่อเปรียบเทียบกับฐานข้อมูล.....
+            </motion.p>
+          ) : (
+            <motion.p
+              key="step1"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-xl md:text-2xl font-black text-ori-orange"
+            >
+              📊 AI กำลังจัดเรียงชุดข้อมูลตาม % ความเป็นไปได้<br className="hidden md:block"/>โดยจะแสดง % สูงที่สุดให้คุณเห็นก่อน.....
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  )
+}
 
 function ReportForm() {
   const router       = useRouter()
@@ -146,8 +209,9 @@ function ReportForm() {
 
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6 mb-12 relative p-4 mt-4">
+      {/* ── เรียกใช้ AI Loading Overlay แทนของเดิม ── */}
       <AnimatePresence>
-        {loading && <LoadingOverlay message="AI กำลังวิเคราะห์และบันทึกข้อมูล..." />}
+        {loading && <ReportLoadingOverlay />}
       </AnimatePresence>
 
       <div className={`${config.bgClass} border-[3px] rounded-2xl shadow-paper p-8 text-center transition-colors duration-300`}>
@@ -326,7 +390,7 @@ function ReportForm() {
 
 export default function ReportPage() {
   return (
-    <Suspense fallback={<LoadingOverlay message="กำลังโหลดแบบฟอร์ม..." />}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">กำลังโหลดแบบฟอร์ม...</div>}>
       <ReportForm />
     </Suspense>
   )

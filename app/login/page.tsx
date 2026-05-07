@@ -4,10 +4,23 @@ import { useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
+import { motion, AnimatePresence } from 'framer-motion' // 💡 เพิ่ม Framer Motion
 import { 
   LogIn, Mail, Loader2, CheckCircle2, AlertCircle, 
   UserPlus, MapPin, Phone, Camera, Link as LinkIcon, Cake, UserCircle 
 } from 'lucide-react'
+
+// ── 1. เตรียมตัวเลือก ──
+const expertiseOptions = [
+  { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
+  { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
+  { value: 'petscout', label: 'PetScout (รับจ้างตามหาสัตว์หาย)' },
+  { value: 'vet', label: 'สัตวแพทย์ / คลินิกรักษาสัตว์' },
+  { value: 'groomer', label: 'บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
+  { value: 'petsitter', label: 'รับฝากหรือดูแลสัตว์ที่บ้าน' },
+  { value: 'retailer', label: 'ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
+  { value: 'other', label: 'อื่นๆ (โปรดระบุ)' },
+]
 
 export default function LoginPage() {
   const [step, setStep] = useState<'email' | 'register' | 'success'>('email')
@@ -17,7 +30,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   const [formData, setFormData] = useState({
-    display_name: '', // 💡 เพิ่มชื่อที่จะใช้แสดง
+    display_name: '', 
     first_name: '',
     last_name: '',
     birth_date: '',
@@ -28,7 +41,9 @@ export default function LoginPage() {
     province: '',
     district: '',
     subdistrict: '',
-    contact_link: ''
+    contact_link: '',
+    community_role: 'general', // 💡 เพิ่มค่าเริ่มต้น
+    community_role_custom: ''  // 💡 เพิ่มค่าเริ่มต้น
   })
 
   const supabase = createBrowserClient(
@@ -123,7 +138,7 @@ export default function LoginPage() {
 
     setLoading(true)
     
-    // 💡 ส่งข้อมูลไปยัง Supabase Auth Metadata
+    // 💡 ข้อมูลบทบาทจะถูกส่งไปพร้อมกับ Metadata ตอนสมัคร
     const metadata = {
       ...formData,
       email
@@ -216,7 +231,6 @@ export default function LoginPage() {
                 </label>
               </div>
 
-              {/* 💡 ช่องชื่อโปรไฟล์ที่จะใช้แสดง */}
               <div className="md:col-span-2 space-y-1">
                 <label className="font-black text-sm ml-1 flex items-center gap-1 uppercase text-ori-orange-d">
                   <UserCircle size={16}/> ชื่อโปรไฟล์ที่จะใช้แสดง (Display Name)
@@ -288,6 +302,44 @@ export default function LoginPage() {
                 <label className="font-black text-sm ml-1 flex items-center gap-1"><LinkIcon size={14}/> ช่องทางติดต่ออื่น</label>
                 <input placeholder="FB / IG Link" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
                   onChange={e => setFormData({...formData, contact_link: e.target.value})} />
+              </div>
+
+              {/* ── 💡 ส่วนเลือกบทบาทชุมชนที่เพิ่มเข้ามาใหม่ ── */}
+              <div className="md:col-span-2 mt-2 bg-wagashi-kinako/30 p-5 rounded-2xl border-4 border-black/10 shadow-inner">
+                <label className="font-black text-sm ml-1 flex items-center gap-2 text-ori-ink mb-3">
+                  🐾 คุณต้องการช่วยเหลือหรือให้บริการเกี่ยวกับสัตว์ด้านไหนได้บ้าง?
+                </label>
+                <select 
+                  value={formData.community_role}
+                  onChange={(e) => setFormData({...formData, community_role: e.target.value})}
+                  className="w-full border-2 border-black rounded-xl p-3 font-bold focus:bg-white outline-none transition-colors cursor-pointer"
+                >
+                  {expertiseOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+
+                <AnimatePresence>
+                  {formData.community_role === 'other' && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }} 
+                      animate={{ opacity: 1, height: 'auto' }} 
+                      exit={{ opacity: 0, height: 0 }}
+                      className="pt-3"
+                    >
+                      <input 
+                        type="text"
+                        placeholder="โปรดระบุความเชี่ยวชาญหรือบริการของคุณ..."
+                        value={formData.community_role_custom}
+                        onChange={(e) => setFormData({...formData, community_role_custom: e.target.value})}
+                        className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <p className="text-[10px] font-bold text-gray-500 mt-2 italic ml-1">
+                  * ข้อมูลนี้จะช่วยให้เราสร้างเครือข่ายความช่วยเหลือในชุมชนได้แข็งแกร่งขึ้น
+                </p>
               </div>
 
               <Button disabled={loading || uploading} className="md:col-span-2 mt-6 bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50">
