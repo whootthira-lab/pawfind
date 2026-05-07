@@ -4,7 +4,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { MatchResultCard } from '@/components/pet/MatchResult'
 import { RadiusExpander } from '@/components/search/RadiusExpander'
-import { Search, Loader2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
+import { Search, Loader2, ChevronDown, MapPin } from 'lucide-react'
 
 function SearchContent() {
   const router = useRouter()
@@ -15,43 +15,81 @@ function SearchContent() {
   const radius = radiusStr ? parseInt(radiusStr) : 10
   const currentTab = searchParams.get('tab') || 'all'
 
+  // ── States สำหรับการดึงข้อมูล ──
   const [pets, setPets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [page, setPage] = useState(0) 
   const [totalCount, setTotalCount] = useState(0) 
+  
+  // ── States สำหรับพิกัด ──
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null)
+  const [gpsStatus, setGpsStatus] = useState('กำลังค้นหาพิกัดของคุณ...')
 
-  const ITEMS_PER_PAGE = 6 
+  const ITEMS_PER_PAGE = 12 // 💡 เปลี่ยนเป็น 12 เพื่อให้หาร 3 ลงตัว (โชว์ 4 แถวพอดี)
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), [])
 
-  const fetchPets = useCallback(async (pageNumber: number) => {
-    setLoading(true)
-
-    let countQuery = supabase.from('pets').select('*', { count: 'exact', head: true })
-    if (currentTab !== 'all') {
-      countQuery = countQuery.eq('status', currentTab)
+  // 1. ขอพิกัด GPS ผู้ใช้เมื่อเปิดหน้านี้
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+          setGpsStatus('📍 เรียงลำดับจากใกล้ตัวคุณที่สุด')
+        },
+        (err) => {
+          console.warn("GPS Disabled:", err)
+          setGpsStatus('เรียงตามประกาศล่าสุด (ไม่ได้เปิด GPS)')
+        }
+      )
+    } else {
+      setGpsStatus('เรียงตามประกาศล่าสุด')
     }
+  }, [])
+
+  // 2. ฟังก์ชันดึงข้อมูล (รองรับทั้งโหลดครั้งแรก และ โหลดเพิ่มเติม)
+  const fetchPets = useCallback(async (pageNumber: number, isAppend: boolean = false) => {
+    if (isAppend) setLoadingMore(true)
+    else setLoading(true)
+
+    // --- ส่วนนับจำนวน (Count) ---
+    let countQuery;
+    if (userLocation) {
+      countQuery = supabase.rpc('get_pets_by_distance', { user_lat: userLocation.lat, user_lng: userLocation.lng }, { count: 'exact', head: true })
+    } else {
+      countQuery = supabase.from('pets').select('*', { count: 'exact', head: true })
+    }
+    
+    if (currentTab !== 'all') countQuery = countQuery.eq('status', currentTab)
     const { count } = await countQuery
     if (count !== null) setTotalCount(count)
 
-    let query = supabase
-      .from('pets')
-      .select('*, pet_images(storage_url, is_primary)')
-      .order('created_at', { ascending: false })
-      .range(pageNumber * ITEMS_PER_PAGE, (pageNumber + 1) * ITEMS_PER_PAGE - 1)
-
-    if (currentTab !== 'all') {
-      query = query.eq('status', currentTab)
+    // --- ส่วนดึงข้อมูล (Data Fetching) ---
+    let query;
+    if (userLocation) {
+      // 💡 ใช้ RPC เพื่อเรียงตามระยะทาง + ดึงรูปภาพมาด้วย
+      query = supabase.rpc('get_pets_by_distance', { user_lat: userLocation.lat, user_lng: userLocation.lng })
+        .select('*, pet_images(storage_url, is_primary)')
+    } else {
+      // 💡 ถ้าไม่มี GPS ให้เรียงตามเวลาที่สร้าง
+      query = supabase.from('pets')
+        .select('*, pet_images(storage_url, is_primary)')
+        .order('created_at', { ascending: false })
     }
+
+    if (currentTab !== 'all') query = query.eq('status', currentTab)
+
+    // กำหนดช่วงการดึง (Pagination offset)
+    query = query.range(pageNumber * ITEMS_PER_PAGE, (pageNumber + 1) * ITEMS_PER_PAGE - 1)
 
     const { data, error } = await query
 
     if (data) {
       const formattedPets = data.map((p: any) => {
-        // 1. นำ ตำบล อำเภอ จังหวัด มาเรียงต่อกันให้สวยงาม
         const addressParts = []
         if (p.tambon) addressParts.push(`ต.${p.tambon}`)
         if (p.district) addressParts.push(`อ.${p.district}`)
@@ -59,12 +97,10 @@ function SearchContent() {
         
         let fullAddress = addressParts.length > 0 ? addressParts.join(' ') : 'ไม่ระบุที่อยู่'
 
-        // 2. ซ่อนพิกัดโหมดอื่น และโชว์เฉพาะ 'found' เท่านั้น
-        // 💡 เพิ่ม Number() ป้องกัน Error กรณีฐานข้อมูลส่งมาเป็น String
         if (p.status === 'found' && p.latitude && p.longitude) {
           const roughLat = Number(p.latitude).toFixed(3) 
           const roughLng = Number(p.longitude).toFixed(3)
-          fullAddress += ` (📍 พิกัดใกล้เคียง: ${roughLat}, ${roughLng})`
+          fullAddress += ` (พิกัด: ${roughLat}, ${roughLng})`
         }
 
         return {
@@ -78,36 +114,36 @@ function SearchContent() {
             || (p.images && p.images.length > 0 ? p.images[0] : '')
         }
       })
-      setPets(formattedPets)
-    }
-    setLoading(false)
-  }, [currentTab, supabase])
 
+      // 💡 ถ่าเป็นการกดปุ่ม "โหลดเพิ่มเติม" ให้เอาข้อมูลใหม่มาต่อท้ายของเดิม
+      if (isAppend) {
+        setPets(prev => [...prev, ...formattedPets])
+      } else {
+        setPets(formattedPets)
+      }
+    }
+    
+    setLoading(false)
+    setLoadingMore(false)
+  }, [currentTab, supabase, userLocation])
+
+  // 3. เรียกใช้เมื่อมีการเปลี่ยน Tab หรือเมื่อได้พิกัด GPS
   useEffect(() => {
     setPage(0)
-    fetchPets(0)
-  }, [currentTab, radius, fetchPets])
+    setPets([]) // ล้างข้อมูลเดิมก่อนโหลดใหม่
+    fetchPets(0, false)
+  }, [currentTab, userLocation, fetchPets]) 
 
-  const handlePrevPage = () => {
-    if (page > 0) {
-      setPage(page - 1)
-      fetchPets(page - 1)
-    }
-  }
-
-  const handleNextPage = () => {
-    if ((page + 1) * ITEMS_PER_PAGE < totalCount) {
-      setPage(page + 1)
-      fetchPets(page + 1)
-    }
+  const handleLoadMore = () => {
+    const nextPage = page + 1
+    setPage(nextPage)
+    fetchPets(nextPage, true)
   }
 
   const handleTabChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newTab = e.target.value
     router.push(`${pathname}?tab=${newTab}&radius=${radius}`)
   }
-
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
 
   return (
     <div className="flex flex-col gap-6 mb-20 max-w-6xl mx-auto px-4">
@@ -116,19 +152,25 @@ function SearchContent() {
         <p className="font-bold text-lg text-gray-700">ค้นหาสัตว์เลี้ยงที่หายไป หรืออุปการะเพื่อนใหม่</p>
       </div>
 
-      <div className="relative w-full sm:w-80 mb-2 z-10">
-        <select
-          value={currentTab}
-          onChange={handleTabChange}
-          className="w-full bg-white border-4 border-black rounded-2xl px-5 py-4 font-black shadow-paper-sm appearance-none cursor-pointer hover:-translate-y-1 transition-transform focus:outline-none focus:ring-4 focus:ring-ori-orange/30 text-lg text-black"
-        >
-          <option value="all">🔍 ดูทั้งหมด</option>
-          {/* 💡 เปลี่ยนข้อความเป็น "ประกาศตามหาน้อง" ให้ตรงกับหน้าอื่น */}
-          <option value="lost">🚨 ประกาศตามหาน้อง</option>
-          <option value="found">👀 ดูประกาศพบสัตว์หลง</option>
-          <option value="adoption">💖 หาบ้านให้น้อง</option>
-        </select>
-        <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-black" size={24} />
+      <div className="flex flex-col md:flex-row gap-4 items-center z-10 w-full">
+        <div className="relative w-full md:w-80 shrink-0">
+          <select
+            value={currentTab}
+            onChange={handleTabChange}
+            className="w-full bg-white border-4 border-black rounded-2xl px-5 py-4 font-black shadow-paper-sm appearance-none cursor-pointer hover:-translate-y-1 transition-transform focus:outline-none focus:ring-4 focus:ring-ori-orange/30 text-lg text-black"
+          >
+            <option value="all">🔍 ดูทั้งหมด</option>
+            <option value="lost">🚨 ประกาศตามหาน้อง</option>
+            <option value="found">👀 ดูประกาศพบสัตว์หลง</option>
+            <option value="adoption">💖 หาบ้านให้น้อง</option>
+          </select>
+          <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-black" size={24} />
+        </div>
+        
+        {/* แสดงสถานะ GPS */}
+        <div className="text-sm font-bold bg-white px-4 py-2 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 w-full md:w-auto text-center md:text-left">
+          {gpsStatus}
+        </div>
       </div>
 
       <RadiusExpander resultCount={totalCount} />
@@ -151,26 +193,16 @@ function SearchContent() {
             </div>
           )}
 
-          {totalCount > ITEMS_PER_PAGE && (
-            <div className="flex items-center justify-center gap-6 mt-8">
+          {/* 💡 ปุ่มโหลดเพิ่มเติม (Infinite Scroll Style) */}
+          {pets.length > 0 && pets.length < totalCount && (
+            <div className="flex justify-center mt-8">
               <button 
-                onClick={handlePrevPage}
-                disabled={page === 0}
-                className="p-4 bg-white border-4 border-black rounded-full shadow-paper hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0 transition-all"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="bg-ori-orange text-white border-4 border-black px-8 py-4 rounded-2xl font-black text-xl shadow-paper hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:shadow-none transition-all flex items-center gap-2"
               >
-                <ChevronLeft size={32} />
-              </button>
-              
-              <div className="font-black text-xl px-6 py-2 bg-white border-4 border-black rounded-2xl shadow-paper-sm">
-                {page + 1} / {totalPages}
-              </div>
-
-              <button 
-                onClick={handleNextPage}
-                disabled={(page + 1) * ITEMS_PER_PAGE >= totalCount}
-                className="p-4 bg-white border-4 border-black rounded-full shadow-paper hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0 transition-all"
-              >
-                <ChevronRight size={32} />
+                {loadingMore ? <Loader2 className="animate-spin" size={24} /> : null}
+                {loadingMore ? 'กำลังดึงข้อมูล...' : 'โหลดประกาศเพิ่มเติม 👀'}
               </button>
             </div>
           )}

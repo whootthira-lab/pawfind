@@ -131,11 +131,11 @@ export function MatchResultCard({ result }: { result: PetResult }) {
 
   return (
     <>
-      <div className="ori-card flex flex-col h-full group relative">
+      <div className="ori-card flex flex-col h-full group relative overflow-hidden">
 
         {/* AI Match % */}
         {result.match_percentage && (
-          <div className="absolute top-2.5 left-2.5 z-10 bg-ori-yellow border-2 border-ori-ink px-2.5 py-1 rounded-full font-black text-xs text-ori-ink shadow-[2px_2px_0_#A07800]">
+          <div className="absolute top-2.5 left-2.5 z-20 bg-ori-yellow border-2 border-ori-ink px-2.5 py-1 rounded-full font-black text-xs text-ori-ink shadow-[2px_2px_0_#A07800]">
             🤖 {result.match_percentage.toFixed(0)}%
           </div>
         )}
@@ -149,13 +149,14 @@ export function MatchResultCard({ result }: { result: PetResult }) {
           {isLoadingPin ? <Loader2 size={18} className="animate-spin" /> : isPinned ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
         </motion.button>
 
-        {/* 💡 Image (เปลี่ยนเป็น w-full aspect-square) */}
-        <div className="relative w-full aspect-square overflow-hidden border-b-2 border-ori-ink shrink-0"
+        {/* 💡 Image (ล็อกสัดส่วน 1:1 ด้วย pt-[100%] รับประกันเป๊ะทุกหน้าจอ) */}
+        <div className="relative w-full pt-[100%] overflow-hidden border-b-2 border-ori-ink shrink-0 block"
           style={{ background: 'linear-gradient(135deg, #FDE8ED, #E4F0E5)' }}>
           <img src={formatSrc(result.image_url)} alt={result.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: cfg.color }} />
-          <div className="absolute bottom-2 left-2 text-xs font-black px-2 py-0.5 rounded-full border-2 border-ori-ink bg-white"
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          
+          <div className="absolute bottom-0 left-0 right-0 h-1 z-10" style={{ background: cfg.color }} />
+          <div className="absolute bottom-2 left-2 z-10 text-xs font-black px-2 py-0.5 rounded-full border-2 border-ori-ink bg-white"
             style={{ color: cfg.color }}>{cfg.label}</div>
         </div>
 
