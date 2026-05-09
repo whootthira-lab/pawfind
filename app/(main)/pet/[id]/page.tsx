@@ -81,7 +81,7 @@ export async function generateMetadata(
     'ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾',
   ].filter(Boolean).join(' | ')
 
-  const dynamicOgUrl = buildOgImageUrl({
+  const ogImageUrl = dynamicOgUrl
     name:     pet.name || 'ไม่ทราบชื่อ',
     status:   pet.status,
     breed:    pet.breed,
