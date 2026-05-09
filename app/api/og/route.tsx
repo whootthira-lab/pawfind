@@ -32,9 +32,6 @@ export async function GET(req: NextRequest) {
     const cfg = statusConfig[status] || statusConfig.lost
     const safeImageUrl = imageUrl.startsWith('https://') ? imageUrl : ''
 
-    // 💡 ใช้ลิงก์โลโก้จาก Supabase ที่โหลดไวและเสถียรที่สุด
-    const logoUrl = 'https://ajjvtazuncdtxjwcplcv.supabase.co/storage/v1/object/public/posters/httpspobpet.comlogo-og.png'
-
     return new ImageResponse(
       (
         <div
@@ -47,7 +44,7 @@ export async function GET(req: NextRequest) {
             overflow: 'hidden',
           }}
         >
-          {/* ฝั่งซ้าย: รูปภาพสัตว์เลี้ยง */}
+          {/* ฝั่งซ้าย: รูปภาพสัตว์เลี้ยง (แบ่งครึ่ง 50/50) */}
           <div style={{ width: '600px', height: '100%', display: 'flex', borderRight: '6px solid #1A1208', position: 'relative' }}>
             {safeImageUrl ? (
               <img 
@@ -60,7 +57,6 @@ export async function GET(req: NextRequest) {
               </div>
             )}
             
-            {/* ป้ายสถานะ */}
             <div style={{ position: 'absolute', bottom: '40px', left: '40px', backgroundColor: cfg.bg, border: `4px solid ${cfg.border}`, borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: cfg.accent, display: 'flex' }}>
               {cfg.label}
             </div>
@@ -69,14 +65,12 @@ export async function GET(req: NextRequest) {
           {/* ฝั่งขวา: รายละเอียด */}
           <div style={{ width: '600px', padding: '60px 50px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             
-            {/* โลโก้ PobPet ที่มุมขวาบน */}
-            <div style={{ position: 'absolute', top: '40px', right: '50px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img src={logoUrl} style={{ width: '60px', height: '60px', borderRadius: '12px', objectFit: 'contain' }} />
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1A1208' }}>PobPet</div>
+            {/* 💡 เอาโลโก้ออก เหลือแค่ตัวหนังสือมุมขวา */}
+            <div style={{ position: 'absolute', top: '40px', right: '50px', display: 'flex', alignItems: 'center' }}>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1A1208' }}>PobPet</div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '40px' }}>
-              {/* ข้อความที่ปรับใหม่ให้เด่นขึ้น */}
               <div style={{ fontSize: '32px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>
                 PobPet (พบเพ็ท) ศูนย์รวมประกาศสัตว์หายและค้นหาด้วย AI
               </div>
