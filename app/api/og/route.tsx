@@ -5,7 +5,6 @@ import { NextRequest } from 'next/server'
 export const runtime = 'edge'
 
 const fetchFont = async () => {
-  // 💡 เปลี่ยนมาใช้ raw.githubusercontent เพื่อดึงไฟล์ตรงๆ ไม่ให้ติด Redirect
   const response = await fetch(
     'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansThai/NotoSansThai-Bold.ttf'
   )
@@ -15,7 +14,6 @@ const fetchFont = async () => {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    
     const name     = searchParams.get('name')     || 'ไม่ทราบชื่อ'
     const status   = searchParams.get('status')   || 'lost'
     const breed    = searchParams.get('breed')    || ''
@@ -23,10 +21,9 @@ export async function GET(req: NextRequest) {
     const imageUrl = searchParams.get('image')    || ''
     const reward   = searchParams.get('reward')   || '0'
 
-    // รอโหลดฟอนต์
     const fontData = await fetchFont()
 
-    // ธีมสีแบบปลอดภัย
+    // ธีมสี
     const statusConfig: Record<string, { label: string; bg: string; border: string; accent: string }> = {
       lost:     { label: '🚨 ตามหาเจ้าของ', bg: '#FDE8ED', border: '#C07080', accent: '#D94F1E' },
       found:    { label: '👀 พบน้องหลงทาง', bg: '#E4F0E5', border: '#4A7D50', accent: '#2D6A2D' },
@@ -44,51 +41,67 @@ export async function GET(req: NextRequest) {
             backgroundColor: '#F5EDD8',
             fontFamily: '"Noto Sans Thai"',
             position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          {/* ฝั่งซ้าย: รูปภาพสัตว์เลี้ยง */}
-          <div style={{ width: '460px', height: '100%', display: 'flex', borderRight: '4px solid #1A1208', backgroundColor: cfg.bg, position: 'relative' }}>
+          {/* 1. ฝั่งซ้าย: รูปภาพสัตว์เลี้ยง (ปรับเป็น 50% หรือ 600px) */}
+          <div style={{ width: '600px', height: '100%', display: 'flex', borderRight: '6px solid #1A1208', position: 'relative' }}>
             {safeImageUrl ? (
-              <img src={safeImageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img 
+                src={safeImageUrl} 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+              />
             ) : (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '100px' }}>
+              <div style={{ width: '100%', height: '100%', backgroundColor: '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '120px' }}>
                 🐾
               </div>
             )}
             
-            {/* ป้ายสถานะ */}
-            <div style={{ position: 'absolute', bottom: '30px', left: '30px', backgroundColor: cfg.bg, border: `3px solid ${cfg.border}`, borderRadius: '50px', padding: '12px 24px', fontSize: '26px', color: cfg.accent, display: 'flex', alignItems: 'center' }}>
+            {/* ป้ายสถานะ (ย้ายมาไว้ฝั่งรูปภาพเพื่อให้ดูสมดุล) */}
+            <div style={{ position: 'absolute', bottom: '40px', left: '40px', backgroundColor: cfg.bg, border: `4px solid ${cfg.border}`, borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: cfg.accent, display: 'flex' }}>
               {cfg.label}
             </div>
           </div>
 
-          {/* ฝั่งขวา: รายละเอียด */}
-          <div style={{ flex: 1, padding: '50px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontSize: '26px', color: '#7A6A50', display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-                PobPet · ศูนย์รวมประกาศสัตว์หาย
+          {/* 2. ฝั่งขวา: รายละเอียด (600px) */}
+          <div style={{ width: '600px', padding: '60px 50px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            
+            {/* โลโก้ PobPet ที่มุมขวาบน */}
+            <div style={{ position: 'absolute', top: '40px', right: '50px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* 💡 แนะนำให้คุณวุฒิ์นำไฟล์โลโก้ไปวางที่ public/logo-og.png แล้วใช้ URL จริงที่นี่ครับ */}
+              <img 
+                src="https://pobpet.com/logo-og.png" 
+                style={{ width: '60px', height: '60px', borderRadius: '12px' }} 
+              />
+              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1A1208' }}>PobPet</div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '40px' }}>
+              <div style={{ fontSize: '24px', color: '#7A6A50', fontWeight: 'bold' }}>
+                ศูนย์รวมประกาศสัตว์หายออนไลน์
               </div>
-              <div style={{ fontSize: name.length > 10 ? '56px' : '72px', color: '#1A1208', lineHeight: 1.1 }}>
+              <div style={{ fontSize: name.length > 8 ? '70px' : '90px', fontWeight: 'bold', color: '#1A1208', lineHeight: 1.0 }}>
                 {name}
               </div>
-              {breed ? <div style={{ fontSize: '30px', color: '#5A4E46', marginTop: '10px' }}>{breed}</div> : null}
+              {breed ? <div style={{ fontSize: '34px', color: '#5A4E46', fontWeight: 'bold' }}>พันธุ์: {breed}</div> : null}
               
-              <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FFFFFF', border: '3px solid #1A1208', borderRadius: '50px', padding: '12px 24px', fontSize: '26px', color: '#1A1208', marginTop: '24px', width: '60%' }}>
-                📍 พิกัด: {province || 'ไม่ระบุพื้นที่'}
+              <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FFFFFF', border: '3.5px solid #1A1208', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#1A1208', marginTop: '30px', width: 'fit-content' }}>
+                📍 {province || 'ไม่ระบุพื้นที่'}
               </div>
               
               {parseInt(reward) > 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FDF3DC', border: '3px solid #E8C87A', borderRadius: '50px', padding: '12px 24px', fontSize: '26px', color: '#966A1A', marginTop: '16px', width: '60%' }}>
-                  💰 มีรางวัล {parseInt(reward).toLocaleString()} บาท
+                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FDF3DC', border: '3.5px solid #E8C87A', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#966A1A', marginTop: '20px', width: 'fit-content' }}>
+                  💰 รางวัล {parseInt(reward).toLocaleString()} บาท
                 </div>
               ) : null}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ backgroundColor: '#1A1208', color: '#F5EDD8', borderRadius: '16px', padding: '20px', fontSize: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🏠
+            {/* ส่วนท้ายของการ์ด */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div style={{ backgroundColor: '#1A1208', color: '#F5EDD8', borderRadius: '16px', padding: '22px', fontSize: '32px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                ช่วยแชร์ให้น้องได้กลับบ้าน 🏠
               </div>
-              <div style={{ fontSize: '20px', color: '#9A8E86', textAlign: 'center' }}>
+              <div style={{ fontSize: '22px', color: '#9A8E86', textAlign: 'center', fontWeight: 'bold' }}>
                 pobpet.com
               </div>
             </div>
@@ -107,16 +120,6 @@ export async function GET(req: NextRequest) {
       }
     )
   } catch (err: any) {
-    console.error('[OG Error]', err)
-    // 💡 ระบบดักจับ Error: ถ้าพัง จะคืนค่ารูปสีแดงพร้อมคำอธิบายแทนหน้าขาว
-    return new ImageResponse(
-      (
-        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fee2e2', color: '#991b1b', padding: '40px', textAlign: 'center' }}>
-          <div style={{ fontSize: '60px', marginBottom: '20px' }}>⚠️ OG Generation Failed</div>
-          <div style={{ fontSize: '30px' }}>{String(err.message || err)}</div>
-        </div>
-      ),
-      { width: 1200, height: 630 }
-    )
+    return new Response(`Error: ${err.message}`, { status: 500 })
   }
 }
