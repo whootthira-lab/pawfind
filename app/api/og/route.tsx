@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     const safeImageUrl = imageUrl.startsWith('https://') ? imageUrl : ''
 
     // 💡 แปลง Google Drive Link เป็น Direct Link สำหรับให้ระบบดึงรูปได้โดยตรง
-    const logoUrl = 'https://drive.google.com/uc?export=view&id=1bC_urWG9WSHaxBtGsRFN9MX3EITco0tU'
+    const logoUrl = 'https://ajjvtazuncdtxjwcplcv.supabase.co/storage/v1/object/public/posters/httpspobpet.comlogo-og.png'
 
     return new ImageResponse(
       (
