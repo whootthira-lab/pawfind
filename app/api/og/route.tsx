@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
             <div style={{ position: 'absolute', top: '40px', right: '50px', display: 'flex', alignItems: 'center', gap: '12px' }}>
               {/* 💡 แนะนำให้คุณวุฒิ์นำไฟล์โลโก้ไปวางที่ public/logo-og.png แล้วใช้ URL จริงที่นี่ครับ */}
               <img 
-                src="https://pobpet.com/logo-og.png" 
+                src="https://drive.google.com/file/d/1bC_urWG9WSHaxBtGsRFN9MX3EITco0tU/view?usp=drive_link" 
                 style={{ width: '60px', height: '60px', borderRadius: '12px' }} 
               />
               <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1A1208' }}>PobPet</div>
