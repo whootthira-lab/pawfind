@@ -90,7 +90,6 @@ export async function generateMetadata(
     reward:   pet.reward_amount,
   })
 
-  // ✅ แก้ไขเศษโค้ดที่ซ้อนกันเรียบร้อย และบังคับใช้รูปใหม่เสมอ
   const ogImageUrl = dynamicOgUrl
   const pageUrl = `${BASE_URL}/pet/${params.id}`
 
@@ -104,6 +103,7 @@ export async function generateMetadata(
       description,
       siteName:    'PobPet หาสัตว์หายด้วย AI',
       locale:      'th_TH',
+      // ✅ ลบรูปสำรอง (Fallback) ทิ้งไปเลย บังคับให้ Facebook รอโหลดรูปการ์ด 50/50 เท่านั้น
       images: [
         { 
           url: ogImageUrl, 
@@ -111,8 +111,7 @@ export async function generateMetadata(
           height: 630, 
           alt: `${title}`, 
           type: 'image/png' 
-        },
-        ...(imageUrl ? [{ url: imageUrl, width: 800, height: 800, alt: pet.name || 'สัตว์เลี้ยง' }] : []),
+        }
       ],
     },
     twitter: { card: 'summary_large_image', title, description, images: [ogImageUrl] },
@@ -229,7 +228,6 @@ export default async function PetProfilePage({ params }: Props) {
               </div>
             </div>
 
-            {/* ✅ แก้ไขเครื่องหมายคำพูด &quot; ป้องกัน React Build Error */}
             <div className="bg-washi border-2 border-black p-6 rounded-lg mb-8 shadow-paper-sm">
               <h3 className="font-bold text-lg mb-3">🤖 บทวิเคราะห์จาก Gemini AI</h3>
               <p className="text-gray-800 leading-relaxed italic">
