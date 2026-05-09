@@ -8,8 +8,7 @@ import type { Metadata, ResolvingMetadata } from 'next'
 import ShareButton from '@/components/pet/ShareButton'
 import { CommentSection } from '@/components/pet/CommentSection'
 
-// 💡 ดึง URL หลัก (ควรเซ็ต NEXT_PUBLIC_BASE_URL = https://pobpet.com ใน Vercel)
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pobpet.com'
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
 
 type Props = { params: { id: string } }
 
@@ -56,15 +55,15 @@ export async function generateMetadata(
   const primaryRaw = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url || ''
   const imageUrl   = resolveImageUrl(primaryRaw)
 
-  // จัดการข้อความ Title ตามหมวดหมู่
+  // 💡 จัดการข้อความ Title ตามหมวดหมู่
   let title = ''
   const petName = pet.name || 'ไม่ทราบชื่อ'
   if (pet.status === 'lost') {
-    title = `🚨ประกาศตามหาสัตว์หาย(${petName}) | PobPet`
+    title = `🚨ประกาศตามหาสัตว์หาย(${petName}) | PobPet หาสัตว์หายด้วย AI`
   } else if (pet.status === 'found') {
-    title = `👀ประกาศพบสัตว์หลง | PobPet`
+    title = `🚨ประกาศพบสัตว์หลง | PobPet หาสัตว์หายด้วย AI`
   } else if (pet.status === 'adoption') {
-    title = `💖ประกาศตามหาบ้านให้น้อง(${petName}) | PobPet`
+    title = `💖ประกาศตามหาบ้านให้น้อง(${petName}) | PobPet หาสัตว์หายด้วย AI`
   } else {
     title = `${petName} | PobPet หาสัตว์หายด้วย AI`
   }
@@ -83,7 +82,6 @@ export async function generateMetadata(
     'ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾',
   ].filter(Boolean).join(' | ')
 
-  // 💡 สร้าง URL ของ Dynamic OG Image
   const dynamicOgUrl = buildOgImageUrl({
     name:     pet.name || 'ไม่ทราบชื่อ',
     status:   pet.status,
@@ -93,8 +91,7 @@ export async function generateMetadata(
     reward:   pet.reward_amount,
   })
 
-  // ✅ แก้ไขตรงนี้: บังคับใช้ Dynamic OG Card เสมอ เพื่อให้ขึ้นเลย์เอาต์ที่เราวาดไว้
-  const ogImageUrl = dynamicOgUrl
+  const ogImageUrl = pet.og_image_url || dynamicOgUrl
   const pageUrl = `${BASE_URL}/pet/${params.id}`
 
   return {
@@ -105,17 +102,16 @@ export async function generateMetadata(
       url:         pageUrl,
       title,
       description,
-      siteName:    'PobPet หาสัตว์หายด้วย AI',
+      siteName:    'PobPet หาสัตว์หายด้วย AI', // 💡 แก้ไขชื่อ SiteName
       locale:      'th_TH',
       images: [
         { 
-          url: ogImageUrl, // จะดึงภาพที่มีตัวหนังสือและข้อมูลครบถ้วน
+          url: ogImageUrl, 
           width: 1200, 
           height: 630, 
           alt: `${title}`, 
           type: 'image/png' 
         },
-        // Fallback: รูปภาพต้นฉบับเผื่อแพลตฟอร์มดึงรูปหลายใบ
         ...(imageUrl ? [{ url: imageUrl, width: 800, height: 800, alt: pet.name || 'สัตว์เลี้ยง' }] : []),
       ],
     },
@@ -157,7 +153,7 @@ export default async function PetProfilePage({ params }: Props) {
     datePublished: pet.created_at,
     dateModified:  pet.updated_at || pet.created_at,
     url: `${BASE_URL}/pet/${params.id}`,
-    publisher: { '@type': 'Organization', name: 'PobPet หาสัตว์หายด้วย AI', url: BASE_URL },
+    publisher: { '@type': 'Organization', name: 'PobPet หาสัตว์หายด้วย AI', url: BASE_URL }, // 💡 อัปเดตใน Schema ด้วย
   }
 
   return (
@@ -236,7 +232,7 @@ export default async function PetProfilePage({ params }: Props) {
             <div className="bg-washi border-2 border-black p-6 rounded-lg mb-8 shadow-paper-sm">
               <h3 className="font-bold text-lg mb-3">🤖 บทวิเคราะห์จาก Gemini AI</h3>
               <p className="text-gray-800 leading-relaxed italic">
-                "{pet.ai_description}"
+                &quot;{pet.ai_description}&quot;
               </p>
             </div>
 

@@ -1,11 +1,16 @@
 // app/api/og/route.tsx
-import { ImageResponse } from '@vercel/og'
+import { ImageResponse } from 'next/og' // เปลี่ยนจาก @vercel/og เป็น next/og
 import { NextRequest } from 'next/server'
 
 export const runtime = 'edge'
 
-// ดึงค่า BASE_URL จาก Environment Variable ที่คุณตั้งค่าไว้ใน Vercel Dashboard
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
+// ── โหลดฟอนต์ภาษาไทยจาก GitHub ของ Google Fonts โดยตรง (.ttf) ──
+const fetchFont = async () => {
+  const response = await fetch(
+    'https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansThai/NotoSansThai-Bold.ttf'
+  )
+  return await response.arrayBuffer()
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,18 +24,8 @@ export async function GET(req: NextRequest) {
     const imageUrl = searchParams.get('image')    || ''
     const reward   = searchParams.get('reward')   || '0'
 
-    // ── 1. โหลดฟอนต์ภาษาไทยจาก Folder Public ──────────────────────
-    // ใช้ Absolute URL เพื่อความเสถียรใน Edge Runtime
-    const fontUrl = new URL('/fonts/NotoSansThai.woff', BASE_URL)
-    const fontRes = await fetch(fontUrl)
-
-    // ตรวจสอบว่าสิ่งที่โหลดมาคือไฟล์ฟอนต์จริง ไม่ใช่หน้า HTML (ป้องกัน Error <!DO)
-    const contentType = fontRes.headers.get('content-type')
-    if (!fontRes.ok || (contentType && contentType.includes('text/html'))) {
-      throw new Error(`Font load failed. Got ${contentType} from ${fontUrl}`)
-    }
-    
-    const fontData = await fontRes.arrayBuffer()
+    // รอโหลดข้อมูลฟอนต์ให้เสร็จก่อนสร้างรูป
+    const fontData = await fetchFont()
 
     // ตั้งค่าธีมตามสถานะ
     const statusConfig: Record<string, { label: string; bg: string; border: string; accent: string }> = {
@@ -48,7 +43,7 @@ export async function GET(req: NextRequest) {
             width: '1200px', height: '630px',
             display: 'flex',
             background: '#F5EDD8',
-            fontFamily: 'NotoSansThai',
+            fontFamily: '"Noto Sans Thai"', // ใช้ชื่อให้ตรงกับ array ด้านล่าง
             position: 'relative',
             overflow: 'hidden',
             backgroundImage: 'radial-gradient(circle, #C4A87880 1px, transparent 1px)',
@@ -64,7 +59,7 @@ export async function GET(req: NextRequest) {
                 🐾
               </div>
             )}
-            <div style={{ position: 'absolute', bottom: '20px', left: '20px', background: cfg.bg, border: `3px solid ${cfg.border}`, borderRadius: '999px', padding: '10px 22px', fontSize: '24px', fontWeight: 700, color: cfg.accent, display: 'flex', alignItems: 'center', boxShadow: `4px 4px 0 ${cfg.border}` }}>
+            <div style={{ position: 'absolute', bottom: '20px', left: '20px', background: cfg.bg, border: `3px solid ${cfg.border}`, borderRadius: '99px', padding: '10px 22px', fontSize: '24px', fontWeight: 700, color: cfg.accent, display: 'flex', alignItems: 'center', boxShadow: `4px 4px 0 ${cfg.border}` }}>
               {cfg.label}
             </div>
           </div>
@@ -75,15 +70,15 @@ export async function GET(req: NextRequest) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '22px', fontWeight: 700, color: '#7A6A50' }}>
                 <span>🐾</span><span>PobPet · ตามหาน้อง</span>
               </div>
-              <div style={{ fontSize: name.length > 10 ? '56px' : '68px', fontWeight: 900, color: '#1A1208', lineHeight: 1.1 }}>
+              <div style={{ fontSize: name.length > 10 ? '56px' : '68px', fontWeight: 700, color: '#1A1208', lineHeight: 1.1 }}>
                 {name}
               </div>
-              {breed ? <div style={{ fontSize: '26px', color: '#5A4E46', fontWeight: 600 }}>{breed}</div> : null}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#FFFFFF', border: '2.5px solid #1A1208', borderRadius: '999px', padding: '10px 22px', fontSize: '24px', fontWeight: 700, color: '#1A1208', boxShadow: '3px 3px 0 #1A1208', width: 'fit-content' }}>
+              {breed ? <div style={{ fontSize: '26px', color: '#5A4E46', fontWeight: 700 }}>{breed}</div> : null}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#FFFFFF', border: '2.5px solid #1A1208', borderRadius: '99px', padding: '10px 22px', fontSize: '24px', fontWeight: 700, color: '#1A1208', boxShadow: '3px 3px 0 #1A1208', width: 'fit-content' }}>
                 <span>📍</span><span>{province || 'ไม่ระบุพื้นที่'}</span>
               </div>
               {parseInt(reward) > 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#FDF3DC', border: '2.5px solid #E8C87A', borderRadius: '999px', padding: '10px 22px', fontSize: '22px', fontWeight: 700, color: '#966A1A', boxShadow: '3px 3px 0 #A07800', width: 'fit-content' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#FDF3DC', border: '2.5px solid #E8C87A', borderRadius: '99px', padding: '10px 22px', fontSize: '22px', fontWeight: 700, color: '#966A1A', boxShadow: '3px 3px 0 #A07800', width: 'fit-content' }}>
                   <span>💰</span><span>มีรางวัล {parseInt(reward).toLocaleString()} บาท</span>
                 </div>
               ) : null}
@@ -93,7 +88,7 @@ export async function GET(req: NextRequest) {
               <div style={{ background: '#1A1208', color: '#F5EDD8', borderRadius: '16px', padding: '18px 28px', fontSize: '26px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: '4px 4px 0 #5A4E46' }}>
                 <span>ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🏠</span>
               </div>
-              <div style={{ fontSize: '18px', color: '#9A8E86', textAlign: 'center', fontWeight: 500 }}>
+              <div style={{ fontSize: '18px', color: '#9A8E86', textAlign: 'center', fontWeight: 700 }}>
                 pobpet.com
               </div>
             </div>
@@ -108,9 +103,9 @@ export async function GET(req: NextRequest) {
         width: 1200,
         height: 630,
         fonts: [{
-          name: 'NotoSansThai',
+          name: 'Noto Sans Thai', // เปลี่ยนชื่อให้ตรง
           data: fontData,
-          weight: 700, // ปรับเป็น 700 เพื่อให้แสดงผลภาษาไทยตัวหนาได้สวยงามตามดีไซน์
+          weight: 700,
           style: 'normal',
         }],
       }
