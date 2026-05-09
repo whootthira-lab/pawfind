@@ -32,9 +32,6 @@ export async function GET(req: NextRequest) {
     const cfg = statusConfig[status] || statusConfig.lost
     const safeImageUrl = imageUrl.startsWith('https://') ? imageUrl : ''
 
-    // 💡 แปลง Google Drive Link เป็น Direct Link สำหรับให้ระบบดึงรูปได้โดยตรง
-    const logoUrl = 'https://drive.google.com/uc?export=view&id=1bC_urWG9WSHaxBtGsRFN9MX3EITco0tU'
-
     return new ImageResponse(
       (
         <div
@@ -47,7 +44,7 @@ export async function GET(req: NextRequest) {
             overflow: 'hidden',
           }}
         >
-          {/* ฝั่งซ้าย: รูปภาพสัตว์เลี้ยง */}
+          {/* 1. ฝั่งซ้าย: รูปภาพสัตว์เลี้ยง (ปรับเป็น 50% หรือ 600px) */}
           <div style={{ width: '600px', height: '100%', display: 'flex', borderRight: '6px solid #1A1208', position: 'relative' }}>
             {safeImageUrl ? (
               <img 
@@ -60,27 +57,29 @@ export async function GET(req: NextRequest) {
               </div>
             )}
             
-            {/* ป้ายสถานะ */}
+            {/* ป้ายสถานะ (ย้ายมาไว้ฝั่งรูปภาพเพื่อให้ดูสมดุล) */}
             <div style={{ position: 'absolute', bottom: '40px', left: '40px', backgroundColor: cfg.bg, border: `4px solid ${cfg.border}`, borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: cfg.accent, display: 'flex' }}>
               {cfg.label}
             </div>
           </div>
 
-          {/* ฝั่งขวา: รายละเอียด */}
+          {/* 2. ฝั่งขวา: รายละเอียด (600px) */}
           <div style={{ width: '600px', padding: '60px 50px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             
-            {/* 💡 เปิดใช้งาน โลโก้ PobPet ที่มุมขวาบนแล้ว! */}
+            {/* โลโก้ PobPet ที่มุมขวาบน */}
             <div style={{ position: 'absolute', top: '40px', right: '50px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img src={logoUrl} style={{ width: '60px', height: '60px', borderRadius: '12px' }} />
+              {/* 💡 แนะนำให้คุณวุฒิ์นำไฟล์โลโก้ไปวางที่ public/logo-og.png แล้วใช้ URL จริงที่นี่ครับ */}
+              <img 
+                src="https://ajjvtazuncdtxjwcplcv.supabase.co/storage/v1/object/public/posters/httpspobpet.comlogo-og.png" 
+                style={{ width: '60px', height: '60px', borderRadius: '12px' }} 
+              />
               <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1A1208' }}>PobPet</div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '40px' }}>
-              {/* ข้อความใหม่ที่ใหญ่และเด่นขึ้น */}
-              <div style={{ fontSize: '32px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>
-                PobPet (พบเพ็ท) ศูนย์รวมประกาศสัตว์หายและค้นหาด้วย AI
+              <div style={{ fontSize: '30px', color: '#7A6A50', fontWeight: 'bold' }}>
+            🐾 PobPet(พบเพ็ท) ศูนย์รวมประกาศสัตว์หายและค้นหาด้วย AI
               </div>
-              
               <div style={{ fontSize: name.length > 8 ? '70px' : '90px', fontWeight: 'bold', color: '#1A1208', lineHeight: 1.0 }}>
                 {name}
               </div>
@@ -97,6 +96,7 @@ export async function GET(req: NextRequest) {
               ) : null}
             </div>
 
+            {/* ส่วนท้ายของการ์ด */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div style={{ backgroundColor: '#1A1208', color: '#F5EDD8', borderRadius: '16px', padding: '22px', fontSize: '32px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 ช่วยแชร์ให้น้องได้กลับบ้าน 🏠
@@ -120,14 +120,6 @@ export async function GET(req: NextRequest) {
       }
     )
   } catch (err: any) {
-    return new ImageResponse(
-      (
-        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fee2e2', color: '#991b1b', padding: '40px', textAlign: 'center' }}>
-          <div style={{ fontSize: '60px', marginBottom: '20px' }}>⚠️ OG Generation Failed</div>
-          <div style={{ fontSize: '30px' }}>{String(err.message || err)}</div>
-        </div>
-      ),
-      { width: 1200, height: 630 }
-    )
+    return new Response(`Error: ${err.message}`, { status: 500 })
   }
 }
