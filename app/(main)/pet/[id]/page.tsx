@@ -81,7 +81,7 @@ export async function generateMetadata(
     'ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾',
   ].filter(Boolean).join(' | ')
 
-  const ogImageUrl = dynamicOgUrl
+  const dynamicOgUrl = buildOgImageUrl({
     name:     pet.name || 'ไม่ทราบชื่อ',
     status:   pet.status,
     breed:    pet.breed,
@@ -90,7 +90,7 @@ export async function generateMetadata(
     reward:   pet.reward_amount,
   })
 
-  // ✅ แก้ไขตรงนี้: บังคับใช้ dynamicOgUrl เท่านั้น เพื่อให้วาดรูป 50/50 เสมอ
+  // ✅ แก้ไขเศษโค้ดที่ซ้อนกันเรียบร้อย และบังคับใช้รูปใหม่เสมอ
   const ogImageUrl = dynamicOgUrl
   const pageUrl = `${BASE_URL}/pet/${params.id}`
 
@@ -229,6 +229,7 @@ export default async function PetProfilePage({ params }: Props) {
               </div>
             </div>
 
+            {/* ✅ แก้ไขเครื่องหมายคำพูด &quot; ป้องกัน React Build Error */}
             <div className="bg-washi border-2 border-black p-6 rounded-lg mb-8 shadow-paper-sm">
               <h3 className="font-bold text-lg mb-3">🤖 บทวิเคราะห์จาก Gemini AI</h3>
               <p className="text-gray-800 leading-relaxed italic">
