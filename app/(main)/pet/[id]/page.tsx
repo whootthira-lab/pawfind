@@ -8,8 +8,7 @@ import type { Metadata, ResolvingMetadata } from 'next'
 import ShareButton from '@/components/pet/ShareButton'
 import { CommentSection } from '@/components/pet/CommentSection'
 
-// 💡 ดึง URL หลัก (ควรเซ็ต NEXT_PUBLIC_BASE_URL = https://pobpet.com ใน Vercel)
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pobpet.com'
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
 
 type Props = { params: { id: string } }
 
@@ -56,15 +55,14 @@ export async function generateMetadata(
   const primaryRaw = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url || ''
   const imageUrl   = resolveImageUrl(primaryRaw)
 
-  // จัดการข้อความ Title ตามหมวดหมู่
   let title = ''
   const petName = pet.name || 'ไม่ทราบชื่อ'
   if (pet.status === 'lost') {
-    title = `🚨ประกาศตามหาสัตว์หาย(${petName}) | PobPet`
+    title = `🚨ประกาศตามหาสัตว์หาย(${petName}) | PobPet หาสัตว์หายด้วย AI`
   } else if (pet.status === 'found') {
-    title = `👀ประกาศพบสัตว์หลง | PobPet`
+    title = `🚨ประกาศพบสัตว์หลง | PobPet หาสัตว์หายด้วย AI`
   } else if (pet.status === 'adoption') {
-    title = `💖ประกาศตามหาบ้านให้น้อง(${petName}) | PobPet`
+    title = `💖ประกาศตามหาบ้านให้น้อง(${petName}) | PobPet หาสัตว์หายด้วย AI`
   } else {
     title = `${petName} | PobPet หาสัตว์หายด้วย AI`
   }
@@ -83,7 +81,6 @@ export async function generateMetadata(
     'ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾',
   ].filter(Boolean).join(' | ')
 
-  // 💡 สร้าง URL ของ Dynamic OG Image
   const dynamicOgUrl = buildOgImageUrl({
     name:     pet.name || 'ไม่ทราบชื่อ',
     status:   pet.status,
@@ -93,7 +90,7 @@ export async function generateMetadata(
     reward:   pet.reward_amount,
   })
 
-  // ✅ แก้ไขตรงนี้: บังคับใช้ Dynamic OG Card เสมอ เพื่อให้ขึ้นเลย์เอาต์ที่เราวาดไว้
+  // ✅ แก้ไขตรงนี้: บังคับใช้ dynamicOgUrl เท่านั้น เพื่อให้วาดรูป 50/50 เสมอ
   const ogImageUrl = dynamicOgUrl
   const pageUrl = `${BASE_URL}/pet/${params.id}`
 
@@ -109,13 +106,12 @@ export async function generateMetadata(
       locale:      'th_TH',
       images: [
         { 
-          url: ogImageUrl, // จะดึงภาพที่มีตัวหนังสือและข้อมูลครบถ้วน
+          url: ogImageUrl, 
           width: 1200, 
           height: 630, 
           alt: `${title}`, 
           type: 'image/png' 
         },
-        // Fallback: รูปภาพต้นฉบับเผื่อแพลตฟอร์มดึงรูปหลายใบ
         ...(imageUrl ? [{ url: imageUrl, width: 800, height: 800, alt: pet.name || 'สัตว์เลี้ยง' }] : []),
       ],
     },
@@ -157,7 +153,7 @@ export default async function PetProfilePage({ params }: Props) {
     datePublished: pet.created_at,
     dateModified:  pet.updated_at || pet.created_at,
     url: `${BASE_URL}/pet/${params.id}`,
-    publisher: { '@type': 'Organization', name: 'PobPet หาสัตว์หายด้วย AI', url: BASE_URL },
+    publisher: { '@type': 'Organization', name: 'PobPet หาสัตว์หายด้วย AI', url: BASE_URL }, 
   }
 
   return (
