@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     const cfg = statusConfig[status] || statusConfig.lost
     const safeImageUrl = imageUrl.startsWith('https://') ? imageUrl : ''
 
-    // 💡 แปลง Google Drive Link เป็น Direct Link สำหรับให้ระบบดึงรูปได้โดยตรง
+    // 💡 ใช้ลิงก์โลโก้จาก Supabase ที่โหลดไวและเสถียรที่สุด
     const logoUrl = 'https://ajjvtazuncdtxjwcplcv.supabase.co/storage/v1/object/public/posters/httpspobpet.comlogo-og.png'
 
     return new ImageResponse(
@@ -69,14 +69,14 @@ export async function GET(req: NextRequest) {
           {/* ฝั่งขวา: รายละเอียด */}
           <div style={{ width: '600px', padding: '60px 50px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             
-            {/* 💡 เปิดใช้งาน โลโก้ PobPet ที่มุมขวาบนแล้ว! */}
+            {/* โลโก้ PobPet ที่มุมขวาบน */}
             <div style={{ position: 'absolute', top: '40px', right: '50px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img src={logoUrl} style={{ width: '60px', height: '60px', borderRadius: '12px' }} />
+              <img src={logoUrl} style={{ width: '60px', height: '60px', borderRadius: '12px', objectFit: 'contain' }} />
               <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1A1208' }}>PobPet</div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '40px' }}>
-              {/* ข้อความใหม่ที่ใหญ่และเด่นขึ้น */}
+              {/* ข้อความที่ปรับใหม่ให้เด่นขึ้น */}
               <div style={{ fontSize: '32px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>
                 PobPet (พบเพ็ท) ศูนย์รวมประกาศสัตว์หายและค้นหาด้วย AI
               </div>
