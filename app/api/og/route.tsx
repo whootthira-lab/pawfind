@@ -14,23 +14,41 @@ const fetchFont = async () => {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const name     = searchParams.get('name')     || 'ไม่ทราบชื่อ'
-    const status   = searchParams.get('status')   || 'lost'
-    const breed    = searchParams.get('breed')    || ''
-    const province = searchParams.get('province') || ''
-    const imageUrl = searchParams.get('image')    || ''
-    const reward   = searchParams.get('reward')   || '0'
+    const id = searchParams.get('id')
+
+    if (!id) throw new Error('Missing Pet ID')
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    
+    const petRes = await fetch(`${supabaseUrl}/rest/v1/pets?id=eq.${id}&select=*,pet_images(storage_url,is_primary)`, {
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+    })
+    const petData = await petRes.json()
+    const pet = petData[0]
+
+    if (!pet) throw new Error('Pet not found')
+
+    const name     = pet.name || 'ไม่ทราบชื่อ'
+    const status   = pet.status || 'lost'
+    const breed    = pet.breed || ''
+    const province = pet.province || ''
+    const reward   = pet.reward_amount || '0'
+
+    const images = pet.pet_images || []
+    const primaryRaw = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url || ''
+    const safeImageUrl = primaryRaw.startsWith('http') 
+      ? primaryRaw 
+      : primaryRaw ? `${supabaseUrl}/storage/v1/object/public/pet-images/${primaryRaw}` : ''
 
     const fontData = await fetchFont()
 
-    // ธีมสี
     const statusConfig: Record<string, { label: string; bg: string; border: string; accent: string }> = {
       lost:     { label: '🚨 ตามหาเจ้าของ', bg: '#FDE8ED', border: '#C07080', accent: '#D94F1E' },
       found:    { label: '👀 พบน้องหลงทาง', bg: '#E4F0E5', border: '#4A7D50', accent: '#2D6A2D' },
       adoption: { label: '💖 หาบ้านใหม่',   bg: '#E2EFF8', border: '#3A6A8A', accent: '#1A5EA8' },
     }
     const cfg = statusConfig[status] || statusConfig.lost
-    const safeImageUrl = imageUrl.startsWith('https://') ? imageUrl : ''
 
     return new ImageResponse(
       (
@@ -44,7 +62,7 @@ export async function GET(req: NextRequest) {
             overflow: 'hidden',
           }}
         >
-          {/* ฝั่งซ้าย: รูปภาพสัตว์เลี้ยง (แบ่งครึ่ง 50/50) */}
+          {/* ฝั่งซ้าย: รูปภาพสัตว์เลี้ยง */}
           <div style={{ width: '600px', height: '100%', display: 'flex', borderRight: '6px solid #1A1208', position: 'relative' }}>
             {safeImageUrl ? (
               <img 
@@ -65,27 +83,36 @@ export async function GET(req: NextRequest) {
           {/* ฝั่งขวา: รายละเอียด */}
           <div style={{ width: '600px', padding: '60px 50px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             
-            {/* 💡 เอาโลโก้ออก เหลือแค่ตัวหนังสือมุมขวา */}
             <div style={{ position: 'absolute', top: '40px', right: '50px', display: 'flex', alignItems: 'center' }}>
               <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1A1208' }}>PobPet</div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '40px' }}>
-              <div style={{ fontSize: '32px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>
-                PobPet (พบเพ็ท) ศูนย์รวมประกาศสัตว์หายและค้นหาด้วย AI
+              
+              {/* 💡 ไอเดียการหั่น 3 บรรทัดของคุณวุฒิ์ ทำให้อ่านง่ายและระบบไม่พังครับ */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ fontSize: '28px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>
+                  PobPet (พบเพ็ท)
+                </div>
+                <div style={{ fontSize: '28px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>
+                  ศูนย์รวมประกาศสัตว์หาย
+                </div>
+                <div style={{ fontSize: '28px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>
+                  และค้นหาด้วย AI
+                </div>
               </div>
               
-              <div style={{ fontSize: name.length > 8 ? '70px' : '90px', fontWeight: 'bold', color: '#1A1208', lineHeight: 1.0 }}>
+              <div style={{ fontSize: name.length > 8 ? '70px' : '90px', fontWeight: 'bold', color: '#1A1208', lineHeight: 1.0, marginTop: '10px' }}>
                 {name}
               </div>
               {breed ? <div style={{ fontSize: '34px', color: '#5A4E46', fontWeight: 'bold' }}>พันธุ์: {breed}</div> : null}
               
-              <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FFFFFF', border: '3.5px solid #1A1208', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#1A1208', marginTop: '30px', width: 'fit-content' }}>
+              <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FFFFFF', border: '3.5px solid #1A1208', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#1A1208', marginTop: '20px', width: 'fit-content' }}>
                 📍 {province || 'ไม่ระบุพื้นที่'}
               </div>
               
               {parseInt(reward) > 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FDF3DC', border: '3.5px solid #E8C87A', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#966A1A', marginTop: '20px', width: 'fit-content' }}>
+                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FDF3DC', border: '3.5px solid #E8C87A', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#966A1A', marginTop: '10px', width: 'fit-content' }}>
                   💰 รางวัล {parseInt(reward).toLocaleString()} บาท
                 </div>
               ) : null}
