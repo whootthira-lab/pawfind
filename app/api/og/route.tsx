@@ -5,11 +5,14 @@ import { NextRequest } from 'next/server'
 export const runtime = 'edge'
 
 const fetchFont = async () => {
-  const response = await fetch(
-    'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansThai/NotoSansThai-Bold.ttf'
-  )
-  if (!response.ok) throw new Error('โหลดฟอนต์ Github ไม่สำเร็จ')
-  return await response.arrayBuffer()
+  try {
+    // 💡 ใช้ลิงก์จาก CDN ที่รวดเร็วและเสถียรกว่า Github ป้องกันปัญหาหน้าขาว
+    const res = await fetch('https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-thai@5.0.8/files/noto-sans-thai-thai-700-normal.woff')
+    if (!res.ok) throw new Error(`โหลดฟอนต์ไม่สำเร็จ (HTTP ${res.status})`)
+    return await res.arrayBuffer()
+  } catch (error) {
+    throw new Error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ฟอนต์ได้')
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -128,13 +131,22 @@ export async function GET(req: NextRequest) {
         width: 1200,
         height: 630,
         fonts: [{ name: 'Noto Sans Thai', data: fontData, weight: 700, style: 'normal' }],
+        // ✅ ระบบจดจำรูปภาพอยู่ที่นี่ (อุ่นเครื่อง Cache)
+        headers: {
+          'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200',
+        },
       }
     )
   } catch (err: any) {
-    // 💡 คืนค่าเป็นตัวหนังสือธรรมดา เพื่อให้เห็นชัดๆ บนเบราว์เซอร์ว่าพังตรงไหน!
-    return new Response(`[OG Error] สาเหตุที่พัง: ${err.message}`, { 
-      status: 500,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-    })
+    // โชว์การ์ดสีแดงถ้าเกิดข้อผิดพลาด
+    return new ImageResponse(
+      (
+        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fee2e2', color: '#991b1b', padding: '40px', textAlign: 'center' }}>
+          <div style={{ fontSize: '60px', marginBottom: '20px' }}>⚠️ OG Generation Failed</div>
+          <div style={{ fontSize: '30px' }}>{String(err.message || err)}</div>
+        </div>
+      ),
+      { width: 1200, height: 630 }
+    )
   }
 }
