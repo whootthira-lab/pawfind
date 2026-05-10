@@ -19,25 +19,6 @@ function resolveImageUrl(url: string | null | undefined): string {
   return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pet-images/${url}`
 }
 
-function buildOgImageUrl(params: {
-  name: string
-  status: string
-  breed?: string
-  province?: string
-  imageUrl?: string
-  reward?: number
-}): string {
-  const url = new URL(`${BASE_URL}/api/og`)
-  url.searchParams.set('name',     params.name)
-  url.searchParams.set('status',   params.status)
-  if (params.breed)    url.searchParams.set('breed',    params.breed)
-  if (params.province) url.searchParams.set('province', params.province)
-  if (params.imageUrl) url.searchParams.set('image',    params.imageUrl)
-  if (params.reward && params.reward > 0)
-    url.searchParams.set('reward', String(params.reward))
-  return url.toString()
-}
-
 export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata
@@ -81,16 +62,8 @@ export async function generateMetadata(
     'ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾',
   ].filter(Boolean).join(' | ')
 
-  const dynamicOgUrl = buildOgImageUrl({
-    name:     pet.name || 'ไม่ทราบชื่อ',
-    status:   pet.status,
-    breed:    pet.breed,
-    province: pet.province,
-    imageUrl,
-    reward:   pet.reward_amount,
-  })
-
-  const ogImageUrl = dynamicOgUrl
+  // 💡 สร้าง URL สั้นๆ ส่งไปแค่ ID
+  const ogImageUrl = `${BASE_URL}/api/og?id=${params.id}`
   const pageUrl = `${BASE_URL}/pet/${params.id}`
 
   return {
@@ -103,7 +76,7 @@ export async function generateMetadata(
       description,
       siteName:    'PobPet หาสัตว์หายด้วย AI',
       locale:      'th_TH',
-      // ✅ ลบรูปสำรอง (Fallback) ทิ้งไปเลย บังคับให้ Facebook รอโหลดรูปการ์ด 50/50 เท่านั้น
+      // ลบรูปสำรองทิ้ง บังคับใช้รูปการ์ด
       images: [
         { 
           url: ogImageUrl, 
