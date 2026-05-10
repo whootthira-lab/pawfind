@@ -200,7 +200,7 @@ export default async function PetProfilePage({ params }: Props) {
             <div className="bg-washi border-2 border-black p-6 rounded-lg mb-8 shadow-paper-sm">
               <h3 className="font-bold text-lg mb-3">🤖 บทวิเคราะห์จาก Gemini AI</h3>
               <p className="text-gray-800 leading-relaxed italic">
-                "{pet.ai_description}"
+                &quot;{pet.ai_description}&quot;
               </p>
             </div>
 
