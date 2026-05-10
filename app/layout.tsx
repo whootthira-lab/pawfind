@@ -3,6 +3,9 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 
+// 💡 1. นำเข้า WelcomePopup
+import { WelcomePopup } from '@/components/WelcomePopup'
+
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
 
 export const metadata: Metadata = {
@@ -25,7 +28,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="th">
       <head>
-        {/* Fredoka One + Noto fonts — โหลดจาก Google Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -33,11 +35,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      {/*
-        bg-grid-paper: ทำพื้นเป็น grid กระดาษตาราง
-        text-ori-ink:  สีตัวอักษรหลัก
-      */}
       <body className="bg-grid-paper text-ori-ink antialiased min-h-screen flex flex-col">
+        {/* 💡 2. วาง WelcomePopup ไว้ใน body เพื่อให้เรียกใช้ได้ทุกหน้า */}
+        <WelcomePopup />
+        
         <Navbar />
         <main className="flex-grow">
           {children}

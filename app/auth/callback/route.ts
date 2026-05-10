@@ -37,8 +37,12 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      // ✅ ส่งผู้ใช้ไปยังหน้า Profile พร้อมสถานะล็อกอินที่สมบูรณ์
-      return NextResponse.redirect(`${origin}${next}`)
+      // 💡 จุดที่แก้ไข: สร้าง URL ปลายทาง และแนบ welcome=true เข้าไปเพื่อให้ป๊อปอัปเด้ง
+      const redirectUrl = new URL(next, origin)
+      redirectUrl.searchParams.set('welcome', 'true')
+      
+      // ✅ ส่งผู้ใช้ไปยังหน้า Profile (หรือหน้าก่อนหน้า) พร้อมคำสั่งเปิดป๊อปอัป
+      return NextResponse.redirect(redirectUrl.toString())
     }
   }
 

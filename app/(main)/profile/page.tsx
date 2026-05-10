@@ -11,6 +11,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
+// 💡 1. นำเข้า DonationModal
+import { DonationModal } from '@/components/DonationModal'
+
 const expertiseOptions = [
   { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
   { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
@@ -31,13 +34,15 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
-  // ── State สำหรับข้อมูลโปรไฟล์ทั้งหมด (เพิ่มเพศและอาชีพแล้ว) ──
+  // 💡 2. เพิ่ม State สำหรับเปิด/ปิดป๊อปอัปโดเนท
+  const [showDonation, setShowDonation] = useState(false)
+
   const [profile, setProfile] = useState({
     display_name: '',
     first_name: '',
     last_name: '',
-    gender: '',        // 💡 เพิ่ม เพศ
-    occupation: '',    // 💡 เพิ่ม อาชีพ
+    gender: '',        
+    occupation: '',    
     phone_number: '',
     line_id: '',
     avatar_url: '',
@@ -76,8 +81,8 @@ export default function ProfilePage() {
           display_name: pData.display_name || '',
           first_name: pData.first_name || '',
           last_name: pData.last_name || '',
-          gender: pData.gender || '',              // 💡 ดึงข้อมูล เพศ
-          occupation: pData.occupation || '',      // 💡 ดึงข้อมูล อาชีพ
+          gender: pData.gender || '',              
+          occupation: pData.occupation || '',      
           phone_number: pData.phone_number || '',
           line_id: pData.line_id || '',
           avatar_url: pData.avatar_url || '',
@@ -109,7 +114,6 @@ export default function ProfilePage() {
 
   useEffect(() => { fetchAllData() }, [fetchAllData])
 
-  // ── ระบบอัปโหลดรูปโปรไฟล์ ──
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user) return
@@ -124,7 +128,6 @@ export default function ProfilePage() {
     } catch (err) { alert('อัปโหลดรูปไม่สำเร็จ') } finally { setUploading(false) }
   }
 
-  // ── บันทึกการเปลี่ยนแปลงทั้งหมด ──
   const handleUpdateProfile = async () => {
     if (!user) return
     setIsSaving(true)
@@ -152,7 +155,6 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col gap-8 mb-20">
-      {/* Profile Header */}
       <div className="bg-white border-4 border-ori-ink rounded-3xl p-8 shadow-paper flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
         <div className="w-32 h-32 rounded-full border-4 border-ori-ink overflow-hidden bg-ori-orange text-white shadow-paper-sm shrink-0 relative group">
           {profile.avatar_url ? (
@@ -176,7 +178,6 @@ export default function ProfilePage() {
         </Link>
       </div>
 
-      {/* Navigation Tabs */}
       <div className="flex flex-wrap gap-4 border-b-4 border-ori-ink pb-2">
         <button onClick={() => setActiveTab('posts')} className={`pb-2 px-4 font-black text-lg transition-all ${activeTab === 'posts' ? 'text-ori-orange border-b-4 border-ori-orange -mb-[12px]' : 'text-ori-ink-l'}`}>
           📦 ประกาศของฉัน
@@ -190,14 +191,12 @@ export default function ProfilePage() {
       </div>
 
       <div className="mt-4">
-        {/* ── Tab: Settings (ฟอร์มแก้ไขโปรไฟล์) ── */}
         {activeTab === 'settings' && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white border-4 border-ori-ink p-6 md:p-10 rounded-3xl shadow-paper">
             <h2 className="md:col-span-2 text-2xl font-black border-b-2 border-black pb-4 flex items-center gap-2">
               <Settings className="text-ori-blue-d" /> แก้ไขข้อมูลส่วนตัว
             </h2>
 
-            {/* Avatar Update Section */}
             <div className="md:col-span-2 flex items-center gap-6 bg-gray-50 p-4 rounded-2xl border-2 border-dashed border-gray-300">
                <div className="w-20 h-20 rounded-full border-2 border-black overflow-hidden bg-white shrink-0">
                   <img src={profile.avatar_url || '/placeholder-user.png'} alt="Avatar" className="w-full h-full object-cover" />
@@ -231,7 +230,6 @@ export default function ProfilePage() {
               <input value={profile.last_name} onChange={e => setProfile({...profile, last_name: e.target.value})} className="ori-input" />
             </div>
 
-            {/* 💡 ส่วนที่เพิ่มเข้ามา: เพศ และ อาชีพ */}
             <div className="space-y-2">
               <label className="font-black text-sm">เพศ</label>
               <select 
@@ -255,7 +253,6 @@ export default function ProfilePage() {
                 className="ori-input" 
               />
             </div>
-            {/* ────────────────────────────────────── */}
 
             <div className="md:col-span-2 space-y-2 pt-2">
               <label className="font-black text-sm flex items-center gap-1"><MapPin size={14}/> ที่อยู่ (จังหวัด/อำเภอ/ตำบล)</label>
@@ -298,7 +295,7 @@ export default function ProfilePage() {
           </motion.div>
         )}
 
-        {/* Tab: Posts & Resolved (ส่วนเดิม) */}
+        {/* 💡 3. เพิ่มการเปิดป๊อปอัปโดเนท ใน onResolved */}
         {activeTab === 'posts' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {myPets.filter(p => !p.is_resolved).map(pet => (
@@ -309,7 +306,14 @@ export default function ProfilePage() {
                   </div>
                 )}
                 <MatchResultCard result={pet} />
-                <ResolveButton petId={pet.id} status={pet.status} onResolved={fetchAllData} />
+                <ResolveButton 
+                  petId={pet.id} 
+                  status={pet.status} 
+                  onResolved={() => {
+                    fetchAllData()
+                    setShowDonation(true) // แสดงป๊อปอัปเมื่อปิดจ๊อบสำเร็จ!
+                  }} 
+                />
               </div>
             ))}
           </div>
@@ -326,6 +330,9 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* 💡 4. เพิ่มป๊อปอัปโดเนทไว้ล่างสุด */}
+      <DonationModal isOpen={showDonation} onClose={() => setShowDonation(false)} />
     </div>
   )
 }
