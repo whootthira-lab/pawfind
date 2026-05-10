@@ -1,3 +1,4 @@
+// app/api/generate-og/route.tsx
 import { ImageResponse } from 'next/og'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -71,11 +72,15 @@ export async function POST(req: NextRequest) {
               </div>
               <div style={{ fontSize: name.length > 8 ? '70px' : '90px', fontWeight: 'bold', color: '#1A1208', lineHeight: 1.0, marginTop: '10px' }}>{name}</div>
               {breed ? <div style={{ fontSize: '34px', color: '#5A4E46', fontWeight: 'bold' }}>พันธุ์: {breed}</div> : null}
-              <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FFFFFF', border: '3.5px solid #1A1208', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#1A1208', marginTop: '20px', width: 'fit-content' }}>
+              
+              {/* 💡 แก้ไขบั๊กตรงนี้: เปลี่ยน width: 'fit-content' เป็น alignSelf: 'flex-start' */}
+              <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FFFFFF', border: '3.5px solid #1A1208', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#1A1208', marginTop: '20px', alignSelf: 'flex-start' }}>
                 📍 {province || 'ไม่ระบุพื้นที่'}
               </div>
+              
               {parseInt(reward) > 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FDF3DC', border: '3.5px solid #E8C87A', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#966A1A', marginTop: '10px', width: 'fit-content' }}>
+                /* 💡 แก้ไขบั๊กตรงนี้ด้วยเช่นกัน */
+                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FDF3DC', border: '3.5px solid #E8C87A', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#966A1A', marginTop: '10px', alignSelf: 'flex-start' }}>
                   💰 รางวัล {parseInt(reward).toLocaleString()} บาท
                 </div>
               ) : null}
@@ -95,7 +100,6 @@ export async function POST(req: NextRequest) {
     const fileName = `${petId}.png`
     const timestamp = Date.now()
 
-    // 💡 ชี้เป้าไปที่ Bucket og-images อย่างถูกต้อง
     const { error: uploadErr } = await admin.storage
       .from('og-images') 
       .upload(fileName, imageBuffer, { contentType: 'image/png', upsert: true })
@@ -108,7 +112,6 @@ export async function POST(req: NextRequest) {
     const { data: urlData } = admin.storage.from('og-images').getPublicUrl(fileName)
     const finalOgUrl = `${urlData.publicUrl}?v=${timestamp}`
 
-    // 💡 บันทึกเข้าตาราง pets สำเร็จแน่นอน
     const { error: updateErr } = await admin.from('pets').update({ og_image_url: finalOgUrl }).eq('id', petId)
     if (updateErr) throw updateErr
 
