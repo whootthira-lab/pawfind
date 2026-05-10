@@ -1,4 +1,3 @@
-// app/api/og/route.tsx
 import { ImageResponse } from 'next/og'
 import { NextRequest } from 'next/server'
 
@@ -6,7 +5,6 @@ export const runtime = 'edge'
 
 const fetchFont = async () => {
   try {
-    // 💡 ใช้ลิงก์จาก CDN ที่รวดเร็วและเสถียรกว่า Github ป้องกันปัญหาหน้าขาว
     const res = await fetch('https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-thai@5.0.8/files/noto-sans-thai-thai-700-normal.woff')
     if (!res.ok) throw new Error(`โหลดฟอนต์ไม่สำเร็จ (HTTP ${res.status})`)
     return await res.arrayBuffer()
@@ -20,26 +18,24 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
 
-    if (!id) throw new Error('Missing ID: ไม่พบรหัสสัตว์เลี้ยงในลิงก์')
+    if (!id) throw new Error('ไม่พบรหัสสัตว์เลี้ยงในลิงก์ (Missing ID)')
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    if (!supabaseUrl || !supabaseKey) throw new Error('Env Error: ตั้งค่า Supabase ไม่ครบถ้วน')
+    if (!supabaseUrl || !supabaseKey) throw new Error('ตั้งค่า Supabase ไม่ครบถ้วน')
 
-    // ดึงข้อมูล
     const petRes = await fetch(`${supabaseUrl}/rest/v1/pets?id=eq.${id}&select=*,pet_images(storage_url,is_primary)`, {
       headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
     })
     
-    if (!petRes.ok) throw new Error(`Supabase Error: ดึงข้อมูลไม่ได้ (Status ${petRes.status})`)
+    if (!petRes.ok) throw new Error(`ดึงข้อมูลไม่ได้ (Status ${petRes.status})`)
     
     const petData = await petRes.json()
     const pet = petData[0]
 
-    if (!pet) throw new Error('Not Found: ไม่พบสัตว์เลี้ยงตัวนี้ใน Database')
+    if (!pet) throw new Error('ไม่พบสัตว์เลี้ยงตัวนี้ใน Database')
 
-    // เตรียมตัวแปร
     const name     = pet.name || 'ไม่ทราบชื่อ'
     const status   = pet.status || 'lost'
     const breed    = pet.breed || ''
@@ -83,7 +79,6 @@ export async function GET(req: NextRequest) {
             ) : (
               <div style={{ width: '100%', height: '100%', backgroundColor: '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '120px' }}>🐾</div>
             )}
-            
             <div style={{ position: 'absolute', bottom: '40px', left: '40px', backgroundColor: cfg.bg, border: `4px solid ${cfg.border}`, borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: cfg.accent, display: 'flex' }}>
               {cfg.label}
             </div>
@@ -101,16 +96,13 @@ export async function GET(req: NextRequest) {
                 <div style={{ fontSize: '28px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>ศูนย์รวมประกาศสัตว์หาย</div>
                 <div style={{ fontSize: '28px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>และค้นหาด้วย AI</div>
               </div>
-              
               <div style={{ fontSize: name.length > 8 ? '70px' : '90px', fontWeight: 'bold', color: '#1A1208', lineHeight: 1.0, marginTop: '10px' }}>
                 {name}
               </div>
               {breed ? <div style={{ fontSize: '34px', color: '#5A4E46', fontWeight: 'bold' }}>พันธุ์: {breed}</div> : null}
-              
               <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FFFFFF', border: '3.5px solid #1A1208', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#1A1208', marginTop: '20px', width: 'fit-content' }}>
                 📍 {province || 'ไม่ระบุพื้นที่'}
               </div>
-              
               {parseInt(reward) > 0 ? (
                 <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FDF3DC', border: '3.5px solid #E8C87A', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#966A1A', marginTop: '10px', width: 'fit-content' }}>
                   💰 รางวัล {parseInt(reward).toLocaleString()} บาท
@@ -131,14 +123,10 @@ export async function GET(req: NextRequest) {
         width: 1200,
         height: 630,
         fonts: [{ name: 'Noto Sans Thai', data: fontData, weight: 700, style: 'normal' }],
-        // ✅ ระบบจดจำรูปภาพอยู่ที่นี่ (อุ่นเครื่อง Cache)
-        headers: {
-          'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200',
-        },
+        headers: { 'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200' },
       }
     )
   } catch (err: any) {
-    // โชว์การ์ดสีแดงถ้าเกิดข้อผิดพลาด
     return new ImageResponse(
       (
         <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fee2e2', color: '#991b1b', padding: '40px', textAlign: 'center' }}>

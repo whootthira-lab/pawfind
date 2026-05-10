@@ -1,4 +1,3 @@
-// app/pet/[id]/page.tsx — แทนที่ไฟล์เดิมทั้งหมด
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -11,40 +10,13 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel
 
 type Props = { params: { id: string } }
 
-// ── Helper: แปลง storage_url ให้เป็น public https URL เสมอ ──
 function resolveImageUrl(url: string | null | undefined): string {
   if (!url) return ''
-  // ถ้าเป็น base64 → ใช้ไม่ได้กับ OG, return empty
   if (url.startsWith('data:')) return ''
-  // ถ้าเป็น https อยู่แล้ว → ใช้ได้เลย
   if (url.startsWith('http')) return url
-  // ถ้าเป็น path สั้น → ต่อ Supabase storage URL
   return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pet-images/${url}`
 }
 
-// ── Dynamic OG Image URL ──
-function buildOgImageUrl(params: {
-  name: string
-  status: string
-  breed?: string
-  province?: string
-  imageUrl?: string
-  reward?: number
-}): string {
-  const url = new URL(`${BASE_URL}/api/og`)
-  url.searchParams.set('name',     params.name)
-  url.searchParams.set('status',   params.status)
-  if (params.breed)    url.searchParams.set('breed',    params.breed)
-  if (params.province) url.searchParams.set('province', params.province)
-  if (params.imageUrl) url.searchParams.set('image',    params.imageUrl)
-  if (params.reward && params.reward > 0)
-    url.searchParams.set('reward', String(params.reward))
-  return url.toString()
-}
-
-// ════════════════════════════════════════════════════
-// generateMetadata — สำคัญที่สุด ทำให้ Facebook/X/LINE preview ทำงาน
-// ════════════════════════════════════════════════════
 export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata
@@ -58,43 +30,33 @@ export async function generateMetadata(
 
   if (!pet) return { title: 'ไม่พบข้อมูล - Pobpet' }
 
-  const images     = pet.pet_images || []
-  const primaryRaw = images.find((i: any) => i.is_primary)?.storage_url
-    || pet.image_url || ''
-  const imageUrl   = resolveImageUrl(primaryRaw)
-
   const statusLabel: Record<string, string> = {
     lost:     '🚨 ตามหาเจ้าของ',
     found:    '👀 พบน้องหลงทาง',
     adoption: '💖 หาบ้านใหม่',
   }
 
-  const title       = `${statusLabel[pet.status] || ''}: ${pet.name || 'ไม่ทราบชื่อ'} | Pobpet`
+  const title = `${statusLabel[pet.status] || ''}: ${pet.name || 'ไม่ทราบชื่อ'} | Pobpet`
+  const locationText = [
+    pet.province || '',
+    pet.district ? `อ.${pet.district}` : ''
+  ].filter(Boolean).join(' ')
+
   const description = [
     `ประเภท: ${pet.species === 'dog' ? 'สุนัข' : pet.species === 'cat' ? 'แมว' : pet.species || 'สัตว์เลี้ยง'}`,
     pet.breed ? `สายพันธุ์: ${pet.breed}` : null,
-    `พื้นที่: ${pet.province || ''}${pet.district ? ` อ.${pet.district}` : ''}`,
+    `พื้นที่: ${locationText}`,
     pet.distinctive_features ? `ลักษณะ: ${pet.distinctive_features.slice(0, 80)}` : null,
     'ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾',
   ].filter(Boolean).join(' | ')
 
-  // สร้าง OG image URL แบบ dynamic
-  const ogImageUrl = buildOgImageUrl({
-    name:     pet.name || 'ไม่ทราบชื่อ',
-    status:   pet.status,
-    breed:    pet.breed,
-    province: pet.province,
-    imageUrl,
-    reward:   pet.reward_amount,
-  })
-
+  // ✅ จุดสำคัญ: ส่งแค่ ?id=... สั้นๆ ไปให้ช่างวาดรูป
+  const ogImageUrl = `${BASE_URL}/api/og?id=${params.id}`
   const pageUrl = `${BASE_URL}/pet/${params.id}`
 
   return {
     title,
     description,
-
-    // ── Open Graph (Facebook, LINE, Discord, Threads) ──
     openGraph: {
       type:        'website',
       url:         pageUrl,
@@ -102,6 +64,7 @@ export async function generateMetadata(
       description,
       siteName:    'Pobpet · ตามหาน้อง',
       locale:      'th_TH',
+      // ✅ จุดสำคัญ: บังคับให้ Facebook รอรูป OG เท่านั้น ไม่มีรูปสำรองให้เลือกอีกต่อไป
       images: [
         {
           url:    ogImageUrl,
@@ -109,41 +72,20 @@ export async function generateMetadata(
           height: 630,
           alt:    `${statusLabel[pet.status] || ''}: ${pet.name}`,
           type:   'image/png',
-        },
-        // Fallback รูปจริงของสัตว์ (สำหรับ platform ที่รองรับหลายรูป)
-        ...(imageUrl ? [{
-          url:    imageUrl,
-          width:  800,
-          height: 800,
-          alt:    pet.name || 'สัตว์เลี้ยง',
-        }] : []),
+        }
       ],
     },
-
-    // ── Twitter / X ──
     twitter: {
       card:        'summary_large_image',
       title,
       description,
       images:      [ogImageUrl],
     },
-
-    // ── Canonical URL ──
-    alternates: {
-      canonical: pageUrl,
-    },
-
-    // ── เพิ่มเติมสำหรับ robots ──
-    robots: {
-      index:  true,
-      follow: true,
-    },
+    alternates: { canonical: pageUrl },
+    robots: { index: true, follow: true },
   }
 }
 
-// ════════════════════════════════════════════════════
-// Page Component — ไม่เปลี่ยน UI เดิม เพิ่มแค่ structured data
-// ════════════════════════════════════════════════════
 export default async function PetProfilePage({ params }: Props) {
   const supabase = createClient()
 
@@ -167,7 +109,6 @@ export default async function PetProfilePage({ params }: Props) {
   const formattedDate = createdAt.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
   const formattedTime = createdAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 
-  // ── JSON-LD Structured Data (ให้ Google เข้าใจ content) ──
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
@@ -186,22 +127,13 @@ export default async function PetProfilePage({ params }: Props) {
 
   return (
     <>
-      {/* JSON-LD สำหรับ Google */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-
-      {/* ─── UI เดิม — ไม่เปลี่ยนอะไร ─── */}
       <div className="max-w-3xl mx-auto mb-12">
         <div className="bg-white border-2 border-black rounded-lg shadow-paper overflow-hidden">
-
-          <PetGallery
-            primaryImage={primaryImage}
-            images={images}
-            petName={pet.name}
-          />
-
+          <PetGallery primaryImage={primaryImage} images={images} petName={pet.name} />
           <div className="p-8">
             <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
               <div>
@@ -229,9 +161,7 @@ export default async function PetProfilePage({ params }: Props) {
                 )}
               </div>
             </div>
-
             <hr className="border-black border-1 mb-6" />
-
             {pet.latitude && pet.longitude && (
               <div className="bg-white border-2 border-black p-5 rounded-lg mb-8 shadow-paper-sm flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-4">
@@ -254,7 +184,6 @@ export default async function PetProfilePage({ params }: Props) {
                 </a>
               </div>
             )}
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div className="border-2 border-black p-5 rounded-lg bg-wagashi-kinako shadow-paper-sm md:col-span-2">
                 <h3 className="font-bold text-lg mb-2">✨ ตำหนิหรือลักษณะพิเศษ</h3>
@@ -273,14 +202,12 @@ export default async function PetProfilePage({ params }: Props) {
                 </div>
               </div>
             </div>
-
             <div className="bg-washi border-2 border-black p-6 rounded-lg mb-8 shadow-paper-sm">
               <h3 className="font-bold text-lg mb-3">🤖 บทวิเคราะห์จาก Gemini AI</h3>
               <p className="text-gray-800 leading-relaxed italic">
-                &quot;{pet.ai_description}&quot;
+                "{pet.ai_description}"
               </p>
             </div>
-
             {reporter && (
               <div className="border-2 border-black rounded-xl p-6 bg-gray-50 mt-10">
                 <div className="flex items-center gap-4 mb-5 border-b-2 border-black pb-4">
