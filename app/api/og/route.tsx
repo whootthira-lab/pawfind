@@ -5,10 +5,18 @@ import { NextRequest } from 'next/server'
 export const runtime = 'edge'
 
 const fetchFont = async () => {
-  const response = await fetch(
-    'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansThai/NotoSansThai-Bold.ttf'
-  )
-  return await response.arrayBuffer()
+  try {
+    // 💡 ใช้ลิงก์จาก CDN ที่รวดเร็วและเสถียรกว่า Github มาก
+    const res = await fetch('https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-thai@5.0.8/files/noto-sans-thai-thai-700-normal.woff')
+    
+    // ถ้าโหลดไม่สำเร็จ ให้เตะออกไปโชว์การ์ดแดงทันที
+    if (!res.ok) {
+      throw new Error(`โหลดฟอนต์ไม่สำเร็จ (HTTP ${res.status})`)
+    }
+    return await res.arrayBuffer()
+  } catch (error) {
+    throw new Error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ฟอนต์ได้')
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -16,18 +24,23 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
 
-    if (!id) throw new Error('Missing Pet ID')
+    if (!id) throw new Error('Missing Pet ID (ไม่พบรหัสสัตว์เลี้ยง)')
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
+    if (!supabaseUrl || !supabaseKey) throw new Error('ตั้งค่า Supabase ไม่สมบูรณ์')
+
     const petRes = await fetch(`${supabaseUrl}/rest/v1/pets?id=eq.${id}&select=*,pet_images(storage_url,is_primary)`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+      headers: { apikey: supabaseKey!, Authorization: `Bearer ${supabaseKey}` }
     })
+    
+    if (!petRes.ok) throw new Error(`ค้นหาข้อมูลไม่พบ (Supabase Error ${petRes.status})`)
+    
     const petData = await petRes.json()
     const pet = petData[0]
 
-    if (!pet) throw new Error('Pet not found')
+    if (!pet) throw new Error('ไม่พบสัตว์เลี้ยงตัวนี้ในระบบ')
 
     const name     = pet.name || 'ไม่ทราบชื่อ'
     const status   = pet.status || 'lost'
@@ -41,6 +54,7 @@ export async function GET(req: NextRequest) {
       ? primaryRaw 
       : primaryRaw ? `${supabaseUrl}/storage/v1/object/public/pet-images/${primaryRaw}` : ''
 
+    // 💡 โหลดฟอนต์ (ถ้าพังจะกระโดดไปออกการ์ดแดงทันที ไม่ปล่อยให้หน้าขาว)
     const fontData = await fetchFont()
 
     const statusConfig: Record<string, { label: string; bg: string; border: string; accent: string }> = {
@@ -88,8 +102,7 @@ export async function GET(req: NextRequest) {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '40px' }}>
-              
-              {/* 💡 ไอเดียการหั่น 3 บรรทัดของคุณวุฒิ์ ทำให้อ่านง่ายและระบบไม่พังครับ */}
+              {/* แบ่งข้อความ 3 บรรทัด */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ fontSize: '28px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>
                   PobPet (พบเพ็ท)
@@ -141,6 +154,7 @@ export async function GET(req: NextRequest) {
       }
     )
   } catch (err: any) {
+    // โชว์สาเหตุความพังให้เห็นชัดๆ
     return new ImageResponse(
       (
         <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fee2e2', color: '#991b1b', padding: '40px', textAlign: 'center' }}>
