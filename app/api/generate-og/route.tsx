@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     }
     const cfg = statusConfig[status] || statusConfig.lost
 
+    // 💡 แก้ไข: เพิ่ม display: 'flex' ทุกจุด และใช้ Template Literal เพื่อรวบคำ
     const imgResponse = new ImageResponse(
       (
         <div style={{ width: '1200px', height: '630px', display: 'flex', backgroundColor: '#F5EDD8', fontFamily: '"Noto Sans Thai"', position: 'relative', overflow: 'hidden' }}>
@@ -62,32 +63,31 @@ export async function POST(req: NextRequest) {
           </div>
           <div style={{ width: '600px', padding: '60px 50px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div style={{ position: 'absolute', top: '40px', right: '50px', display: 'flex', alignItems: 'center' }}>
-              <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1A1208' }}>PobPet</div>
+              <div style={{ display: 'flex', fontSize: '32px', fontWeight: 'bold', color: '#1A1208' }}>PobPet</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '40px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ fontSize: '28px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>PobPet (พบเพ็ท)</div>
-                <div style={{ fontSize: '28px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>ศูนย์รวมประกาศสัตว์หาย</div>
-                <div style={{ fontSize: '28px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>และค้นหาด้วย AI</div>
+                <div style={{ display: 'flex', fontSize: '28px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>PobPet (พบเพ็ท)</div>
+                <div style={{ display: 'flex', fontSize: '28px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>ศูนย์รวมประกาศสัตว์หาย</div>
+                <div style={{ display: 'flex', fontSize: '28px', color: cfg.accent, fontWeight: 'bold', lineHeight: 1.2 }}>และค้นหาด้วย AI</div>
               </div>
-              <div style={{ fontSize: name.length > 8 ? '70px' : '90px', fontWeight: 'bold', color: '#1A1208', lineHeight: 1.0, marginTop: '10px' }}>{name}</div>
-              {breed ? <div style={{ fontSize: '34px', color: '#5A4E46', fontWeight: 'bold' }}>พันธุ์: {breed}</div> : null}
+              <div style={{ display: 'flex', fontSize: name.length > 8 ? '70px' : '90px', fontWeight: 'bold', color: '#1A1208', lineHeight: 1.0, marginTop: '10px' }}>{name}</div>
               
-              {/* 💡 แก้ไขบั๊กตรงนี้: เปลี่ยน width: 'fit-content' เป็น alignSelf: 'flex-start' */}
+              {breed ? <div style={{ display: 'flex', fontSize: '34px', color: '#5A4E46', fontWeight: 'bold' }}>{`พันธุ์: ${breed}`}</div> : null}
+              
               <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FFFFFF', border: '3.5px solid #1A1208', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#1A1208', marginTop: '20px', alignSelf: 'flex-start' }}>
-                📍 {province || 'ไม่ระบุพื้นที่'}
+                {`📍 ${province || 'ไม่ระบุพื้นที่'}`}
               </div>
               
               {parseInt(reward) > 0 ? (
-                /* 💡 แก้ไขบั๊กตรงนี้ด้วยเช่นกัน */
                 <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#FDF3DC', border: '3.5px solid #E8C87A', borderRadius: '50px', padding: '14px 28px', fontSize: '28px', fontWeight: 'bold', color: '#966A1A', marginTop: '10px', alignSelf: 'flex-start' }}>
-                  💰 รางวัล {parseInt(reward).toLocaleString()} บาท
+                  {`💰 รางวัล ${parseInt(reward).toLocaleString()} บาท`}
                 </div>
               ) : null}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div style={{ backgroundColor: '#1A1208', color: '#F5EDD8', borderRadius: '16px', padding: '22px', fontSize: '32px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>ช่วยแชร์ให้น้องได้กลับบ้าน 🏠</div>
-              <div style={{ fontSize: '22px', color: '#9A8E86', textAlign: 'center', fontWeight: 'bold' }}>pobpet.com</div>
+              <div style={{ display: 'flex', backgroundColor: '#1A1208', color: '#F5EDD8', borderRadius: '16px', padding: '22px', fontSize: '32px', fontWeight: 'bold', alignItems: 'center', justifyContent: 'center' }}>ช่วยแชร์ให้น้องได้กลับบ้าน 🏠</div>
+              <div style={{ display: 'flex', fontSize: '22px', color: '#9A8E86', justifyContent: 'center', fontWeight: 'bold' }}>pobpet.com</div>
             </div>
           </div>
         </div>
