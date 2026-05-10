@@ -3,7 +3,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 
-// 💡 1. นำเข้า WelcomePopup
+// 💡 1. นำเข้า Suspense จาก React
+import { Suspense } from 'react'
 import { WelcomePopup } from '@/components/WelcomePopup'
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
@@ -36,8 +37,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-grid-paper text-ori-ink antialiased min-h-screen flex flex-col">
-        {/* 💡 2. วาง WelcomePopup ไว้ใน body เพื่อให้เรียกใช้ได้ทุกหน้า */}
-        <WelcomePopup />
+        
+        {/* 💡 2. เอา <Suspense> มาครอบ WelcomePopup ไว้ เพื่อไม่ให้การอ่านลิงก์พังตอน Build */}
+        <Suspense fallback={null}>
+          <WelcomePopup />
+        </Suspense>
         
         <Navbar />
         <main className="flex-grow">
