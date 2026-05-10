@@ -79,7 +79,7 @@ function ReportForm() {
   // ── Form fields ──────────────────────────────────────────────
   const [name,               setName]               = useState('')
   const [type,               setType]               = useState('dog')
-  const [otherType,          setOtherType]          = useState('') // 💡 เก็บค่าประเภทสัตว์อื่นๆ
+  const [otherType,          setOtherType]          = useState('') 
   const [status,             setStatus]             = useState(initialStatus)
   const [color,              setColor]              = useState('')
   const [distinctiveFeatures,setDistinctiveFeatures] = useState('')
@@ -153,7 +153,6 @@ function ReportForm() {
     e.preventDefault()
     if (!images.length) { setError('กรุณาอัปโหลดรูปภาพอย่างน้อย 1 รูป'); return }
     
-    // บังคับให้กรอกประเภทสัตว์ถ้าเลือก "อื่นๆ"
     if (type === 'other' && !otherType.trim()) {
       setError('กรุณาระบุประเภทสัตว์'); 
       return;
@@ -163,10 +162,7 @@ function ReportForm() {
     setError(null)
 
     try {
-      // 💡 รวมเบอร์โทรกับ LINE ID เข้าด้วยกันเพื่อให้ระบบเก่าไม่พัง
       const combinedContactInfo = `โทร: ${phoneNumber} ${lineId ? ` | LINE: ${lineId}` : ''}`
-      
-      // 💡 เลือกประเภทสัตว์ที่จะส่งไปบันทึก
       const finalType = type === 'other' ? otherType : type
 
       const res = await fetch('/api/pets', {
@@ -180,9 +176,9 @@ function ReportForm() {
           district:  amphure,     
           tambon,                  
           color,
-          contact_info:         combinedContactInfo, // ส่งแบบรวม
-          phone_number:         phoneNumber,         // ส่งแยก (เผื่ออนาคต)
-          line_id:              lineId,              // ส่งแยก (เผื่ออนาคต)
+          contact_info:         combinedContactInfo, 
+          phone_number:         phoneNumber,         
+          line_id:              lineId,              
           reward_amount:        reward ? parseInt(reward) : 0,
           distinctive_features: distinctiveFeatures,
           images,
@@ -195,10 +191,10 @@ function ReportForm() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาดในการบันทึก')
 
-      // 💡 สั่งโรงงานผลิตรูป OG ทำงานทันทีหลังเซฟข้อมูลเสร็จ!
       const newPetId = data.pet?.id || data.id 
       if (newPetId) {
-        fetch('/api/generate-og', {
+        // 💡 พระเอกของเราอยู่ตรงนี้ครับ! ใส่ await เพื่อบังคับให้รอระบบส่งคำสั่งสำเร็จก่อนเปลี่ยนหน้า
+        await fetch('/api/generate-og', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ petId: newPetId })
@@ -282,7 +278,6 @@ function ReportForm() {
               <option value="rabbit">🐰 กระต่าย</option>
               <option value="other">🐾 อื่นๆ</option>
             </select>
-            {/* 💡 ช่องระบุประเภทสัตว์ จะแสดงขึ้นมาก็ต่อเมื่อเลือก "อื่นๆ" */}
             {type === 'other' && (
               <input 
                 type="text" 
@@ -386,7 +381,6 @@ function ReportForm() {
               placeholder="เช่น มีถุงเท้าขาว, หางกุด, ปลอกคอสีแดง, ขี้กลัว..." />
           </div>
 
-          {/* 💡 แยกช่องกรอกเบอร์โทร และ LINE ID */}
           <div className="flex flex-col gap-2 md:col-span-1">
             <label className="font-bold text-lg">เบอร์โทรติดต่อ <span className="text-red-500">*</span></label>
             <input type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)}

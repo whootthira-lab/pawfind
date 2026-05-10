@@ -1,4 +1,3 @@
-// app/api/generate-og/route.tsx
 import { ImageResponse } from 'next/og'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -19,7 +18,6 @@ export async function POST(req: NextRequest) {
     const admin = createAdminClient()
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 
-    // 1. ดึงข้อมูลน้องสัตว์เลี้ยง
     const { data: pet, error: petErr } = await admin
       .from('pets')
       .select('*, pet_images(storage_url, is_primary)')
@@ -28,7 +26,6 @@ export async function POST(req: NextRequest) {
 
     if (petErr || !pet) return NextResponse.json({ error: 'Pet not found' }, { status: 404 })
 
-    // 2. เตรียมข้อมูลวาดการ์ด
     const name     = pet.name || 'ไม่ทราบชื่อ'
     const status   = pet.status || 'lost'
     const breed    = pet.breed || ''
@@ -37,8 +34,6 @@ export async function POST(req: NextRequest) {
 
     const images = pet.pet_images || []
     const primaryRaw = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url || ''
-    
-    // 💡 แก้บั๊ก URL รูปภาพ
     const safeImageUrl = primaryRaw.startsWith('http') 
       ? primaryRaw 
       : primaryRaw ? `${supabaseUrl}/storage/v1/object/public/pet-images/${primaryRaw}` : ''
@@ -51,7 +46,6 @@ export async function POST(req: NextRequest) {
     }
     const cfg = statusConfig[status] || statusConfig.lost
 
-    // 3. วาดการ์ด 3 บรรทัดสวยๆ ด้วย Satori
     const imgResponse = new ImageResponse(
       (
         <div style={{ width: '1200px', height: '630px', display: 'flex', backgroundColor: '#F5EDD8', fontFamily: '"Noto Sans Thai"', position: 'relative', overflow: 'hidden' }}>
@@ -96,23 +90,27 @@ export async function POST(req: NextRequest) {
       { width: 1200, height: 630, fonts: [{ name: 'Noto Sans Thai', data: fontData, weight: 700, style: 'normal' }] }
     )
 
-    // 4. แปลงภาพเป็นไฟล์ แล้วอัปโหลดขึ้น Supabase Storage (ตามที่คุณวุฒิ์เตรียมไว้)
     const imageBlob = await imgResponse.blob()
     const imageBuffer = await imageBlob.arrayBuffer()
-    const fileName = `og/${petId}.png`
+    const fileName = `${petId}.png`
     const timestamp = Date.now()
 
+    // 💡 ชี้เป้าไปที่ Bucket og-images อย่างถูกต้อง
     const { error: uploadErr } = await admin.storage
-      .from('pet-images') // บันทึกลง Bucket pet-images/og/ ตามโครงสร้างของคุณวุฒิ์เลยครับ
+      .from('og-images') 
       .upload(fileName, imageBuffer, { contentType: 'image/png', upsert: true })
 
-    if (uploadErr) throw uploadErr
+    if (uploadErr) {
+      console.error('Upload Error:', uploadErr)
+      throw uploadErr
+    }
 
-    const { data: urlData } = admin.storage.from('pet-images').getPublicUrl(fileName)
+    const { data: urlData } = admin.storage.from('og-images').getPublicUrl(fileName)
     const finalOgUrl = `${urlData.publicUrl}?v=${timestamp}`
 
-    // 5. บันทึกลิงก์รูปลง Database
-    await admin.from('pets').update({ og_image_url: finalOgUrl }).eq('id', petId)
+    // 💡 บันทึกเข้าตาราง pets สำเร็จแน่นอน
+    const { error: updateErr } = await admin.from('pets').update({ og_image_url: finalOgUrl }).eq('id', petId)
+    if (updateErr) throw updateErr
 
     return NextResponse.json({ ok: true, url: finalOgUrl })
   } catch (err) {
