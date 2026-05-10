@@ -11,7 +11,6 @@ function ReportLoadingOverlay() {
   const [loadingStep, setLoadingStep] = useState(0)
 
   useEffect(() => {
-    // เปลี่ยนข้อความหลังจากผ่านไป 2 วินาที
     const timer = setTimeout(() => {
       setLoadingStep(1)
     }, 2000)
@@ -25,7 +24,6 @@ function ReportLoadingOverlay() {
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm"
     >
-      {/* วงแหวนหุ่นยนต์กับแมวหมุนๆ */}
       <div className="relative w-32 h-32 mb-8 flex items-center justify-center mx-auto">
         <motion.div
           animate={{ rotate: 360 }}
@@ -61,7 +59,7 @@ function ReportLoadingOverlay() {
               animate={{ opacity: 1, y: 0 }}
               className="text-xl md:text-2xl font-black text-ori-orange"
             >
-              📊 AI กำลังจัดเรียงชุดข้อมูลตาม % ความเป็นไปได้<br className="hidden md:block"/>โดยจะแสดง % สูงที่สุดให้คุณเห็นก่อน.....
+              📊 AI กำลังเตรียมรูปภาพเพื่อใช้แชร์ลงโซเชียล<br className="hidden md:block"/>และจัดเรียงชุดข้อมูลความน่าจะเป็น.....
             </motion.p>
           )}
         </AnimatePresence>
@@ -81,19 +79,22 @@ function ReportForm() {
   // ── Form fields ──────────────────────────────────────────────
   const [name,               setName]               = useState('')
   const [type,               setType]               = useState('dog')
+  const [otherType,          setOtherType]          = useState('') // 💡 เก็บค่าประเภทสัตว์อื่นๆ
   const [status,             setStatus]             = useState(initialStatus)
   const [color,              setColor]              = useState('')
   const [distinctiveFeatures,setDistinctiveFeatures] = useState('')
-  const [contactInfo,        setContactInfo]        = useState('')
+  
+  // 💡 แยกเบอร์โทรศัพท์ กับ LINE ID
+  const [phoneNumber,        setPhoneNumber]        = useState('')
+  const [lineId,             setLineId]             = useState('')
+  
   const [reward,             setReward]             = useState('')
   const [images,             setImages]             = useState<string[]>([])
 
-  // ── Address (3 levels - Text Input) ──────────────────────────
   const [province,     setProvince]     = useState('')
-  const [amphure,      setAmphure]      = useState('')  // อำเภอ/เขต
-  const [tambon,       setTambon]       = useState('')  // ตำบล/แขวง
+  const [amphure,      setAmphure]      = useState('') 
+  const [tambon,       setTambon]       = useState('') 
 
-  // ── Location ─────────────────────────────────────────────────
   const [location,       setLocation]       = useState<{ lat: number; lng: number } | null>(null)
   const [isGettingLoc,   setIsGettingLoc]   = useState(false)
 
@@ -102,9 +103,6 @@ function ReportForm() {
     if (s) setStatus(s)
   }, [searchParams])
 
-  // ══════════════════════════════════════════════════════════════
-  // Get GPS Only (No Geocoding)
-  // ══════════════════════════════════════════════════════════════
   const handleGetLocation = useCallback(() => {
     setIsGettingLoc(true)
     setError(null)
@@ -133,9 +131,6 @@ function ReportForm() {
     )
   }, [])
 
-  // ══════════════════════════════════════════════════════════════
-  // Image upload
-  // ══════════════════════════════════════════════════════════════
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
@@ -154,33 +149,43 @@ function ReportForm() {
     setImages(prev => [...prev, ...b64s])
   }
 
-  // ══════════════════════════════════════════════════════════════
-  // Submit
-  // ══════════════════════════════════════════════════════════════
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!images.length) { setError('กรุณาอัปโหลดรูปภาพอย่างน้อย 1 รูป'); return }
+    
+    // บังคับให้กรอกประเภทสัตว์ถ้าเลือก "อื่นๆ"
+    if (type === 'other' && !otherType.trim()) {
+      setError('กรุณาระบุประเภทสัตว์'); 
+      return;
+    }
 
     setLoading(true)
     setError(null)
 
     try {
+      // 💡 รวมเบอร์โทรกับ LINE ID เข้าด้วยกันเพื่อให้ระบบเก่าไม่พัง
+      const combinedContactInfo = `โทร: ${phoneNumber} ${lineId ? ` | LINE: ${lineId}` : ''}`
+      
+      // 💡 เลือกประเภทสัตว์ที่จะส่งไปบันทึก
+      const finalType = type === 'other' ? otherType : type
+
       const res = await fetch('/api/pets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
-          type,
+          type: finalType,
           status,
           province,
           district:  amphure,     
           tambon,                  
           color,
-          contact_info:         contactInfo,
+          contact_info:         combinedContactInfo, // ส่งแบบรวม
+          phone_number:         phoneNumber,         // ส่งแยก (เผื่ออนาคต)
+          line_id:              lineId,              // ส่งแยก (เผื่ออนาคต)
           reward_amount:        reward ? parseInt(reward) : 0,
           distinctive_features: distinctiveFeatures,
           images,
-          // 💡 ส่งพิกัด GPS เสมอเพื่อให้ AI ใช้คำนวณระยะทางได้
           latitude:  location?.lat ?? null,
           longitude: location?.lng ?? null,
           markingImageIndexes: [],
@@ -189,6 +194,17 @@ function ReportForm() {
 
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาดในการบันทึก')
+
+      // 💡 สั่งโรงงานผลิตรูป OG ทำงานทันทีหลังเซฟข้อมูลเสร็จ!
+      const newPetId = data.pet?.id || data.id 
+      if (newPetId) {
+        fetch('/api/generate-og', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ petId: newPetId })
+        }).catch(console.error)
+      }
+
       router.push('/search')
     } catch (err: any) {
       setError(err.message)
@@ -196,9 +212,6 @@ function ReportForm() {
     }
   }
 
-  // ══════════════════════════════════════════════════════════════
-  // Config per status
-  // ══════════════════════════════════════════════════════════════
   const pageConfig: Record<string, { title: string; desc: string; bgClass: string }> = {
     lost:     { title:'ลงประกาศหาน้อง 🚨',      desc:'อัปโหลดรูปและกรอกข้อมูลเพื่อให้ชุมชนและ AI ช่วยตามหา', bgClass:'bg-wagashi-sakura border-ori-orange-d' },
     found:    { title:'แจ้งพบสัตว์หลง 👀',      desc:'พบเห็นสัตว์พลัดหลง แจ้งเบาะแสเพื่อช่วยน้องกลับบ้าน', bgClass:'bg-wagashi-sora border-ori-blue-d' },
@@ -209,7 +222,6 @@ function ReportForm() {
 
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6 mb-12 relative p-4 mt-4">
-      {/* ── เรียกใช้ AI Loading Overlay แทนของเดิม ── */}
       <AnimatePresence>
         {loading && <ReportLoadingOverlay />}
       </AnimatePresence>
@@ -229,7 +241,6 @@ function ReportForm() {
           </div>
         )}
 
-        {/* --- Image Upload --- */}
         <div className="flex flex-col gap-2">
           <label className="font-bold text-lg">รูปภาพสัตว์เลี้ยง <span className="text-red-500">*</span> (1-5 รูป)</label>
           <div className="border-[3px] border-dashed border-ori-ink-l rounded-xl p-8 text-center bg-ori-cream hover:bg-yellow-50 transition-colors cursor-pointer relative">
@@ -256,7 +267,6 @@ function ReportForm() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">ชื่อสัตว์เลี้ยง</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
@@ -272,6 +282,17 @@ function ReportForm() {
               <option value="rabbit">🐰 กระต่าย</option>
               <option value="other">🐾 อื่นๆ</option>
             </select>
+            {/* 💡 ช่องระบุประเภทสัตว์ จะแสดงขึ้นมาก็ต่อเมื่อเลือก "อื่นๆ" */}
+            {type === 'other' && (
+              <input 
+                type="text" 
+                value={otherType} 
+                onChange={e => setOtherType(e.target.value)} 
+                className="ori-input mt-2" 
+                placeholder="โปรดระบุประเภทสัตว์..." 
+                required 
+              />
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -289,7 +310,6 @@ function ReportForm() {
               required className="ori-input" placeholder="เช่น สีน้ำตาลขาว, ลายสลิด" />
           </div>
 
-          {/* --- Location Section --- */}
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">
               ตำแหน่งที่{status === 'found' ? 'พบสัตว์' : 'อยู่ปัจจุบัน'}
@@ -310,7 +330,6 @@ function ReportForm() {
                   <><MapPin size={22} /> {status === 'found' ? '📍 บันทึกพิกัดแผนที่จุดที่พบ' : '📍 แชร์พิกัดสำหรับระบบ AI (ข้อมูลลับ)'}</>
                 )}
               </Button>
-
               {location && (
                 <p className="text-xs font-mono text-center text-ori-ink-l">
                   พิกัด: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
@@ -318,7 +337,6 @@ function ReportForm() {
               )}
             </div>
 
-            {/* 💡 Disclaimer Text */}
             {status === 'found' ? (
               <div className="bg-blue-50 border-2 border-blue-200 p-3 rounded-xl mb-2">
                 <p className="text-sm font-bold text-blue-700 text-center">
@@ -339,20 +357,17 @@ function ReportForm() {
                 <input type="text" value={province} onChange={e => setProvince(e.target.value)}
                   required className="ori-input" placeholder="เช่น นครราชสีมา" />
               </div>
-
               <div className="flex flex-col gap-1">
                 <label className="font-bold text-sm text-ori-ink-m">อำเภอ / เขต <span className="text-red-500">*</span></label>
                 <input type="text" value={amphure} onChange={e => setAmphure(e.target.value)}
                   required className="ori-input" placeholder="เช่น ด่านขุนทด" />
               </div>
-
               <div className="flex flex-col gap-1">
                 <label className="font-bold text-sm text-ori-ink-m">ตำบล / แขวง <span className="text-red-500">*</span></label>
                 <input type="text" value={tambon} onChange={e => setTambon(e.target.value)}
                   required className="ori-input" placeholder="เช่น ด่านขุนทด" />
               </div>
             </div>
-
             <p className="text-xs text-ori-ink-l italic text-center mt-2">
               * กรุณาพิมพ์ที่อยู่ (จังหวัด/อำเภอ/ตำบล) ให้ครบถ้วนเพื่อแสดงเป็นข้อมูลสาธารณะในหน้าประกาศ
             </p>
@@ -371,10 +386,16 @@ function ReportForm() {
               placeholder="เช่น มีถุงเท้าขาว, หางกุด, ปลอกคอสีแดง, ขี้กลัว..." />
           </div>
 
-          <div className="flex flex-col gap-2 md:col-span-2">
-            <label className="font-bold text-lg">ช่องทางติดต่อ <span className="text-red-500">*</span></label>
-            <input type="text" value={contactInfo} onChange={e => setContactInfo(e.target.value)}
-              required className="ori-input" placeholder="เบอร์โทรศัพท์ หรือ LINE ID" />
+          {/* 💡 แยกช่องกรอกเบอร์โทร และ LINE ID */}
+          <div className="flex flex-col gap-2 md:col-span-1">
+            <label className="font-bold text-lg">เบอร์โทรติดต่อ <span className="text-red-500">*</span></label>
+            <input type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)}
+              required className="ori-input" placeholder="เช่น 0812345678" />
+          </div>
+          <div className="flex flex-col gap-2 md:col-span-1">
+            <label className="font-bold text-lg">LINE ID</label>
+            <input type="text" value={lineId} onChange={e => setLineId(e.target.value)}
+              className="ori-input" placeholder="ถ้ามี (ไม่บังคับ)" />
           </div>
 
         </div>

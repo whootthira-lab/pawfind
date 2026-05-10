@@ -32,10 +32,6 @@ export async function generateMetadata(
 
   if (!pet) return { title: 'ไม่พบข้อมูล - PobPet หาสัตว์หายด้วย AI' }
 
-  const images     = pet.pet_images || []
-  const primaryRaw = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url || ''
-  const imageUrl   = resolveImageUrl(primaryRaw)
-
   let title = ''
   const petName = pet.name || 'ไม่ทราบชื่อ'
   if (pet.status === 'lost') {
@@ -62,8 +58,9 @@ export async function generateMetadata(
     'ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾',
   ].filter(Boolean).join(' | ')
 
-  // 💡 สร้าง URL สั้นๆ ส่งไปแค่ ID
-  const ogImageUrl = `${BASE_URL}/api/og?id=${params.id}`
+  // 💡 พระเอกของเราอยู่ตรงนี้ครับ! 
+  // ระบบจะดึงรูปที่สร้างเสร็จแล้ว (og_image_url) มาใช้ก่อน ถ้าไม่มีค่อยไปเรียก API วาดใหม่
+  const ogImageUrl = pet.og_image_url || `${BASE_URL}/api/og?id=${params.id}`
   const pageUrl = `${BASE_URL}/pet/${params.id}`
 
   return {
@@ -76,7 +73,6 @@ export async function generateMetadata(
       description,
       siteName:    'PobPet หาสัตว์หายด้วย AI',
       locale:      'th_TH',
-      // ลบรูปสำรองทิ้ง บังคับใช้รูปการ์ด
       images: [
         { 
           url: ogImageUrl, 
@@ -204,7 +200,7 @@ export default async function PetProfilePage({ params }: Props) {
             <div className="bg-washi border-2 border-black p-6 rounded-lg mb-8 shadow-paper-sm">
               <h3 className="font-bold text-lg mb-3">🤖 บทวิเคราะห์จาก Gemini AI</h3>
               <p className="text-gray-800 leading-relaxed italic">
-                &quot;{pet.ai_description}&quot;
+                "{pet.ai_description}"
               </p>
             </div>
 
