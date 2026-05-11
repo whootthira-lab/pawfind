@@ -1,7 +1,8 @@
 'use client'
+// components/layout/Navbar.tsx — Origami design system update
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { Menu, X, LogOut, User, CalendarPlus } from 'lucide-react'
+import { Menu, X, LogOut, User, CalendarPlus, Trophy } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 import { SearchBar } from '@/components/layout/SearchBar'
@@ -38,7 +39,7 @@ export function Navbar() {
     <nav className="sticky top-0 z-[200] border-b-[2.5px] border-ori-ink flex flex-col"
       style={{ background: 'rgba(245,237,216,.96)', backdropFilter: 'blur(12px)' }}>
       
-      {/* ชั้นที่ 1: เมนูและโปรไฟล์ */}
+      {/* ชั้นที่ 1: โลโก้ และ เมนูหลัก (เน้นภารกิจหลัก: ตามหาสัตว์) */}
       <div className="max-w-6xl w-full mx-auto px-5 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 select-none shrink-0">
           <div className="w-9 h-9 rounded-full bg-ori-orange border-[2.5px] border-ori-ink flex items-center justify-center text-lg shadow-paper-sm">🐾</div>
@@ -56,6 +57,7 @@ export function Navbar() {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <>
+              {/* ปุ่มสร้างประกาศข่าว (ไอคอนปฏิทิน) — สำหรับเข้าหน้าฟอร์ม /events/create */}
               <Link href="/events/create" className="p-2 hover:bg-ori-blue-d/10 rounded-full text-ori-blue-d transition-all group relative">
                 <CalendarPlus size={22} strokeWidth={2.5} />
                 <span className="absolute -bottom-9 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">สร้างประกาศข่าว</span>
@@ -78,10 +80,17 @@ export function Navbar() {
         </button>
       </div>
 
-      {/* ชั้นที่ 2: ช่องค้นหาอัจฉริยะ (Desktop) */}
+      {/* ชั้นที่ 2: ช่องค้นหาอัจฉริยะ และทางเข้ากระดานข่าวชุมชน (Desktop) */}
       <div className="hidden md:block bg-white/40 border-t-[1px] border-ori-ink/5 py-3">
-        <div className="max-w-2xl mx-auto px-5 w-full">
-          <SearchBar />
+        <div className="max-w-6xl mx-auto px-5 w-full flex items-center gap-6">
+          {/* 💡 เพิ่มปุ่มสำหรับกดเข้าสู่กระดานข่าวรวม (/events) เพื่อแก้ปัญหาไม่มีหัวข้อให้กด */}
+          <Link href="/events" className="flex items-center gap-2 shrink-0 font-black text-sm text-ori-blue-d hover:bg-ori-blue-d hover:text-white px-4 py-2 rounded-full border-2 border-ori-blue-d transition-all shadow-paper-sm bg-white">
+            <Trophy size={16} /> ข่าวสารชุมชน
+          </Link>
+          
+          <div className="flex-grow">
+            <SearchBar />
+          </div>
         </div>
       </div>
       
@@ -90,9 +99,12 @@ export function Navbar() {
         <div className="md:hidden border-t-2 border-ori-ink px-5 py-4 flex flex-col gap-4 bg-[#F5EDD8]">
           <SearchBar />
           <div className="flex flex-col gap-2 font-bold">
-            <Link href="/report?status=lost" className="py-2 border-b border-black/5">🔔 ลงประกาศหาน้อง</Link>
-            <Link href="/report?status=found" className="py-2 border-b border-black/5">👀 แจ้งพบสัตว์หลง</Link>
-            <Link href="/events/create" className="py-2 text-ori-blue-d font-black italic">📢 สร้างข่าวประชาสัมพันธ์ / กิจกรรม</Link>
+            <Link href="/report?status=lost" className="py-2 border-b border-black/5" onClick={() => setOpen(false)}>🔔 ลงประกาศหาน้อง</Link>
+            <Link href="/report?status=found" className="py-2 border-b border-black/5" onClick={() => setOpen(false)}>👀 แจ้งพบสัตว์หลง</Link>
+            <Link href="/report?status=adoption" className="py-2 border-b border-black/5" onClick={() => setOpen(false)}>💖 ลงประกาศหาบ้านให้น้อง</Link>
+            {/* ทางเข้ากระดานข่าวสำหรับมือถือ */}
+            <Link href="/events" className="py-2 border-b border-black/5 text-ori-blue-d font-black" onClick={() => setOpen(false)}>🏆 ข่าวสารชุมชน</Link>
+            <Link href="/events/create" className="py-2 text-ori-blue-d font-black italic" onClick={() => setOpen(false)}>📢 สร้างข่าวประชาสัมพันธ์ / กิจกรรม</Link>
           </div>
         </div>
       )}

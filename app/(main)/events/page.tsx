@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { 
   Calendar, MapPin, PlusCircle, Loader2, Trophy, 
   Megaphone, BookOpen, ShoppingCart, Users, HeartPulse, Search, Building2,
-  Image as ImageIcon // 💡 แก้ไข: เพิ่มการนำเข้าที่ขาดไปเพื่อไม่ให้ Build พัง
+  Image as ImageIcon 
 } from 'lucide-react'
 
 // 💡 1. ฟังก์ชันกำหนดสี ไอคอน และชื่อเรียก ตามหมวดหมู่ที่คุณวุฒิ์กำหนด
@@ -47,7 +47,7 @@ export default function EventsBoardPage() {
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .eq('status', 'approved') // แสดงเฉพาะที่ผ่านการตรวจสอบแล้ว
+        .eq('status', 'approved') 
         .order('start_date', { ascending: true })
 
       if (data) setEvents(data)
@@ -96,8 +96,12 @@ export default function EventsBoardPage() {
           {events.map(event => {
             const style = getCategoryStyle(event.event_type)
             return (
-              <div key={event.id} className="bg-white border-4 border-ori-ink rounded-3xl overflow-hidden shadow-paper hover:shadow-paper-lg transition-all group flex flex-col">
-                
+              /* 💡 2. เพิ่ม Link ครอบการ์ดเพื่อกดเข้าหน้า Detail ตาม ID */
+              <Link 
+                key={event.id} 
+                href={`/events/${event.id}`} 
+                className="bg-white border-4 border-ori-ink rounded-3xl overflow-hidden shadow-paper hover:shadow-paper-lg hover:-translate-y-2 transition-all group flex flex-col cursor-pointer"
+              >
                 {/* 🖼️ ส่วนรูปภาพโปสเตอร์ */}
                 <div className="aspect-video bg-gray-100 border-b-4 border-ori-ink relative overflow-hidden flex items-center justify-center">
                   {event.image_url ? (
@@ -109,7 +113,7 @@ export default function EventsBoardPage() {
                     </div>
                   )}
                   
-                  {/* Badge ประเภทงาน (สีและไอคอนตามหมวดหมู่) */}
+                  {/* Badge ประเภทงาน */}
                   <div className={`absolute top-3 left-3 px-3 py-1 bg-white border-2 rounded-full font-black text-[10px] flex items-center gap-1 shadow-paper-sm ${style.color}`}>
                     {style.icon} {style.label.toUpperCase()}
                   </div>
@@ -138,7 +142,7 @@ export default function EventsBoardPage() {
                       </span>
                     </div>
                     
-                    {/* สถานที่จัดงานแบบละเอียด (ชื่อสถานที่, ตำบล, อำเภอ, จังหวัด) */}
+                    {/* สถานที่จัดงานแบบละเอียด */}
                     <div className="flex items-start gap-2 text-xs font-black text-gray-600 bg-gray-50 p-2.5 rounded-xl border-2 border-ori-ink/5">
                       <MapPin size={16} className="text-ori-orange shrink-0 mt-0.5" />
                       <div className="flex flex-col">
@@ -152,8 +156,7 @@ export default function EventsBoardPage() {
                     </div>
                   </div>
                 </div>
-                
-              </div>
+              </Link>
             )
           })}
         </div>
