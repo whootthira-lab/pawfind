@@ -48,9 +48,9 @@ export function Navbar() {
         </Link>
         
         <div className="hidden lg:flex items-center gap-6 text-sm font-black text-ori-ink-m whitespace-nowrap">
-          <Link href="/report?status=lost" className="hover:text-ori-orange transition-colors">🔔 หาน้อง</Link>
-          <Link href="/report?status=found" className="hover:text-ori-blue transition-colors">👀 พบสัตว์หลง</Link>
-          <Link href="/report?status=adoption" className="hover:text-ori-green transition-colors">💖 หาบ้าน</Link>
+          <Link href="/report?status=lost" className="hover:text-ori-orange transition-colors">🔔 โพสต์ประกาศหาน้อง</Link>
+          <Link href="/report?status=found" className="hover:text-ori-blue transition-colors">👀 โพสต์แจ้งพบสัตว์หลง</Link>
+          <Link href="/report?status=adoption" className="hover:text-ori-green transition-colors">💖 ลงประกาศหาบ้านให้น้อง</Link>
         </div>
         
         <div className="hidden md:flex items-center gap-3">
