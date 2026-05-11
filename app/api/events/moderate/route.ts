@@ -1,7 +1,6 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { createClient } from '@supabase/supabase-js'
 
 // 💡 1. ตั้งค่า Gemini Flash และ System Instruction
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
@@ -19,17 +18,16 @@ const model = genAI.getGenerativeModel({
 })
 
 export async function POST(req: Request) {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
+  // 💡 2. ใช้ "กุญแจแอดมิน (Service Role)" แทนการใช้ Cookie/ANON_KEY เพื่อทะลวงผ่าน RLS ได้ 100%
+  const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get(name: string) { return cookieStore.get(name)?.value } } }
+    process.env.SUPABASE_SERVICE_ROLE_KEY! // 🔑 ใช้คีย์แอดมินตรงนี้
   )
 
   try {
     const { eventId, title, description, category, trustLevel = 'bronze' } = await req.json()
 
-    // 💡 2. ส่งข้อมูลให้ AI ตรวจสอบ
+    // 💡 3. ส่งข้อมูลให้ AI ตรวจสอบ
     const prompt = `หัวข้อ: ${title}\nรายละเอียด: ${description}\nหมวดหมู่: ${category}`
     const result = await model.generateContent(prompt)
     const responseText = result.response.text()
@@ -38,7 +36,7 @@ export async function POST(req: Request) {
     const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim()
     const aiResponse = JSON.parse(cleanJson)
 
-    // 💡 3. ตรรกะ Score Threshold (ตัดสินใจตามคะแนน AI และ Trust Level)
+    // 💡 4. ตรรกะ Score Threshold
     let finalStatus = 'pending_admin'
     const score = aiResponse.score || 0
 
@@ -54,19 +52,28 @@ export async function POST(req: Request) {
       finalStatus = 'rejected'
     }
 
-    // 💡 4. บันทึกผลลง Database
-    // 4.1 อัปเดตสถานะประกาศในตาราง events
-    await supabase.from('events').update({ status: finalStatus }).eq('id', eventId)
+    // 💡 5. บันทึกผลลง Database ด้วยอำนาจแอดมิน
+    // 5.1 อัปเดตสถานะประกาศ
+    const { error: updateErr } = await supabaseAdmin
+      .from('events')
+      .update({ status: finalStatus })
+      .eq('id', eventId)
+      
+    if (updateErr) throw new Error(`อัปเดตสถานะไม่สำเร็จ: ${updateErr.message}`)
 
-    // 4.2 บันทึก Log การตัดสินใจของ AI ลงตาราง moderation_logs
-    await supabase.from('moderation_logs').insert({
-      event_id: eventId,
-      ai_score: score,
-      ai_decision: aiResponse.decision || 'unknown',
-      ai_reason: aiResponse.reason || 'ไม่มีเหตุผลระบุ',
-      ai_raw_response: aiResponse,
-      check_type: 'text_only'
-    })
+    // 5.2 บันทึก Log การตัดสินใจของ AI
+    const { error: logErr } = await supabaseAdmin
+      .from('moderation_logs')
+      .insert({
+        event_id: eventId,
+        ai_score: score,
+        ai_decision: aiResponse.decision || 'unknown',
+        ai_reason: aiResponse.reason || 'ไม่มีเหตุผลระบุ',
+        ai_raw_response: aiResponse,
+        check_type: 'text_only'
+      })
+      
+    if (logErr) throw new Error(`บันทึก Log ไม่สำเร็จ: ${logErr.message}`)
 
     return NextResponse.json({ success: true, status: finalStatus, reason: aiResponse.reason })
 
