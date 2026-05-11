@@ -16,7 +16,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
           <nav className="flex items-center gap-4 font-bold text-sm md:text-base">
             <Link href="/" className="hover:underline hidden sm:block">กลับหน้าแรก</Link>
             <Link href="/search" className="hover:underline">ค้นหาน้อง</Link>
-            <Link href="/donate" className="hover:underline hidden md:block">บริจาค</Link>
+            <Link href="/donate" className="hover:underline hidden md:block">เกี่ยวกับเรา</Link>
             
             {/* 📌 ปุ่มรายการที่บันทึก (ใหม่) */}
             <Link 

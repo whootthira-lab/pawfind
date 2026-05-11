@@ -1,11 +1,12 @@
 // app/layout.tsx — Origami design system
 import type { Metadata } from 'next'
 import './globals.css'
-import { Navbar } from '@/components/layout/Navbar'
 
-// 💡 1. นำเข้า Suspense จาก React
+// 💡 1. นำเข้า Components ที่จำเป็นทั้งหมด
 import { Suspense } from 'react'
+import { Navbar } from '@/components/layout/Navbar'
 import { WelcomePopup } from '@/components/WelcomePopup'
+import { GlobalTicker } from '@/components/layout/GlobalTicker'
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
 
@@ -38,15 +39,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="bg-grid-paper text-ori-ink antialiased min-h-screen flex flex-col">
         
-        {/* 💡 2. เอา <Suspense> มาครอบ WelcomePopup ไว้ เพื่อไม่ให้การอ่านลิงก์พังตอน Build */}
+        {/* เอา <Suspense> มาครอบ WelcomePopup ไว้ เพื่อไม่ให้การอ่านลิงก์พังตอน Build Vercel */}
         <Suspense fallback={null}>
           <WelcomePopup />
         </Suspense>
         
-        <Navbar />
+        {/* 💡 2. มัดรวม Navbar และ GlobalTicker ให้อยู่ด้านบนสุดและติดขอบจอเสมอ (Sticky) */}
+        <div className="sticky top-0 z-[200] w-full flex flex-col">
+          <Navbar />
+          <GlobalTicker />
+        </div>
+        
         <main className="flex-grow">
           {children}
         </main>
+        
         <footer className="border-t-[3px] border-ori-ink bg-ori-ink text-ori-cream py-6 font-bold text-center text-sm">
           <p>© {new Date().getFullYear()} PobPet · ตามหาน้อง · Community for Pets 🐾</p>
         </footer>
