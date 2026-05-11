@@ -32,11 +32,11 @@ export default function CreateEventPage() {
     title: '',
     event_type: 'news',
     description: '',
-    organizer_name: '', // 💡 เพิ่ม ผู้จัดงาน
-    venue_name: '',     // 💡 เพิ่ม ชื่อสถานที่
+    organizer_name: '', 
+    venue_name: '',     
     province: '',
-    district: '',       // 💡 เพิ่ม อำเภอ
-    subdistrict: '',    // 💡 เพิ่ม ตำบล
+    district: '',       
+    subdistrict: '',    
     start_date: '',
     end_date: '',
   })
@@ -92,7 +92,8 @@ export default function CreateEventPage() {
         setIsUploading(false)
       }
 
-      const { error: insertErr } = await supabase
+      // 💡 1. บันทึกลง Database ด้วยสถานะ 'pending_ai' และดึงข้อมูลกลับมา (.select().single())
+      const { data: newEvent, error: insertErr } = await supabase
         .from('events')
         .insert({
           organizer_id: user.id,
@@ -107,13 +108,38 @@ export default function CreateEventPage() {
           start_date: formData.start_date,
           end_date: formData.end_date || null,
           image_url: imageUrl,
-          status: 'approved' 
+          status: 'pending_ai' // เปลี่ยนจาก approved เป็นรอ AI ตรวจ
         })
+        .select()
+        .single()
 
       if (insertErr) throw insertErr
-      alert('✅ สร้างประกาศสำเร็จ!')
-      router.push('/')
+
+      // 💡 2. ส่งข้อมูลไปให้ AI Moderation API ตรวจสอบเบื้องหลัง
+      if (newEvent) {
+        try {
+          await fetch('/api/events/moderate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: newEvent.id,
+              title: formData.title,
+              description: formData.description,
+              category: formData.event_type,
+              trustLevel: user?.user_metadata?.trust_level || 'bronze'
+            })
+          })
+        } catch (apiErr) {
+          console.error('AI Moderation trigger failed:', apiErr)
+          // ปล่อยผ่านไปได้เลย เพราะถึง API พัง ข้อมูลก็ถูกบันทึกเป็น pending_ai ไว้แล้ว
+        }
+      }
+
+      // 💡 3. แจ้งเตือนผู้ใช้ว่าอยู่ในขั้นตอนการตรวจ
+      alert('✅ ส่งประกาศเรียบร้อย ระบบ AI กำลังตรวจสอบเนื้อหาของท่านครับ (อาจใช้เวลาสักครู่)')
+      router.push('/events') // พาไปหน้ากระดานข่าวแทนหน้าแรก
       router.refresh()
+
     } catch (err: any) {
       alert('เกิดข้อผิดพลาด: ' + err.message)
     } finally {
@@ -125,12 +151,18 @@ export default function CreateEventPage() {
     <div className="max-w-4xl mx-auto px-4 py-10 mb-20">
       <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 md:p-10 shadow-paper relative overflow-hidden">
         
-        <div className="mb-8 border-b-4 border-ori-ink pb-6">
-          <h1 className="text-3xl font-black text-ori-ink flex items-center gap-3">
-            <Calendar className="text-ori-blue-d" size={32} />
-            สร้างประกาศกิจกรรม & ข่าวสาร
-          </h1>
-          <p className="font-bold text-gray-500 mt-2">กระจายข่าวสารและกิจกรรมดีๆ ให้ชุมชน PobPet 🐾</p>
+        <div className="mb-8 border-b-4 border-ori-ink pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-ori-ink flex items-center gap-3">
+              <Calendar className="text-ori-blue-d" size={32} />
+              สร้างประกาศกิจกรรม & ข่าวสาร
+            </h1>
+            <p className="font-bold text-gray-500 mt-2">กระจายข่าวสารและกิจกรรมดีๆ ให้ชุมชน PobPet 🐾</p>
+          </div>
+          {/* แจ้งให้ผู้ใช้ทราบว่ามี AI คัดกรอง */}
+          <div className="bg-blue-50 text-ori-blue-d border-2 border-ori-blue-d px-4 py-2 rounded-xl font-black text-xs flex items-center gap-2">
+            <Info size={16} /> ตรวจสอบเนื้อหาโดย AI
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -141,13 +173,13 @@ export default function CreateEventPage() {
               <label className="font-black text-ori-ink flex items-center gap-2 text-sm">
                 <ImageIcon size={16} /> รูปโปสเตอร์
               </label>
-              <div className="border-4 border-dashed border-gray-200 rounded-2xl p-4 h-48 relative bg-gray-50 flex flex-col items-center justify-center text-center">
+              <div className="border-4 border-dashed border-gray-200 rounded-2xl p-4 h-48 relative bg-gray-50 flex flex-col items-center justify-center text-center hover:bg-gray-100 transition-colors cursor-pointer">
                 <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                 {imagePreview ? (
                   <img src={imagePreview} alt="Preview" className="w-full h-full object-contain rounded-xl" />
                 ) : (
-                  <div className="text-gray-400 font-bold text-xs">
-                    <UploadCloud size={32} className="mx-auto mb-2 opacity-50" />
+                  <div className="text-gray-400 font-bold text-xs flex flex-col items-center">
+                    <UploadCloud size={32} className="mb-2 opacity-50" />
                     คลิกเพื่ออัปโหลด
                   </div>
                 )}
@@ -281,9 +313,13 @@ export default function CreateEventPage() {
             <Button 
               type="submit" 
               disabled={isSubmitting}
-              className="bg-ori-blue-d text-white py-6 px-10 rounded-2xl font-black text-lg shadow-paper hover:shadow-paper-lg transition-all flex items-center gap-2"
+              className="bg-ori-blue-d text-white py-6 px-10 rounded-2xl font-black text-lg shadow-paper hover:shadow-paper-lg transition-all flex items-center gap-2 disabled:opacity-50"
             >
-              {isSubmitting ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={24} /> บันทึกและลงประกาศ</>}
+              {isSubmitting ? (
+                <><Loader2 className="animate-spin" size={24} /> กำลังส่งให้ AI ตรวจสอบ...</>
+              ) : (
+                <><CheckCircle2 size={24} /> บันทึกและลงประกาศ</>
+              )}
             </Button>
           </div>
         </form>
