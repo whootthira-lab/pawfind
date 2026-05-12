@@ -28,8 +28,9 @@ export async function POST(req: Request) {
 
     const prompt = `หัวข้อ: ${title}\nรายละเอียด: ${description}\nหมวดหมู่: ${category}`
 
-    // 💡 ระบบ Fallback: รายชื่อโมเดลที่จะใช้เรียงตามลำดับความสำคัญ (ถ้าอันแรกพัง จะสลับไปอันถัดไปอัตโนมัติ)
-    const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+    // 💡 ระบบ Fallback ใหม่: อัปเดตรายชื่อโมเดลเป็นรุ่นล่าสุด (Gemini 2.5 Series)
+    // gemini-2.5-flash (เร็วและสมดุล) -> gemini-2.5-flash-lite (เร็วพิเศษ) -> gemini-2.5-pro (ฉลาดสูงสุด)
+    const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"]
     let responseText = ""
     let modelUsed = ""
 
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
         console.warn(`โมเดล ${modelName} ขัดข้อง: ${modelError.message}`)
         // ถ้าวนจนถึงโมเดลสุดท้ายแล้วยังพังอีก ให้โยน Error ออกไปฟ้องหน้าเว็บ
         if (modelName === modelsToTry[modelsToTry.length - 1]) {
-          throw new Error(`AI ขัดข้องทุกโมเดล: ${modelError.message}`)
+          throw new Error(`AI ขัดข้องทุกโมเดล (ตั้งแต่ 2.5 Flash ถึง Pro): ${modelError.message}`)
         }
       }
     }
