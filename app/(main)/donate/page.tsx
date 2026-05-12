@@ -13,13 +13,13 @@ export default function DonateAboutPage() {
           เกี่ยวกับเรา
         </h1>
         <p className="text-xl md:text-2xl font-bold text-ori-orange-d mb-6">
-          โดยดำเนินการตามแนวทางของธุรกิจเพื่อสังคม (Social Enterprise) เพื่อช่วยให้สังคมดีขึ้นทีละนิดเท่าที่ทำได้ ทุกคนอยู่ได้และเติบโตไปด้วยกัน
+          เราดำเนินการตามแนวทางของธุรกิจเพื่อสังคม (Social Enterprise)เพื่อให้สังคมดีขึ้น ทุกคนอยู่ได้และเติบโตไปด้วยกัน
         </p>
         <div className="bg-white/90 p-6 md:p-8 rounded-2xl border-4 border-ori-ink text-left shadow-paper-sm">
           <p className="font-bold text-lg leading-relaxed text-ori-ink-m">
-            PobPet เรามีจุดมุ่งหมายในการขับเคลื่อนเพื่อให้สังคมดีขึ้นจากจุดเล็กๆ เพื่อส่งต่อความหวังและสิ่งดีๆ
+            PobPet เรามีจุดมุ่งหมายในการขับเคลื่อนจากจุดเล็กๆ และทำเท่าที่เราทำได้ เพื่อส่งต่อความหวังและสิ่งดีๆ ตามแนวทาง
             <span className="text-ori-ink font-black bg-ori-yellow/30 px-2 rounded mx-1">ธุรกิจเพื่อสังคม (Social Enterprise)</span> 
-            ที่มุ่งเน้นให้ทุกคนใน Ecosystem สามารถอยู่ได้และเติบโตได้อย่างยั่งยืน เราผสานเทคโนโลยี นวัตกรรม และความเป็นมนุษย์ที่เชื่อว่าเราช่วยให้สิ่งรอบตัวและสังคมน่าอยู่ขึ้นได้โดยเริ่มจากจุดเล็กๆ สู่การสร้างสิ่งดีๆและความหวังให้ค่อยๆ ขยายกว้างขึ้นเรื่อยๆ เพื่อยกระดับคุณภาพชีวิตของทั้งสัตว์เลี้ยงและผู้คน
+            ที่มุ่งเน้นให้ทุกคนใน Ecosystem สามารถอยู่ได้และเติบโตได้อย่างยั่งยืน เราผสานเทคโนโลยี นวัตกรรม และความเป็นมนุษย์ที่มีความเชื่อว่าเราช่วยให้สิ่งรอบตัวและสังคมน่าอยู่ขึ้นได้โดยเริ่มจากจุดเล็กๆ สู่การสร้างสิ่งดีๆและร่วมกันส่งต่อความหวังให้ค่อยๆ ขยายกว้างขึ้นเรื่อยๆ เพื่อยกระดับคุณภาพชีวิตของทั้งสัตว์เลี้ยงและผู้คนอย่างยั่งยืน
           </p>
         </div>
       </div>
@@ -39,7 +39,7 @@ export default function DonateAboutPage() {
               <h3 className="text-2xl font-black text-ori-green-d">ทดลองทำขาเทียมให้นกกระเรียนไทย</h3>
             </div>
             <p className="font-bold text-ori-ink-l mb-6 text-lg">
-              ตั้งแต่ปี 2566 เราได้ริเริ่มโครงการทดลองออกแบบและสร้างขาเทียมให้กับนกกระเรียนพันธุ์ไทย ในนามส่วนตัวร่วมกับสวนสัตว์นครราชสีมา เพื่อพยายามให้นกที่สูญเสียขาสามารถกลับมาเดินและใช้ชีวิตได้อีกครั้ง
+              ตั้งแต่ปี 2566 เราได้ริเริ่มโครงการทดลองออกแบบและสร้างขาเทียมให้กับนกกระเรียนพันธุ์ไทยร่วมกับสวนสัตว์นครราชสีมา เพื่อพยายามให้นกที่สูญเสียขาสามารถกลับมาเดินและใช้ชีวิตได้อีกครั้ง
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="border-4 border-ori-ink rounded-2xl overflow-hidden shadow-paper-sm relative aspect-[4/3] group">
@@ -66,7 +66,7 @@ export default function DonateAboutPage() {
           <div className="pt-8 border-t-4 border-dashed border-gray-200">
             <h3 className="text-2xl font-black mb-3 text-ori-orange-d">โครงการทดลองขาเทียมสำหรับสุนัขและแมว</h3>
             <p className="font-bold text-ori-ink-l mb-6 text-lg">
-              เรากำลังนำองค์ความรู้จากการทำขาเทียมนกกระเรียน มาพัฒนาต่อยอดเพื่อสร้างขาเทียมสำหรับสัตว์เลี้ยงขนาดเล็ก ซึ่งปัจจุบันกำลังอยู่ในระหว่างการทดลองทางคลินิกอย่างใกล้ชิด
+              เรากำลังนำองค์ความรู้จากการทำขาเทียมนกกระเรียน มาพัฒนาต่อยอดเพื่อสร้างขาเทียมสำหรับสัตว์เลี้ยงขนาดเล็ก
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl">
               <div className="border-4 border-ori-ink rounded-2xl overflow-hidden shadow-paper-sm bg-gray-100 relative aspect-[3/4] group">
@@ -134,7 +134,7 @@ export default function DonateAboutPage() {
         <div className="relative z-10 flex flex-col items-center">
           <QrCode className="w-16 h-16 mb-4 text-white drop-shadow-md" />
           <h2 className="text-3xl md:text-4xl font-black mb-4 leading-tight">
-            ร่วมสมทบทุนเพื่อขับเคลื่อน <br className="hidden md:block" />โปรเจกต์ขาเทียมและชุมชน 💖
+            ร่วมสมทบทุนเพื่อต่อลมหายใจให้กับแพลตฟอร์ม <br className="hidden md:block" />และส่งต่อสิ่งดีๆต่อไป 💖
           </h2>
           <p className="font-bold text-lg md:text-xl opacity-90 mb-8 max-w-2xl">
             ทุกการสนับสนุนของคุณจะถูกนำไปใช้พัฒนาระบบเพื่อให้น้องกลับบ้าน พัฒนาชุมชน และสานต่อโครงการทำขาเทียมฟรีให้กับน้องๆ สัตว์เลี้ยง
@@ -145,7 +145,7 @@ export default function DonateAboutPage() {
               <Image src="/qr-code.jpg" alt="QR Code รับบริจาค" fill className="object-cover" />
             </div>
             <div className="bg-white text-ori-orange font-black py-3 px-8 rounded-xl border-4 border-black shadow-paper-sm text-lg md:text-xl w-full tracking-wide">
-              ชื่อบัญชี: KRUTH APEX
+              ชื่อบัญชี: PobPet(พบเพ็ท)
             </div>
           </div>
         </div>

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 
 const eventCategories = [
   { value: 'contest', label: '🏆 การแข่งขันและประกวด' },
-  { value: 'training', label: '📚 อบรมและให้ความรู้' },
+  { value: 'training', label: '📚 อบรมสัมนาและให้ความรู้' },
   { value: 'market', label: '🛒 แสดงสินค้าและนิทรรศการ' },
   { value: 'community', label: '🤝 กิจกรรมชุมชนและสาธารณะ' },
   { value: 'health', label: '🏥 สุขภาพและการดูแล' },
@@ -187,11 +187,11 @@ export default function AdminModerationPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <label className="font-black text-xs">อำเภอ</label>
+                    <label className="font-black text-xs">เขต/อำเภอ</label>
                     <input value={editFormData.district} onChange={e => setEditFormData({...editFormData, district: e.target.value})} className="ori-input w-full p-2 text-xs" />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-black text-xs">ตำบล</label>
+                    <label className="font-black text-xs">แขวงตำบล</label>
                     <input value={editFormData.subdistrict} onChange={e => setEditFormData({...editFormData, subdistrict: e.target.value})} className="ori-input w-full p-2 text-xs" />
                   </div>
                 </div>

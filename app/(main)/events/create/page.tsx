@@ -12,11 +12,11 @@ import { Button } from '@/components/ui/button'
 const eventCategories = [
   { value: 'contest', label: '🏆 การแข่งขันและประกวด', desc: 'สำหรับงานที่มีการตัดสินผู้ชนะ' },
   { value: 'training', label: '📚 อบรมและให้ความรู้', desc: 'สำหรับ Workshop, สัมมนา, หลักสูตรต่างๆ' },
-  { value: 'market', label: '🛒 ตลาดและงานแสดงสินค้า', desc: 'สำหรับงานขายสินค้าสัตว์เลี้ยง, นิทรรศการ' },
+  { value: 'market', label: '🛒 นิทรรศการและงานแสดงสินค้า', desc: 'สำหรับงานขายสินค้าสัตว์เลี้ยง, นิทรรศการ' },
   { value: 'community', label: '🤝 กิจกรรมชุมชนและสาธารณะ', desc: 'สำหรับงานที่เป็นประโยชน์ต่อสังคม ไม่แสวงกำไร' },
   { value: 'health', label: '🏥 สุขภาพและการดูแล', desc: 'สำหรับกิจกรรมด้านสุขภาพสัตว์โดยเฉพาะ' },
   { value: 'news', label: '📣 ข่าวสารและประกาศ', desc: 'สำหรับข่าวทั่วไปที่ไม่ใช่งาน Event' },
-  { value: 'help', label: '🔍 หาบ้านและช่วยเหลือ', desc: 'สำหรับประกาศที่ต้องการความช่วยเหลือจากชุมชน' },
+  { value: 'help', label: '🔍 ขอความช่วยเหลือ', desc: 'สำหรับประกาศที่ต้องการความช่วยเหลือจากชุมชน' },
 ]
 
 // 💡 รายชื่อจังหวัดประเทศไทย
@@ -288,18 +288,18 @@ export default function CreateEventPage() {
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
-                <label className="font-black text-[11px]">อำเภอ</label>
+                <label className="font-black text-[11px]">อำเภอ/เขต</label>
                 <input 
-                  placeholder="อำเภอ"
+                  placeholder="อำเภอ/เขต"
                   value={formData.district}
                   onChange={e => setFormData({...formData, district: e.target.value})}
                   className="ori-input text-sm"
                 />
               </div>
               <div className="space-y-2">
-                <label className="font-black text-[11px]">ตำบล</label>
+                <label className="font-black text-[11px]">ตำบล/แขวง</label>
                 <input 
-                  placeholder="ตำบล"
+                  placeholder="ตำบล/แขวง"
                   value={formData.subdistrict}
                   onChange={e => setFormData({...formData, subdistrict: e.target.value})}
                   className="ori-input text-sm"
