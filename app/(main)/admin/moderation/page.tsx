@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-import { CheckCircle2, XCircle, AlertCircle, Loader2, Trash2, Filter, Edit2, Calendar, MapPin, Building2, Save, X } from 'lucide-react'
+import { CheckCircle2, XCircle, AlertCircle, Loader2, Trash2, Filter, Edit2, Calendar, MapPin, Building2, Save, X, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const eventCategories = [
@@ -15,7 +15,6 @@ const eventCategories = [
   { value: 'help', label: '🔍 ขอความช่วยเหลือ' },
 ]
 
-// 💡 รายชื่อจังหวัดประเทศไทยสำหรับ Dropdown
 const thailandProvinces = [
   "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
 ].sort();
@@ -40,7 +39,6 @@ export default function AdminModerationPage() {
   const fetchEvents = async () => {
     setIsLoading(true)
     
-    // 💡 แก้ไข: ใช้ select('*') เพื่อดึงข้อมูลอย่างปลอดภัย ป้องกัน Error จากตารางย่อย
     let query = supabase
       .from('events')
       .select('*')
@@ -48,15 +46,16 @@ export default function AdminModerationPage() {
 
     if (activeTab !== 'all') {
       query = query.eq('status', activeTab)
+    } else {
+      // 💡 เงื่อนไขสำคัญ: ถ้าดู "ทั้งหมด" จะไม่นำของที่ถูกปฏิเสธ (rejected) มาแสดง
+      query = query.neq('status', 'rejected')
     }
 
     try {
       const { data, error } = await query
-      
       if (error) {
         console.error('Fetch error:', error)
-        // 💡 แสดง Popup แจ้งเตือนแอดมินทันทีถ้าดึงข้อมูลไม่ได้
-        alert(`ดึงข้อมูลไม่สำเร็จ!\nสาเหตุ: ${error.message}\n(อาจติดปัญหา RLS)`)
+        alert(`ดึงข้อมูลไม่สำเร็จ!\nสาเหตุ: ${error.message}`)
       } else {
         setEvents(data || [])
       }
@@ -225,15 +224,20 @@ export default function AdminModerationPage() {
             <AlertCircle className="text-ori-orange" size={32} />
             <div>
               <h1 className="text-3xl font-black text-ori-ink">ระบบตรวจสอบประกาศ</h1>
-              <p className="font-bold text-gray-500 mt-1">จัดการคำขอ อนุมัติ ปฏิเสธ แก้ไข หรือลบข้อมูลทั้งหมด</p>
+              <p className="font-bold text-gray-500 mt-1">จัดการคำขอ อนุมัติ แก้ไข หรือลบข้อมูลทั้งหมด</p>
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-8">
-          <button onClick={() => setActiveTab('pending_admin')} className={`px-5 py-2.5 rounded-xl font-black border-2 transition-colors ${activeTab === 'pending_admin' ? 'bg-ori-blue-d text-white border-ori-ink' : 'bg-white text-gray-600 border-gray-300 hover:border-ori-ink'}`}>⏳ รอตรวจสอบ (Pending)</button>
+          <button onClick={() => setActiveTab('pending_admin')} className={`px-5 py-2.5 rounded-xl font-black border-2 transition-colors ${activeTab === 'pending_admin' ? 'bg-ori-orange text-white border-ori-ink' : 'bg-white text-gray-600 border-gray-300 hover:border-ori-ink'}`}>⏳ รอแอดมินตรวจ</button>
+          
+          {/* 💡 เปลี่ยนแท็บ Rejected เป็น Pending AI */}
+          <button onClick={() => setActiveTab('pending_ai')} className={`px-5 py-2.5 rounded-xl font-black border-2 transition-colors ${activeTab === 'pending_ai' ? 'bg-purple-600 text-white border-ori-ink' : 'bg-white text-gray-600 border-gray-300 hover:border-ori-ink'}`}>
+            🤖 รอ AI ตรวจ (Pending AI)
+          </button>
+          
           <button onClick={() => setActiveTab('approved')} className={`px-5 py-2.5 rounded-xl font-black border-2 transition-colors ${activeTab === 'approved' ? 'bg-ori-green text-white border-ori-ink' : 'bg-white text-gray-600 border-gray-300 hover:border-ori-ink'}`}>✅ อนุมัติแล้ว (Approved)</button>
-          <button onClick={() => setActiveTab('rejected')} className={`px-5 py-2.5 rounded-xl font-black border-2 transition-colors ${activeTab === 'rejected' ? 'bg-red-500 text-white border-ori-ink' : 'bg-white text-gray-600 border-gray-300 hover:border-ori-ink'}`}>❌ ถูกปฏิเสธ (Rejected)</button>
           <button onClick={() => setActiveTab('all')} className={`px-5 py-2.5 rounded-xl font-black border-2 transition-colors ${activeTab === 'all' ? 'bg-ori-ink text-white border-ori-ink' : 'bg-white text-gray-600 border-gray-300 hover:border-ori-ink'}`}><Filter size={16} className="inline mr-1" /> ทั้งหมด</button>
         </div>
 
@@ -248,16 +252,23 @@ export default function AdminModerationPage() {
           <div className="space-y-6">
             {events.map((event) => (
               <div key={event.id} className="border-4 border-ori-ink rounded-2xl p-6 bg-white shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                <div className={`absolute left-0 top-0 bottom-0 w-2 ${event.status === 'approved' ? 'bg-ori-green' : event.status === 'rejected' ? 'bg-red-500' : 'bg-ori-orange'}`}></div>
+                {/* 💡 ปรับสีแถบด้านซ้ายตามสถานะ */}
+                <div className={`absolute left-0 top-0 bottom-0 w-2 ${
+                  event.status === 'approved' ? 'bg-ori-green' : 
+                  event.status === 'pending_ai' ? 'bg-purple-500' : 
+                  'bg-ori-orange'
+                }`}></div>
 
                 <div className="flex flex-col md:flex-row justify-between gap-6 pl-4">
                   <div className="space-y-2 flex-1">
                     <div className="flex items-center gap-2">
+                      {/* 💡 ปรับสี Badge ตามสถานะ */}
                       <span className={`px-3 py-1 rounded-lg text-[10px] font-black border-2 uppercase tracking-wider ${
                         event.status === 'approved' ? 'bg-green-100 text-green-800 border-green-300' : 
-                        event.status === 'rejected' ? 'bg-red-100 text-red-800 border-red-300' : 
+                        event.status === 'pending_ai' ? 'bg-purple-100 text-purple-800 border-purple-300 flex items-center gap-1' : 
                         'bg-orange-100 text-orange-800 border-orange-300'
                       }`}>
+                        {event.status === 'pending_ai' && <Bot size={12} />}
                         {event.status.replace('_', ' ')}
                       </span>
                       <span className="text-xs text-gray-500 font-bold">{new Date(event.created_at).toLocaleString('th-TH')}</span>
