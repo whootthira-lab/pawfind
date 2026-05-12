@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 const eventCategories = [
   { value: 'contest', label: '🏆 การแข่งขันและประกวด' },
   { value: 'training', label: '📚 อบรมและให้ความรู้' },
-  { value: 'market', label: '🛒 แสดงสินค้าและนิทัศการ' },
+  { value: 'market', label: '🛒 แสดงสินค้าและนิทรรศการ' },
   { value: 'community', label: '🤝 กิจกรรมชุมชนและสาธารณะ' },
   { value: 'health', label: '🏥 สุขภาพและการดูแล' },
   { value: 'news', label: '📣 ข่าวสารและประกาศ' },
@@ -23,9 +23,8 @@ const thailandProvinces = [
 export default function AdminModerationPage() {
   const [events, setEvents] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('pending_admin') // pending_admin, approved, rejected, all
+  const [activeTab, setActiveTab] = useState('pending_admin') 
 
-  // 💡 State สำหรับจัดการ Modal แก้ไขประกาศโดยแอดมิน
   const [editingEvent, setEditingEvent] = useState<any>(null)
   const [isUpdating, setIsUpdating] = useState(false)
   const [editFormData, setEditFormData] = useState({
@@ -40,18 +39,30 @@ export default function AdminModerationPage() {
 
   const fetchEvents = async () => {
     setIsLoading(true)
+    
+    // 💡 แก้ไข: ใช้ select('*') เพื่อดึงข้อมูลอย่างปลอดภัย ป้องกัน Error จากตารางย่อย
     let query = supabase
       .from('events')
-      .select(`id, title, organizer_name, description, event_type, venue_name, province, district, subdistrict, start_date, end_date, created_at, status, moderation_logs ( ai_reason, ai_score, model )`)
+      .select('*')
       .order('created_at', { ascending: false })
 
     if (activeTab !== 'all') {
       query = query.eq('status', activeTab)
     }
 
-    const { data, error } = await query
-    if (error) console.error('Fetch error:', error)
-    else setEvents(data || [])
+    try {
+      const { data, error } = await query
+      
+      if (error) {
+        console.error('Fetch error:', error)
+        // 💡 แสดง Popup แจ้งเตือนแอดมินทันทีถ้าดึงข้อมูลไม่ได้
+        alert(`ดึงข้อมูลไม่สำเร็จ!\nสาเหตุ: ${error.message}\n(อาจติดปัญหา RLS)`)
+      } else {
+        setEvents(data || [])
+      }
+    } catch (err: any) {
+      alert(`เกิดข้อผิดพลาดของระบบ: ${err.message}`)
+    }
     
     setIsLoading(false)
   }
@@ -60,7 +71,6 @@ export default function AdminModerationPage() {
     fetchEvents()
   }, [activeTab])
 
-  // --- ฟังก์ชันจัดการสถานะ (อนุมัติ/ปฏิเสธ/ลบ) ---
   const handleUpdateStatus = async (eventId: string, newStatus: string) => {
     if (!window.confirm(`ยืนยันการเปลี่ยนสถานะเป็น ${newStatus} ?`)) return
     const { error } = await supabase.from('events').update({ status: newStatus }).eq('id', eventId)
@@ -75,7 +85,6 @@ export default function AdminModerationPage() {
     else { alert('ลบประกาศออกจากระบบเรียบร้อย!'); fetchEvents() }
   }
 
-  // --- ฟังก์ชันเปิด Modal แก้ไข ---
   const openEditModal = (event: any) => {
     setEditFormData({
       title: event.title || '',
@@ -92,12 +101,10 @@ export default function AdminModerationPage() {
     setEditingEvent(event)
   }
 
-  // --- ฟังก์ชันบันทึกการแก้ไขและส่งให้ AI ตรวจซ้ำ ---
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsUpdating(true)
     try {
-      // 1. อัปเดตข้อมูลลงฐานข้อมูลและปรับสถานะให้รอ AI ก่อน
       const { error: updateErr } = await supabase
         .from('events')
         .update({ ...editFormData, status: 'pending_ai' })
@@ -105,7 +112,6 @@ export default function AdminModerationPage() {
 
       if (updateErr) throw updateErr
 
-      // 2. เรียก API ให้ AI ตรวจสอบใหม่
       const aiRes = await fetch('/api/events/moderate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -114,7 +120,7 @@ export default function AdminModerationPage() {
           title: editFormData.title,
           description: editFormData.description,
           category: editFormData.event_type,
-          trustLevel: 'gold' // ให้เครดิตเป็น Gold เพราะแอดมินเป็นคนแก้เอง
+          trustLevel: 'gold'
         })
       })
       const aiData = await aiRes.json()
@@ -125,8 +131,8 @@ export default function AdminModerationPage() {
         alert(`✅ แอดมินแก้ไขประกาศเรียบร้อย!\nผลการตรวจจาก AI ล่าสุด: ${aiData.status}\nเหตุผล: ${aiData.reason}`)
       }
 
-      setEditingEvent(null) // ปิด Modal
-      fetchEvents() // โหลดข้อมูลใหม่มาโชว์
+      setEditingEvent(null)
+      fetchEvents()
 
     } catch (err: any) {
       alert('เกิดข้อผิดพลาดในการแก้ไข: ' + err.message)
@@ -138,7 +144,6 @@ export default function AdminModerationPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 mb-20 relative">
       
-      {/* 💡 Popup Modal สำหรับ "แอดมินแก้ไขประกาศ" พร้อม Dropdown จังหวัด */}
       {editingEvent && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 overflow-y-auto pt-20 pb-10">
           <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 md:p-8 max-w-3xl w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in duration-200">
@@ -175,22 +180,12 @@ export default function AdminModerationPage() {
                   </label>
                   <input value={editFormData.venue_name} onChange={e => setEditFormData({...editFormData, venue_name: e.target.value})} className="ori-input w-full p-2 text-sm" />
                 </div>
-
-                {/* 💡 จังหวัดเป็น Dropdown ในหน้า Admin ตามโจทย์ */}
                 <div className="space-y-1">
                   <label className="font-black text-sm">จังหวัด</label>
-                  <select 
-                    required 
-                    value={editFormData.province} 
-                    onChange={e => setEditFormData({...editFormData, province: e.target.value})} 
-                    className="ori-input w-full p-2 text-sm bg-white"
-                  >
-                    {thailandProvinces.map(prov => (
-                      <option key={prov} value={prov}>{prov}</option>
-                    ))}
+                  <select required value={editFormData.province} onChange={e => setEditFormData({...editFormData, province: e.target.value})} className="ori-input w-full p-2 text-sm bg-white">
+                    {thailandProvinces.map(prov => <option key={prov} value={prov}>{prov}</option>)}
                   </select>
                 </div>
-
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <label className="font-black text-xs">อำเภอ</label>
@@ -201,14 +196,12 @@ export default function AdminModerationPage() {
                     <input value={editFormData.subdistrict} onChange={e => setEditFormData({...editFormData, subdistrict: e.target.value})} className="ori-input w-full p-2 text-xs" />
                   </div>
                 </div>
-
                 <div className="space-y-1">
                   <label className="font-black text-sm flex items-center gap-1">
                     <Calendar size={14} /> วันที่เริ่ม
                   </label>
                   <input type="datetime-local" required value={editFormData.start_date} onChange={e => setEditFormData({...editFormData, start_date: e.target.value})} className="ori-input w-full p-2 text-sm font-sans" />
                 </div>
-
                 <div className="md:col-span-2 space-y-1">
                   <label className="font-black text-sm">รายละเอียด</label>
                   <textarea rows={4} value={editFormData.description} onChange={e => setEditFormData({...editFormData, description: e.target.value})} className="ori-input w-full p-2 text-sm" />
@@ -273,16 +266,6 @@ export default function AdminModerationPage() {
                     <h3 className="text-2xl font-black text-ori-ink">{event.title}</h3>
                     <p className="text-sm font-bold text-gray-500">👤 ผู้จัด: {event.organizer_name} | 📍 สถานที่: {event.venue_name || 'ไม่ได้ระบุ'} {event.district ? `(${event.district}, ${event.province})` : `(${event.province})`}</p>
                     <p className="text-sm text-gray-700 mt-2 line-clamp-3">{event.description || 'ไม่มีรายละเอียด'}</p>
-                    
-                    {event.moderation_logs && event.moderation_logs.length > 0 && (
-                      <div className="mt-4 bg-blue-50 border-2 border-blue-200 text-blue-900 text-xs font-bold p-3 rounded-xl flex gap-2 items-start">
-                        <span>🤖</span>
-                        <div>
-                          <p className="underline mb-1 font-black">เหตุผลจาก AI (คะแนน {event.moderation_logs[0].ai_score}):</p>
-                          <p>{event.moderation_logs[0].ai_reason}</p>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   <div className="flex flex-row md:flex-col gap-2 justify-center flex-wrap md:min-w-[140px]">
