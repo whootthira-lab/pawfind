@@ -9,7 +9,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-// 💡 กำหนดตัวเลือกหมวดหมู่ใหม่ตามที่คุณวุฒิ์ต้องการ
 const eventCategories = [
   { value: 'contest', label: '🏆 การแข่งขันและประกวด', desc: 'สำหรับงานที่มีการตัดสินผู้ชนะ' },
   { value: 'training', label: '📚 อบรมและให้ความรู้', desc: 'สำหรับ Workshop, สัมมนา, หลักสูตรต่างๆ' },
@@ -92,7 +91,7 @@ export default function CreateEventPage() {
         setIsUploading(false)
       }
 
-      // 💡 1. บันทึกลง Database ด้วยสถานะ 'pending_ai' และดึงข้อมูลกลับมา (.select().single())
+      // 💡 1. บันทึกลง Database ด้วยสถานะ 'pending_ai'
       const { data: newEvent, error: insertErr } = await supabase
         .from('events')
         .insert({
@@ -108,17 +107,17 @@ export default function CreateEventPage() {
           start_date: formData.start_date,
           end_date: formData.end_date || null,
           image_url: imageUrl,
-          status: 'pending_ai' // เปลี่ยนจาก approved เป็นรอ AI ตรวจ
+          status: 'pending_ai'
         })
         .select()
         .single()
 
       if (insertErr) throw insertErr
 
-      // 💡 2. ส่งข้อมูลไปให้ AI Moderation API ตรวจสอบเบื้องหลัง
+      // 💡 2. ส่งข้อมูลไปให้ AI Moderation API และดักจับผลลัพธ์แบบละเอียด
       if (newEvent) {
         try {
-          await fetch('/api/events/moderate', {
+          const aiRes = await fetch('/api/events/moderate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -129,15 +128,24 @@ export default function CreateEventPage() {
               trustLevel: user?.user_metadata?.trust_level || 'bronze'
             })
           })
-        } catch (apiErr) {
+          
+          const aiData = await aiRes.json()
+          
+          // 🚨 ถ้า API มีปัญหา หรือส่ง Error กลับมา ให้โชว์แจ้งเตือนให้ชัดเจน
+          if (!aiRes.ok || !aiData.success) {
+            alert(`⚠️ ระบบบันทึกเป็นฉบับร่าง (Pending) แต่การตรวจ AI ขัดข้อง:\n${aiData.error || 'ไม่ทราบสาเหตุ'}`)
+          } else {
+            // 🎉 ถ้า AI ตรวจผ่าน จะบอกสถานะและเหตุผล
+            alert(`✅ ส่งประกาศเรียบร้อย!\nผลการตรวจจาก AI: ${aiData.status}\nเหตุผล: ${aiData.reason}`)
+          }
+
+        } catch (apiErr: any) {
           console.error('AI Moderation trigger failed:', apiErr)
-          // ปล่อยผ่านไปได้เลย เพราะถึง API พัง ข้อมูลก็ถูกบันทึกเป็น pending_ai ไว้แล้ว
+          alert(`⚠️ ระบบบันทึกเป็นฉบับร่างแล้ว แต่เซิร์ฟเวอร์ AI ขัดข้อง: ${apiErr.message}`)
         }
       }
 
-      // 💡 3. แจ้งเตือนผู้ใช้ว่าอยู่ในขั้นตอนการตรวจ
-      alert('✅ ส่งประกาศเรียบร้อย ระบบ AI กำลังตรวจสอบเนื้อหาของท่านครับ (อาจใช้เวลาสักครู่)')
-      router.push('/events') // พาไปหน้ากระดานข่าวแทนหน้าแรก
+      router.push('/events')
       router.refresh()
 
     } catch (err: any) {
@@ -159,7 +167,6 @@ export default function CreateEventPage() {
             </h1>
             <p className="font-bold text-gray-500 mt-2">กระจายข่าวสารและกิจกรรมดีๆ ให้ชุมชน PobPet 🐾</p>
           </div>
-          {/* แจ้งให้ผู้ใช้ทราบว่ามี AI คัดกรอง */}
           <div className="bg-blue-50 text-ori-blue-d border-2 border-ori-blue-d px-4 py-2 rounded-xl font-black text-xs flex items-center gap-2">
             <Info size={16} /> ตรวจสอบเนื้อหาโดย AI
           </div>
@@ -167,7 +174,6 @@ export default function CreateEventPage() {
 
         <form onSubmit={handleSubmit} className="space-y-8">
           
-          {/* ส่วนที่ 1: รูปภาพและหมวดหมู่ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-1 space-y-2">
               <label className="font-black text-ori-ink flex items-center gap-2 text-sm">
@@ -216,7 +222,6 @@ export default function CreateEventPage() {
             </div>
           </div>
 
-          {/* ส่วนที่ 2: ผู้จัดงานและสถานที่ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-2xl border-2 border-ori-ink/5">
             <div className="md:col-span-2 space-y-2">
               <label className="font-black text-ori-ink text-sm flex items-center gap-2">
@@ -276,7 +281,6 @@ export default function CreateEventPage() {
             </div>
           </div>
 
-          {/* ส่วนที่ 3: วันเวลาและรายละเอียด */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="font-black text-ori-ink text-sm">วันที่เริ่ม <span className="text-red-500">*</span></label>
