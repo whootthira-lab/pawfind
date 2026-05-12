@@ -2,7 +2,7 @@
 // components/layout/Navbar.tsx — Origami design system update
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { Menu, X, LogOut, User, CalendarPlus, Trophy } from 'lucide-react'
+import { Menu, X, LogOut, User, CalendarPlus, Trophy, CalendarDays, ShieldCheck } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 import { SearchBar } from '@/components/layout/SearchBar'
@@ -35,6 +35,10 @@ export function Navbar() {
     router.push('/') 
   }
 
+  // 💡 ตรวจสอบว่าเป็น Admin หรือไม่ (อ้างอิงจากข้อมูล metadata ใน Supabase)
+  // ถ้าต้องการทดสอบให้เห็นปุ่มชัวร์ๆ สามารถเปลี่ยนเป็น const isAdmin = true; ชั่วคราวได้ครับ
+  const isAdmin = user?.user_metadata?.role === 'admin'
+
   return (
     <nav className="sticky top-0 z-[200] border-b-[2.5px] border-ori-ink flex flex-col"
       style={{ background: 'rgba(245,237,216,.96)', backdropFilter: 'blur(12px)' }}>
@@ -57,12 +61,27 @@ export function Navbar() {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <>
-              {/* ปุ่มสร้างประกาศข่าว (ไอคอนปฏิทิน) — สำหรับเข้าหน้าฟอร์ม /events/create */}
+              {/* 💡 [เพิ่มใหม่] ปุ่มตรวจสอบประกาศของ Admin (เห็นเฉพาะแอดมิน) */}
+              {isAdmin && (
+                <Link href="/admin/moderation" className="p-2 hover:bg-ori-orange/10 rounded-full text-ori-orange transition-all group relative">
+                  <ShieldCheck size={22} strokeWidth={2.5} />
+                  <span className="absolute -bottom-9 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">ระบบตรวจสอบ (Admin)</span>
+                </Link>
+              )}
+
+              {/* 💡 [เพิ่มใหม่] ปุ่มประกาศของฉัน */}
+              <Link href="/account/my-events" className="p-2 hover:bg-ori-green/10 rounded-full text-ori-green-d transition-all group relative">
+                <CalendarDays size={22} strokeWidth={2.5} />
+                <span className="absolute -bottom-9 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">ประกาศของฉัน</span>
+              </Link>
+
+              {/* ปุ่มสร้างประกาศข่าว */}
               <Link href="/events/create" className="p-2 hover:bg-ori-blue-d/10 rounded-full text-ori-blue-d transition-all group relative">
                 <CalendarPlus size={22} strokeWidth={2.5} />
                 <span className="absolute -bottom-9 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">สร้างประกาศข่าว</span>
               </Link>
-              <Link href="/profile" className="ori-btn ori-btn-white ori-btn-sm text-sm px-4 flex items-center gap-2 shadow-paper-sm">
+
+              <Link href="/profile" className="ori-btn ori-btn-white ori-btn-sm text-sm px-4 flex items-center gap-2 shadow-paper-sm ml-2">
                 <User size={16} /> บัญชี
               </Link>
               <button onClick={handleLogout} className="ori-btn ori-btn-white ori-btn-sm text-sm px-3 text-red-600 hover:bg-red-50">
@@ -83,7 +102,6 @@ export function Navbar() {
       {/* ชั้นที่ 2: ช่องค้นหาอัจฉริยะ และทางเข้ากระดานข่าวชุมชน (Desktop) */}
       <div className="hidden md:block bg-white/40 border-t-[1px] border-ori-ink/5 py-3">
         <div className="max-w-6xl mx-auto px-5 w-full flex items-center gap-6">
-          {/* 💡 เพิ่มปุ่มสำหรับกดเข้าสู่กระดานข่าวรวม (/events) เพื่อแก้ปัญหาไม่มีหัวข้อให้กด */}
           <Link href="/events" className="flex items-center gap-2 shrink-0 font-black text-sm text-ori-blue-d hover:bg-ori-blue-d hover:text-white px-4 py-2 rounded-full border-2 border-ori-blue-d transition-all shadow-paper-sm bg-white">
             <Trophy size={16} /> ข่าวสารชุมชน
           </Link>
@@ -96,15 +114,31 @@ export function Navbar() {
       
       {/* Mobile Menu */}
       {open && (
-        <div className="md:hidden border-t-2 border-ori-ink px-5 py-4 flex flex-col gap-4 bg-[#F5EDD8]">
+        <div className="md:hidden border-t-2 border-ori-ink px-5 py-4 flex flex-col gap-4 bg-[#F5EDD8] h-screen overflow-y-auto pb-20">
           <SearchBar />
           <div className="flex flex-col gap-2 font-bold">
             <Link href="/report?status=lost" className="py-2 border-b border-black/5" onClick={() => setOpen(false)}>🔔 ลงประกาศหาน้อง</Link>
             <Link href="/report?status=found" className="py-2 border-b border-black/5" onClick={() => setOpen(false)}>👀 แจ้งพบสัตว์หลง</Link>
             <Link href="/report?status=adoption" className="py-2 border-b border-black/5" onClick={() => setOpen(false)}>💖 ลงประกาศหาบ้านให้น้อง</Link>
-            {/* ทางเข้ากระดานข่าวสำหรับมือถือ */}
-            <Link href="/events" className="py-2 border-b border-black/5 text-ori-blue-d font-black" onClick={() => setOpen(false)}>🏆 ข่าวสารชุมชน</Link>
-            <Link href="/events/create" className="py-2 text-ori-blue-d font-black italic" onClick={() => setOpen(false)}>📢 สร้างข่าวประชาสัมพันธ์ / กิจกรรม</Link>
+            
+            <Link href="/events" className="py-2 border-b border-black/5 text-ori-blue-d font-black mt-2" onClick={() => setOpen(false)}>🏆 ข่าวสารชุมชน (ทั้งหมด)</Link>
+            
+            {/* 💡 [เพิ่มใหม่] เมนูของ User ในมือถือ */}
+            {user && (
+              <div className="bg-white/50 p-3 rounded-xl mt-2 border-2 border-ori-ink/10 flex flex-col gap-2">
+                <Link href="/events/create" className="text-ori-blue-d font-black flex items-center gap-2" onClick={() => setOpen(false)}>
+                  <CalendarPlus size={18}/> สร้างข่าวประชาสัมพันธ์
+                </Link>
+                <Link href="/account/my-events" className="text-ori-green-d font-black flex items-center gap-2" onClick={() => setOpen(false)}>
+                  <CalendarDays size={18}/> จัดการประกาศของฉัน
+                </Link>
+                {isAdmin && (
+                  <Link href="/admin/moderation" className="text-ori-orange font-black flex items-center gap-2" onClick={() => setOpen(false)}>
+                    <ShieldCheck size={18}/> ระบบตรวจสอบ (Admin)
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -9,7 +9,7 @@ import {
   Image as ImageIcon 
 } from 'lucide-react'
 
-// 💡 1. ฟังก์ชันกำหนดสี ไอคอน และชื่อเรียก ตามหมวดหมู่ที่คุณวุฒิ์กำหนด
+// 💡 ฟังก์ชันกำหนดสี ไอคอน และชื่อเรียก ตามหมวดหมู่
 const getCategoryStyle = (type: string) => {
   switch (type) {
     case 'contest': 
@@ -43,15 +43,21 @@ export default function EventsBoardPage() {
   useEffect(() => {
     const fetchEvents = async () => {
       setLoading(true)
-      // ดึงข้อมูลกิจกรรมทั้งหมด เรียงจากงานที่กำลังจะถึงก่อน (start_date)
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('status', 'approved') 
-        .order('start_date', { ascending: true })
+      try {
+        // 💡 ดึงเฉพาะข้อมูลที่สถานะ 'approved' เท่านั้น
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('status', 'approved') 
+          .order('start_date', { ascending: true }) // เรียงจากงานที่กำลังจะจัดขึ้นก่อน
 
-      if (data) setEvents(data)
-      setLoading(false)
+        if (error) throw error
+        if (data) setEvents(data)
+      } catch (err) {
+        console.error('Error fetching events:', err)
+      } finally {
+        setLoading(false)
+      }
     }
     fetchEvents()
   }, [supabase])
@@ -78,7 +84,7 @@ export default function EventsBoardPage() {
         </div>
         <Link 
           href="/events/create" 
-          className="ori-btn ori-btn-green flex items-center gap-2 shadow-paper hover:-translate-y-1 transition-all"
+          className="bg-ori-green text-white font-black py-4 px-6 rounded-2xl flex items-center gap-2 shadow-paper hover:-translate-y-1 transition-all border-2 border-transparent hover:border-black"
         >
           <PlusCircle size={20} /> ลงประกาศใหม่
         </Link>
@@ -96,7 +102,6 @@ export default function EventsBoardPage() {
           {events.map(event => {
             const style = getCategoryStyle(event.event_type)
             return (
-              /* 💡 2. เพิ่ม Link ครอบการ์ดเพื่อกดเข้าหน้า Detail ตาม ID */
               <Link 
                 key={event.id} 
                 href={`/events/${event.id}`} 
