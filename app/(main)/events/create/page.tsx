@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { 
   Calendar, MapPin, Image as ImageIcon, Loader2, 
-  UploadCloud, Info, CheckCircle2, User, Building2 
+  UploadCloud, Info, CheckCircle2, Building2, AlertTriangle, XCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -19,13 +19,20 @@ const eventCategories = [
   { value: 'help', label: '🔍 หาบ้านและช่วยเหลือ', desc: 'สำหรับประกาศที่ต้องการความช่วยเหลือจากชุมชน' },
 ]
 
+// 💡 รายชื่อจังหวัดประเทศไทย
+const thailandProvinces = [
+  "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+].sort();
+
 export default function CreateEventPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
+  
+  // 💡 State สำหรับ Popup แจ้งผลการส่งประกาศ
+  const [modalResult, setModalResult] = useState<{ show: boolean, status: string, reason: string } | null>(null)
 
   const [formData, setFormData] = useState({
     title: '',
@@ -33,7 +40,7 @@ export default function CreateEventPage() {
     description: '',
     organizer_name: '', 
     venue_name: '',     
-    province: '',
+    province: 'นครราชสีมา', // ค่าเริ่มต้นตามพื้นที่หลักของคุณวุฒิ์
     district: '',       
     subdistrict: '',    
     start_date: '',
@@ -49,7 +56,6 @@ export default function CreateEventPage() {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        alert('กรุณาล็อกอินก่อนสร้างกิจกรรมครับ')
         router.push('/login')
       } else {
         setUser(session.user)
@@ -71,27 +77,19 @@ export default function CreateEventPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
-    if (!formData.title || !formData.province || !formData.start_date || !formData.organizer_name) {
-      alert('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วนครับ')
-      return
-    }
-
     setIsSubmitting(true)
+
     try {
       let imageUrl = ''
       if (imageFile) {
-        setIsUploading(true)
         const fileExt = imageFile.name.split('.').pop()
         const fileName = `${user.id}-${Date.now()}.${fileExt}`
         const filePath = `posters/${fileName}`
-        const { error: uploadErr } = await supabase.storage.from('event-images').upload(filePath, imageFile)
-        if (uploadErr) throw uploadErr
+        await supabase.storage.from('event-images').upload(filePath, imageFile)
         const { data: { publicUrl } } = supabase.storage.from('event-images').getPublicUrl(filePath)
         imageUrl = publicUrl
-        setIsUploading(false)
       }
 
-      // 💡 1. บันทึกลง Database ด้วยสถานะ 'pending_ai'
       const { data: newEvent, error: insertErr } = await supabase
         .from('events')
         .insert({
@@ -114,49 +112,77 @@ export default function CreateEventPage() {
 
       if (insertErr) throw insertErr
 
-      // 💡 2. ส่งข้อมูลไปให้ AI Moderation API และดักจับผลลัพธ์แบบละเอียด
       if (newEvent) {
-        try {
-          const aiRes = await fetch('/api/events/moderate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              eventId: newEvent.id,
-              title: formData.title,
-              description: formData.description,
-              category: formData.event_type,
-              trustLevel: user?.user_metadata?.trust_level || 'bronze'
-            })
+        const aiRes = await fetch('/api/events/moderate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: newEvent.id,
+            title: formData.title,
+            description: formData.description,
+            category: formData.event_type,
+            trustLevel: user?.user_metadata?.trust_level || 'bronze'
           })
-          
-          const aiData = await aiRes.json()
-          
-          // 🚨 ถ้า API มีปัญหา หรือส่ง Error กลับมา ให้โชว์แจ้งเตือนให้ชัดเจน
-          if (!aiRes.ok || !aiData.success) {
-            alert(`⚠️ ระบบบันทึกเป็นฉบับร่าง (Pending) แต่การตรวจ AI ขัดข้อง:\n${aiData.error || 'ไม่ทราบสาเหตุ'}`)
-          } else {
-            // 🎉 ถ้า AI ตรวจผ่าน จะบอกสถานะและเหตุผล
-            alert(`✅ ส่งประกาศเรียบร้อย!\nผลการตรวจจาก AI: ${aiData.status}\nเหตุผล: ${aiData.reason}`)
-          }
-
-        } catch (apiErr: any) {
-          console.error('AI Moderation trigger failed:', apiErr)
-          alert(`⚠️ ระบบบันทึกเป็นฉบับร่างแล้ว แต่เซิร์ฟเวอร์ AI ขัดข้อง: ${apiErr.message}`)
-        }
+        })
+        const aiData = await aiRes.json()
+        
+        // 💡 แสดงผลลัพธ์ผ่าน Popup Modal
+        setModalResult({ 
+          show: true, 
+          status: aiData.status || 'pending_ai', 
+          reason: aiData.reason || 'กำลังประมวลผลเนื้อหา' 
+        })
       }
-
-      router.push('/events')
-      router.refresh()
-
     } catch (err: any) {
       alert('เกิดข้อผิดพลาด: ' + err.message)
-    } finally {
       setIsSubmitting(false)
     }
   }
 
+  const handleModalClose = () => {
+    setModalResult(null)
+    router.push('/events')
+    router.refresh()
+  }
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10 mb-20">
+    <div className="max-w-4xl mx-auto px-4 py-10 mb-20 relative">
+      
+      {/* 💡 ป๊อปอัปแจ้งผล (Modal Result) */}
+      {modalResult?.show && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-white border-4 border-ori-ink rounded-3xl p-8 max-w-md w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center animate-in fade-in zoom-in duration-200">
+            {modalResult.status === 'approved' ? (
+              <div className="text-green-500 mb-4 flex justify-center"><CheckCircle2 size={64} /></div>
+            ) : modalResult.status === 'pending_admin' ? (
+              <div className="text-orange-500 mb-4 flex justify-center"><AlertTriangle size={64} /></div>
+            ) : (
+              <div className="text-red-500 mb-4 flex justify-center"><XCircle size={64} /></div>
+            )}
+            
+            <h2 className="text-2xl font-black text-ori-ink mb-2">
+              {modalResult.status === 'approved' ? 'อนุมัติเรียบร้อย!' : 
+               modalResult.status === 'pending_admin' ? 'รอแอดมินพิจารณา' : 
+               'ตรวจสอบพบข้อควรระวัง'}
+            </h2>
+            
+            <p className="text-gray-600 font-bold mb-4">
+              {modalResult.status === 'approved' ? 'ประกาศของคุณแสดงผลบนแพลตฟอร์มแล้วครับ 🎉' : 
+               modalResult.status === 'pending_admin' ? 'ประกาศถูกส่งเข้าคิวพิจารณา แอดมินจะทำการตรวจสอบและอนุมัติในไม่ช้าครับ ⏳' : 
+               'กรุณาตรวจสอบรายละเอียดประกาศอีกครั้ง'}
+            </p>
+
+            <div className="bg-gray-50 border-2 border-gray-200 p-3 rounded-xl text-sm text-left mb-6 font-bold text-gray-700">
+              <span className="text-ori-blue-d">🤖 ผลวิเคราะห์ AI:</span> {modalResult.reason}
+            </div>
+
+            <Button onClick={handleModalClose} className="w-full bg-ori-ink text-white font-black py-6 rounded-xl hover:bg-gray-800 transition-colors">
+              ตกลงและไปที่กระดานข่าว
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 md:p-10 shadow-paper relative overflow-hidden">
         
         <div className="mb-8 border-b-4 border-ori-ink pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -204,16 +230,13 @@ export default function CreateEventPage() {
                     <option key={cat.value} value={cat.value}>{cat.label}</option>
                   ))}
                 </select>
-                <p className="text-[11px] font-bold text-ori-blue-d">
-                  💡 {eventCategories.find(c => c.value === formData.event_type)?.desc}
-                </p>
               </div>
 
               <div className="space-y-2">
                 <label className="font-black text-ori-ink text-sm">หัวข้อประกาศ <span className="text-red-500">*</span></label>
                 <input 
                   required
-                  placeholder="เช่น งานประกวดแมวโคราช 2024"
+                  placeholder="เช่น งานประกวดแมวโคราช 2026"
                   value={formData.title}
                   onChange={e => setFormData({...formData, title: e.target.value})}
                   className="ori-input"
@@ -225,7 +248,7 @@ export default function CreateEventPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-2xl border-2 border-ori-ink/5">
             <div className="md:col-span-2 space-y-2">
               <label className="font-black text-ori-ink text-sm flex items-center gap-2">
-                <Building2 size={16} className="text-ori-green" /> ผู้จัดงาน (หน่วยงาน/บุคคล) <span className="text-red-500">*</span>
+                <Building2 size={16} className="text-ori-green" /> ผู้จัดงาน <span className="text-red-500">*</span>
               </label>
               <input 
                 required
@@ -238,25 +261,29 @@ export default function CreateEventPage() {
 
             <div className="md:col-span-2 space-y-2 pt-2">
               <label className="font-black text-ori-ink text-sm flex items-center gap-2">
-                <MapPin size={16} className="text-ori-orange" /> สถานที่จัดงาน / พื้นที่ประกาศ
+                <MapPin size={16} className="text-ori-orange" /> สถานที่จัดงาน
               </label>
               <input 
-                placeholder="ระบุชื่อสถานที่ (เช่น เซ็นทรัลโคราช, สนามกีฬา...)"
+                placeholder="ระบุชื่อสถานที่"
                 value={formData.venue_name}
                 onChange={e => setFormData({...formData, venue_name: e.target.value})}
                 className="ori-input"
               />
             </div>
 
+            {/* 💡 จังหวัดเป็น Dropdown ตามโจทย์ */}
             <div className="space-y-2">
               <label className="font-black text-[11px]">จังหวัด <span className="text-red-500">*</span></label>
-              <input 
+              <select 
                 required
-                placeholder="จังหวัด"
                 value={formData.province}
                 onChange={e => setFormData({...formData, province: e.target.value})}
-                className="ori-input text-sm"
-              />
+                className="ori-input text-sm bg-white cursor-pointer"
+              >
+                {thailandProvinces.map(prov => (
+                  <option key={prov} value={prov}>{prov}</option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -305,7 +332,7 @@ export default function CreateEventPage() {
               <label className="font-black text-ori-ink text-sm">รายละเอียดประกาศ</label>
               <textarea 
                 rows={4}
-                placeholder="พิมพ์ข้อมูลเพิ่มเติมที่ต้องการแจ้งให้ชุมชนทราบ..."
+                placeholder="พิมพ์ข้อมูลเพิ่มเติม..."
                 value={formData.description}
                 onChange={e => setFormData({...formData, description: e.target.value})}
                 className="ori-input"
@@ -320,7 +347,7 @@ export default function CreateEventPage() {
               className="bg-ori-blue-d text-white py-6 px-10 rounded-2xl font-black text-lg shadow-paper hover:shadow-paper-lg transition-all flex items-center gap-2 disabled:opacity-50"
             >
               {isSubmitting ? (
-                <><Loader2 className="animate-spin" size={24} /> กำลังส่งให้ AI ตรวจสอบ...</>
+                <><Loader2 className="animate-spin" size={24} /> กำลังตรวจสอบเนื้อหา...</>
               ) : (
                 <><CheckCircle2 size={24} /> บันทึกและลงประกาศ</>
               )}

@@ -20,6 +20,11 @@ const eventCategories = [
   { value: 'help', label: '🔍 หาบ้านและช่วยเหลือ', desc: 'สำหรับประกาศที่ต้องการความช่วยเหลือจากชุมชน' },
 ]
 
+// 💡 รายชื่อจังหวัดประเทศไทยชุดเดียวกับหน้า Create
+const thailandProvinces = [
+  "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+].sort();
+
 export default function EditEventPage() {
   const router = useRouter()
   const params = useParams()
@@ -60,7 +65,6 @@ export default function EditEventPage() {
       }
       setUser(session.user)
 
-      // ดึงข้อมูลประกาศ
       const { data: event, error } = await supabase
         .from('events')
         .select('*')
@@ -73,14 +77,12 @@ export default function EditEventPage() {
         return
       }
 
-      // เช็กว่าเป็นเจ้าของจริงไหม
       if (event.organizer_id !== session.user.id) {
         alert('คุณไม่มีสิทธิ์แก้ไขประกาศนี้ครับ')
         router.push('/events')
         return
       }
 
-      // เติมข้อมูลลงฟอร์ม
       setFormData({
         title: event.title || '',
         event_type: event.event_type || 'news',
@@ -90,7 +92,7 @@ export default function EditEventPage() {
         province: event.province || '',
         district: event.district || '',
         subdistrict: event.subdistrict || '',
-        start_date: event.start_date ? event.start_date.substring(0, 16) : '', // ตัดเวลาให้เข้ากับ input type="datetime-local"
+        start_date: event.start_date ? event.start_date.substring(0, 16) : '', 
         end_date: event.end_date ? event.end_date.substring(0, 16) : '',
         image_url: event.image_url || ''
       })
@@ -118,7 +120,6 @@ export default function EditEventPage() {
     try {
       let finalImageUrl = formData.image_url
 
-      // 2. อัปโหลดรูปใหม่ (ถ้ามีการเปลี่ยน)
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop()
         const fileName = `${user.id}-${Date.now()}.${fileExt}`
@@ -131,7 +132,6 @@ export default function EditEventPage() {
         finalImageUrl = publicUrl
       }
 
-      // 3. อัปเดตข้อมูลใน Database (ต้องรีเซ็ตสถานะเป็น pending_ai เพื่อให้ตรวจใหม่)
       const { error: updateErr } = await supabase
         .from('events')
         .update({
@@ -146,13 +146,12 @@ export default function EditEventPage() {
           start_date: formData.start_date,
           end_date: formData.end_date || null,
           image_url: finalImageUrl,
-          status: 'pending_ai' // 💡 สำคัญ: ต้องกลับไปรอ AI ตรวจใหม่
+          status: 'pending_ai' 
         })
         .eq('id', eventId)
 
       if (updateErr) throw updateErr
 
-      // 4. เรียก AI Moderation API ทันที
       const aiRes = await fetch('/api/events/moderate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -226,7 +225,7 @@ export default function EditEventPage() {
                 <select 
                   value={formData.event_type}
                   onChange={e => setFormData({...formData, event_type: e.target.value})}
-                  className="ori-input bg-white"
+                  className="ori-input bg-white cursor-pointer"
                 >
                   {eventCategories.map(cat => (
                     <option key={cat.value} value={cat.value}>{cat.label}</option>
@@ -270,20 +269,27 @@ export default function EditEventPage() {
               />
             </div>
 
+            {/* 💡 จังหวัดเป็น Dropdown ตามโจทย์ */}
             <div className="space-y-2">
               <label className="font-black text-[11px]">จังหวัด <span className="text-red-500">*</span></label>
-              <input 
+              <select 
                 required
                 value={formData.province}
                 onChange={e => setFormData({...formData, province: e.target.value})}
-                className="ori-input text-sm"
-              />
+                className="ori-input text-sm bg-white cursor-pointer"
+              >
+                <option value="" disabled>เลือกจังหวัด</option>
+                {thailandProvinces.map(prov => (
+                  <option key={prov} value={prov}>{prov}</option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
                 <label className="font-black text-[11px]">อำเภอ</label>
                 <input 
+                  placeholder="อำเภอ/เขต"
                   value={formData.district}
                   onChange={e => setFormData({...formData, district: e.target.value})}
                   className="ori-input text-sm"
@@ -292,6 +298,7 @@ export default function EditEventPage() {
               <div className="space-y-2">
                 <label className="font-black text-[11px]">ตำบล</label>
                 <input 
+                  placeholder="ตำบล/แขวง"
                   value={formData.subdistrict}
                   onChange={e => setFormData({...formData, subdistrict: e.target.value})}
                   className="ori-input text-sm"

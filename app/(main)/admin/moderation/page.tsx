@@ -2,18 +2,23 @@
 
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-import { CheckCircle2, XCircle, AlertCircle, Loader2, Trash2, Filter, Edit2, Calendar, MapPin, Building2 } from 'lucide-react'
+import { CheckCircle2, XCircle, AlertCircle, Loader2, Trash2, Filter, Edit2, Calendar, MapPin, Building2, Save, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const eventCategories = [
   { value: 'contest', label: '🏆 การแข่งขันและประกวด' },
   { value: 'training', label: '📚 อบรมและให้ความรู้' },
-  { value: 'market', label: '🛒 ตลาดและงานแสดงสินค้า' },
+  { value: 'market', label: '🛒 แสดงสินค้าและนิทัศการ' },
   { value: 'community', label: '🤝 กิจกรรมชุมชนและสาธารณะ' },
   { value: 'health', label: '🏥 สุขภาพและการดูแล' },
   { value: 'news', label: '📣 ข่าวสารและประกาศ' },
-  { value: 'help', label: '🔍 หาบ้านและช่วยเหลือ' },
+  { value: 'help', label: '🔍 ขอความช่วยเหลือ' },
 ]
+
+// 💡 รายชื่อจังหวัดประเทศไทยสำหรับ Dropdown
+const thailandProvinces = [
+  "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+].sort();
 
 export default function AdminModerationPage() {
   const [events, setEvents] = useState<any[]>([])
@@ -78,7 +83,7 @@ export default function AdminModerationPage() {
       description: event.description || '',
       organizer_name: event.organizer_name || '',
       venue_name: event.venue_name || '',
-      province: event.province || '',
+      province: event.province || 'นครราชสีมา',
       district: event.district || '',
       subdistrict: event.subdistrict || '',
       start_date: event.start_date ? event.start_date.substring(0, 16) : '',
@@ -133,13 +138,18 @@ export default function AdminModerationPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 mb-20 relative">
       
-      {/* 💡 Popup Modal สำหรับ "แอดมินแก้ไขประกาศ" */}
+      {/* 💡 Popup Modal สำหรับ "แอดมินแก้ไขประกาศ" พร้อม Dropdown จังหวัด */}
       {editingEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 overflow-y-auto pt-20 pb-10">
+        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 overflow-y-auto pt-20 pb-10">
           <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 md:p-8 max-w-3xl w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in duration-200">
-            <h2 className="text-2xl font-black text-ori-ink mb-6 flex items-center gap-2">
-              <Edit2 className="text-ori-blue-d" /> แอดมินแก้ไขประกาศ
-            </h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black text-ori-ink flex items-center gap-2">
+                <Edit2 className="text-ori-blue-d" /> แอดมินแก้ไขประกาศ
+              </h2>
+              <button onClick={() => setEditingEvent(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <X size={24} />
+              </button>
+            </div>
             
             <form onSubmit={handleEditSubmit} className="space-y-4 text-left">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -149,26 +159,56 @@ export default function AdminModerationPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="font-black text-sm">หมวดหมู่</label>
-                  <select value={editFormData.event_type} onChange={e => setEditFormData({...editFormData, event_type: e.target.value})} className="ori-input w-full p-2 text-sm">
+                  <select value={editFormData.event_type} onChange={e => setEditFormData({...editFormData, event_type: e.target.value})} className="ori-input w-full p-2 text-sm bg-white">
                     {eventCategories.map(cat => <option key={cat.value} value={cat.value}>{cat.label}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="font-black text-sm text-ori-green">ผู้จัดงาน</label>
+                  <label className="font-black text-sm text-ori-green font-bold flex items-center gap-1">
+                    <Building2 size={14} /> ผู้จัดงาน
+                  </label>
                   <input required value={editFormData.organizer_name} onChange={e => setEditFormData({...editFormData, organizer_name: e.target.value})} className="ori-input w-full p-2 text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <label className="font-black text-sm text-ori-orange">สถานที่จัดงาน</label>
+                  <label className="font-black text-sm text-ori-orange font-bold flex items-center gap-1">
+                    <MapPin size={14} /> สถานที่จัดงาน
+                  </label>
                   <input value={editFormData.venue_name} onChange={e => setEditFormData({...editFormData, venue_name: e.target.value})} className="ori-input w-full p-2 text-sm" />
                 </div>
+
+                {/* 💡 จังหวัดเป็น Dropdown ในหน้า Admin ตามโจทย์ */}
                 <div className="space-y-1">
                   <label className="font-black text-sm">จังหวัด</label>
-                  <input required value={editFormData.province} onChange={e => setEditFormData({...editFormData, province: e.target.value})} className="ori-input w-full p-2 text-sm" />
+                  <select 
+                    required 
+                    value={editFormData.province} 
+                    onChange={e => setEditFormData({...editFormData, province: e.target.value})} 
+                    className="ori-input w-full p-2 text-sm bg-white"
+                  >
+                    {thailandProvinces.map(prov => (
+                      <option key={prov} value={prov}>{prov}</option>
+                    ))}
+                  </select>
                 </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="font-black text-xs">อำเภอ</label>
+                    <input value={editFormData.district} onChange={e => setEditFormData({...editFormData, district: e.target.value})} className="ori-input w-full p-2 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-black text-xs">ตำบล</label>
+                    <input value={editFormData.subdistrict} onChange={e => setEditFormData({...editFormData, subdistrict: e.target.value})} className="ori-input w-full p-2 text-xs" />
+                  </div>
+                </div>
+
                 <div className="space-y-1">
-                  <label className="font-black text-sm">วันที่เริ่ม</label>
+                  <label className="font-black text-sm flex items-center gap-1">
+                    <Calendar size={14} /> วันที่เริ่ม
+                  </label>
                   <input type="datetime-local" required value={editFormData.start_date} onChange={e => setEditFormData({...editFormData, start_date: e.target.value})} className="ori-input w-full p-2 text-sm font-sans" />
                 </div>
+
                 <div className="md:col-span-2 space-y-1">
                   <label className="font-black text-sm">รายละเอียด</label>
                   <textarea rows={4} value={editFormData.description} onChange={e => setEditFormData({...editFormData, description: e.target.value})} className="ori-input w-full p-2 text-sm" />
@@ -177,8 +217,8 @@ export default function AdminModerationPage() {
 
               <div className="flex gap-3 justify-end pt-4 mt-4 border-t-2 border-gray-100">
                 <Button type="button" variant="outline" onClick={() => setEditingEvent(null)} className="border-2 border-gray-300 font-black rounded-xl">ยกเลิก</Button>
-                <Button type="submit" disabled={isUpdating} className="bg-ori-blue-d text-white font-black rounded-xl flex gap-2">
-                  {isUpdating ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />} บันทึกและส่งตรวจ AI
+                <Button type="submit" disabled={isUpdating} className="bg-ori-blue-d text-white font-black rounded-xl flex gap-2 py-5 px-6">
+                  {isUpdating ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} บันทึกและส่งตรวจ AI
                 </Button>
               </div>
             </form>
@@ -186,7 +226,6 @@ export default function AdminModerationPage() {
         </div>
       )}
 
-      {/* --- โครงสร้างหน้าเว็บหลักของ Admin --- */}
       <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 md:p-10 shadow-paper">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 border-b-4 border-ori-ink pb-6">
           <div className="flex items-center gap-3">
@@ -232,21 +271,20 @@ export default function AdminModerationPage() {
                     </div>
                     
                     <h3 className="text-2xl font-black text-ori-ink">{event.title}</h3>
-                    <p className="text-sm font-bold text-gray-500">👤 ผู้จัด: {event.organizer_name} | 📍 สถานที่: {event.venue_name || 'ไม่ได้ระบุ'}</p>
-                    <p className="text-sm text-gray-700 mt-2">{event.description || 'ไม่มีรายละเอียด'}</p>
+                    <p className="text-sm font-bold text-gray-500">👤 ผู้จัด: {event.organizer_name} | 📍 สถานที่: {event.venue_name || 'ไม่ได้ระบุ'} {event.district ? `(${event.district}, ${event.province})` : `(${event.province})`}</p>
+                    <p className="text-sm text-gray-700 mt-2 line-clamp-3">{event.description || 'ไม่มีรายละเอียด'}</p>
                     
                     {event.moderation_logs && event.moderation_logs.length > 0 && (
                       <div className="mt-4 bg-blue-50 border-2 border-blue-200 text-blue-900 text-xs font-bold p-3 rounded-xl flex gap-2 items-start">
                         <span>🤖</span>
                         <div>
-                          <p className="underline mb-1">เหตุผลจาก AI (คะแนน {event.moderation_logs[0].ai_score}):</p>
+                          <p className="underline mb-1 font-black">เหตุผลจาก AI (คะแนน {event.moderation_logs[0].ai_score}):</p>
                           <p>{event.moderation_logs[0].ai_reason}</p>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {/* 💡 ปุ่มจัดการทั้งหมด เพิ่มปุ่ม "แก้ไข" */}
                   <div className="flex flex-row md:flex-col gap-2 justify-center flex-wrap md:min-w-[140px]">
                     {event.status !== 'approved' && (
                       <button onClick={() => handleUpdateStatus(event.id, 'approved')} className="flex-1 bg-ori-green text-white font-black py-2 px-3 rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 transition-colors border-2 border-transparent hover:border-black text-sm">
@@ -258,7 +296,6 @@ export default function AdminModerationPage() {
                         <XCircle size={16} /> ปฏิเสธ
                       </button>
                     )}
-                    {/* ปุ่มแก้ไขโดยแอดมิน */}
                     <button onClick={() => openEditModal(event)} className="flex-1 bg-white text-ori-blue-d font-black py-2 px-3 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors border-2 border-ori-blue-d hover:border-black text-sm">
                       <Edit2 size={16} /> แก้ไข
                     </button>
