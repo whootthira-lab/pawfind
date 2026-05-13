@@ -4,13 +4,13 @@ import { useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
-import { motion, AnimatePresence } from 'framer-motion' // 💡 เพิ่ม Framer Motion
+import { motion, AnimatePresence } from 'framer-motion'
 import { 
   LogIn, Mail, Loader2, CheckCircle2, AlertCircle, 
   UserPlus, MapPin, Phone, Camera, Link as LinkIcon, Cake, UserCircle 
 } from 'lucide-react'
 
-// ── 1. เตรียมตัวเลือก ──
+// ── 1. เตรียมตัวเลือกบทบาทชุมชน ──
 const expertiseOptions = [
   { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
   { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
@@ -22,10 +22,16 @@ const expertiseOptions = [
   { value: 'other', label: 'อื่นๆ (โปรดระบุ)' },
 ]
 
+// ── 2. ดรอปดาวน์ 77 จังหวัด ──
+const thailandProvinces = [
+  "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+].sort()
+
 export default function LoginPage() {
   const [step, setStep] = useState<'email' | 'register' | 'success'>('email')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
+  const [lineLoading, setLineLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
@@ -38,12 +44,12 @@ export default function LoginPage() {
     line_id: '',
     avatar_url: '',
     address: '',
-    province: '',
+    province: 'นครราชสีมา', // ตั้งค่าเริ่มต้น
     district: '',
     subdistrict: '',
     contact_link: '',
-    community_role: 'general', // 💡 เพิ่มค่าเริ่มต้น
-    community_role_custom: ''  // 💡 เพิ่มค่าเริ่มต้น
+    community_role: 'general',
+    community_role_custom: ''
   })
 
   const supabase = createBrowserClient(
@@ -51,6 +57,13 @@ export default function LoginPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
+  // 💡 ฟังก์ชัน LINE Login
+  const handleLineLogin = () => {
+    setLineLoading(true)
+    window.location.href = '/api/auth/line'
+  }
+
+  // ── ฟังก์ชันทำงานเดิมทั้งหมด ──
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = e.target.files?.[0]
@@ -137,16 +150,11 @@ export default function LoginPage() {
     }
 
     setLoading(true)
-    
-    // 💡 ข้อมูลบทบาทจะถูกส่งไปพร้อมกับ Metadata ตอนสมัคร
-    const metadata = {
-      ...formData,
-      email
-    }
-
+    const metadata = { ...formData, email }
     await handleSendOTP(email, metadata)
   }
 
+  // ── ส่วนแสดงผล UI ──
   if (step === 'success') {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4 text-center">
@@ -174,6 +182,32 @@ export default function LoginPage() {
             <h1 className="text-3xl font-black text-center mb-2 italic tracking-tight uppercase">PobPet Login</h1>
             <p className="text-center font-bold text-gray-400 mb-8 uppercase tracking-widest text-xs">Community Connectivity</p>
             
+            {/* 💡 1. ปุ่ม LINE Login */}
+            <div className="space-y-4 mb-6">
+              <button
+                onClick={handleLineLogin}
+                disabled={lineLoading || loading}
+                className="w-full bg-[#00B900] hover:bg-[#009900] text-white font-black text-xl py-5 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all border-4 border-transparent hover:border-black shadow-sm active:translate-y-1 disabled:opacity-70"
+              >
+                {lineLoading ? (
+                  <Loader2 className="animate-spin" size={28} />
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
+                      <path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.036 9.608.391.084.922.258 1.057.592.122.303.079.758.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.965 1.739-1.906 2.548-3.834 2.548-5.98z"/>
+                    </svg>
+                    เข้าสู่ระบบด้วย LINE
+                  </>
+                )}
+              </button>
+
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t-2 border-black/10"></span></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-4 font-black text-gray-400">หรือใช้อีเมล (Magic Link)</span></div>
+              </div>
+            </div>
+
+            {/* ฟอร์มกรอกอีเมลเดิม */}
             <form onSubmit={handleCheckEmail} className="space-y-4">
               <div className="space-y-2 text-left">
                 <label className="font-black text-sm ml-1">กรอกอีเมลเพื่อเริ่มใช้งาน</label>
@@ -186,7 +220,7 @@ export default function LoginPage() {
                   className="w-full border-4 border-black rounded-xl px-4 py-4 font-bold text-lg focus:ring-8 ring-black/5 outline-none transition-all"
                 />
               </div>
-              <Button disabled={loading} className="w-full bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper transition-all active:translate-y-1">
+              <Button disabled={loading || lineLoading} className="w-full bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper transition-all active:translate-y-1">
                 {loading ? <Loader2 className="animate-spin" /> : "ดำเนินการต่อ ➔"}
               </Button>
             </form>
@@ -268,10 +302,20 @@ export default function LoginPage() {
                   onChange={e => setFormData({...formData, phone_number: e.target.value})} />
               </div>
 
+              {/* 💡 2. เปลี่ยนช่องจังหวัดเป็น Dropdown */}
               <div className="space-y-1">
                 <label className="font-black text-sm ml-1 flex items-center gap-1 uppercase text-gray-500"><MapPin size={14}/> จังหวัด</label>
-                <input required placeholder="เช่น นครราชสีมา" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
-                  onChange={e => setFormData({...formData, province: e.target.value})} />
+                <select 
+                  required 
+                  value={formData.province}
+                  onChange={e => setFormData({...formData, province: e.target.value})}
+                  className="w-full border-2 border-black rounded-lg p-3 font-bold bg-white focus:bg-gray-50 outline-none transition-colors"
+                >
+                  <option value="" disabled>เลือกจังหวัด</option>
+                  {thailandProvinces.map(prov => (
+                    <option key={prov} value={prov}>{prov}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1">
@@ -304,7 +348,6 @@ export default function LoginPage() {
                   onChange={e => setFormData({...formData, contact_link: e.target.value})} />
               </div>
 
-              {/* ── 💡 ส่วนเลือกบทบาทชุมชนที่เพิ่มเข้ามาใหม่ ── */}
               <div className="md:col-span-2 mt-2 bg-wagashi-kinako/30 p-5 rounded-2xl border-4 border-black/10 shadow-inner">
                 <label className="font-black text-sm ml-1 flex items-center gap-2 text-ori-ink mb-3">
                   🐾 คุณต้องการช่วยเหลือหรือให้บริการเกี่ยวกับสัตว์ด้านไหนได้บ้าง?
@@ -346,6 +389,9 @@ export default function LoginPage() {
                 {loading || uploading ? <Loader2 className="animate-spin" /> : "บันทึกโปรไฟล์และรับ Magic Link"}
               </Button>
             </form>
+            <Button onClick={() => setStep('email')} variant="ghost" className="mt-4 text-gray-500 font-bold hover:text-black hover:bg-gray-100 rounded-xl px-4 py-2">
+              ← กลับไปหน้าแรก
+            </Button>
           </div>
         )}
 
