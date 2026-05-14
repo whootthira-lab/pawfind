@@ -28,28 +28,23 @@ const CHARS = {
   },
 } as const
 
+type CharId = keyof typeof CHARS
+
 // 🎬 ══════════════════════════════════════════════════════════════
-// CHAR_ANIMATION — แก้ไขเรื่อง Type ให้รองรับ Framer Motion บน Vercel
-// ══════════════════════════════════════════════════════════════
 const CHAR_ANIMATION: Record<CharId, { animate: any; transition: any }> = {
   cat: {
-    // แมว: หายใจช้าๆ แบบขี้เกียจ ยืดขยายสเกลบางเบา
     animate: { y: [0, -3, 0], scale: [1, 1.01, 1] },
     transition: { duration: 4, repeat: Infinity, ease: 'easeInOut' }
   },
   dog: {
-    // หมา: ขยับส่ายซ้ายขวาและขึ้นลงเร็วหน่อยเหมือนตื่นเต้นกระดิกหาง
     animate: { y: [0, -5, 0], rotate: [-1.5, 1.5, -1.5] },
     transition: { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }
   },
   owl: {
-    // ลุงฮูก: นิ่งๆ สุขุม แล้วขยับหมุนองศานิดนึงเหมือนหันมองรอบข้าง
     animate: { y: [0, -1.5, 0], rotate: [-2, 2, -2] },
     transition: { duration: 5, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.5 }
   },
-} 
-// ✅ จบแค่วงเล็บปีกกา ไม่ต้องมีอะไรต่อท้ายครับ
-type CharId = keyof typeof CHARS
+}
 
 const QUICK_REPLIES = [
   '🐾 สัตว์เพิ่งหายไป',
@@ -67,15 +62,34 @@ export default function PetAssistant() {
   const [messages,   setMessages]   = useState<{ role: 'user' | 'bot'; text: string }[]>([])
   const [isLoading,  setIsLoading]  = useState(false)
   const [showPicker, setShowPicker] = useState(false)
+  
+  // 💡 State สำหรับเก็บขอบเขตหน้าจอ (ไม่ให้ลากปุ่มหลุดจอ)
+  const [bounds, setBounds] = useState({ top: 0, left: 0, right: 0, bottom: 0 })
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLInputElement>(null)
   const ch = CHARS[charId]
 
-  // ซ่อนบน Pet detail และ admin
   const isHidden = ['/login', '/register', '/admin'].some(r => pathname.startsWith(r))
     || (pathname.includes('/pet/') && pathname.split('/').length > 2)
 
-  // Proactive ที่หน้า report
+  // คำนวณขอบเขตหน้าจอเพื่อดักการลาก
+  useEffect(() => {
+    const updateBounds = () => {
+      if (typeof window !== 'undefined') {
+        setBounds({
+          top: -(window.innerHeight - 120), // เผื่อขอบบน
+          left: -(window.innerWidth - 120), // เผื่อขอบซ้าย
+          right: 10,
+          bottom: 10,
+        })
+      }
+    }
+    updateBounds()
+    window.addEventListener('resize', updateBounds)
+    return () => window.removeEventListener('resize', updateBounds)
+  }, [])
+
   useEffect(() => {
     if (pathname !== '/report') return
     const t = setTimeout(() => {
@@ -134,7 +148,6 @@ export default function PetAssistant() {
 
   if (isHidden) return null
 
-  // เลือกชุดแอนิเมชันของตัวละครปัจจุบันมาใช้งาน
   const anim = CHAR_ANIMATION[charId]
 
   return (
@@ -358,34 +371,44 @@ export default function PetAssistant() {
         )}
       </AnimatePresence>
 
-      {/* 🎬 Floating Button — ใช้ motion.button ควบคุมไมโครแอนิเมชันทั้งหมดทดแทนสไตล์เดิม */}
-      <motion.button
-        onClick={isOpen ? () => setIsOpen(false) : openChat}
-        animate={anim.animate}
-        transition={anim.transition}
-        whileHover={{ 
-          scale: 1.08, 
-          y: -6, 
-          boxShadow: isOpen ? '2px 2px 0 #1A1208' : '7px 7px 0 #1A1208' 
-        }}
-        whileTap={{ scale: 0.94 }}
-        style={{
-          width: 70, height: 70, background: '#FFFFFF',
-          border: '3px solid #1A1208', borderRadius: '50%',
-          cursor: 'pointer', padding: 0, overflow: 'hidden',
-          boxShadow: isOpen ? '2px 2px 0 #1A1208' : '5px 5px 0 #1A1208',
-          display: 'block', position: 'relative', outline: 'none'
-        }}
+      {/* 🎬 Wrapper สำหรับระบบลาก (Drag) สไตล์ AssistiveTouch */}
+      <motion.div
+        drag
+        dragConstraints={bounds}
+        dragElastic={0.1}
+        dragMomentum={false} // ทำให้ลากแล้วหยุดตรงนั้น (ไม่ไหลต่อ)
+        style={{ touchAction: 'none', zIndex: 1000 }}
+        whileDrag={{ scale: 1.05, cursor: 'grabbing' }}
       >
-        <Image src={ch.img} alt={ch.name} width={70} height={70}
-          className="w-full h-full object-cover" priority />
-        {/* Online dot */}
-        <div style={{
-          position: 'absolute', bottom: 4, right: 4, width: 12, height: 12,
-          borderRadius: '50%', background: '#2D6A2D', border: '2px solid #FFFFFF',
-          animation: 'onlinePulse 2s infinite',
-        }} />
-      </motion.button>
+        {/* 🎬 Floating Button — ตัวละครดุ๊กดิ๊ก */}
+        <motion.button
+          onClick={isOpen ? () => setIsOpen(false) : openChat}
+          animate={anim.animate}
+          transition={anim.transition}
+          whileHover={{ 
+            scale: 1.08, 
+            y: -6, 
+            boxShadow: isOpen ? '2px 2px 0 #1A1208' : '7px 7px 0 #1A1208' 
+          }}
+          whileTap={{ scale: 0.94 }}
+          style={{
+            width: 70, height: 70, background: '#FFFFFF',
+            border: '3px solid #1A1208', borderRadius: '50%',
+            cursor: 'grab', padding: 0, overflow: 'hidden',
+            boxShadow: isOpen ? '2px 2px 0 #1A1208' : '5px 5px 0 #1A1208',
+            display: 'block', position: 'relative', outline: 'none'
+          }}
+        >
+          <Image src={ch.img} alt={ch.name} width={70} height={70}
+            className="w-full h-full object-cover" priority />
+          {/* Online dot */}
+          <div style={{
+            position: 'absolute', bottom: 4, right: 4, width: 12, height: 12,
+            borderRadius: '50%', background: '#2D6A2D', border: '2px solid #FFFFFF',
+            animation: 'onlinePulse 2s infinite',
+          }} />
+        </motion.button>
+      </motion.div>
 
       <style jsx global>{`
         @keyframes dotBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
