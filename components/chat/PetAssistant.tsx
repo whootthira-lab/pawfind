@@ -29,9 +29,9 @@ const CHARS = {
 } as const
 
 // 🎬 ══════════════════════════════════════════════════════════════
-// CHAR_ANIMATION — กำหนดแอนิเมชันลอยดุ๊กดิ๊กตามคาแร็กเตอร์ตอนอยู่เฉยๆ
+// CHAR_ANIMATION — แก้ไขเรื่อง Type ให้รองรับ Framer Motion บน Vercel
 // ══════════════════════════════════════════════════════════════
-const CHAR_ANIMATION = {
+const CHAR_ANIMATION: Record<CharId, { animate: any; transition: any }> = {
   cat: {
     // แมว: หายใจช้าๆ แบบขี้เกียจ ยืดขยายสเกลบางเบา
     animate: { y: [0, -3, 0], scale: [1, 1.01, 1] },
@@ -47,8 +47,8 @@ const CHAR_ANIMATION = {
     animate: { y: [0, -1.5, 0], rotate: [-2, 2, -2] },
     transition: { duration: 5, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.5 }
   },
-} as const
-
+} 
+// ✅ จบแค่วงเล็บปีกกา ไม่ต้องมีอะไรต่อท้ายครับ
 type CharId = keyof typeof CHARS
 
 const QUICK_REPLIES = [
