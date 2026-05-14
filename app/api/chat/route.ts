@@ -1,13 +1,20 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-
 export async function POST(req: Request) {
   try {
+    // 💡 1. ย้ายการดึง API Key เข้ามาไว้ "ข้างใน" ฟังก์ชัน 
+    // และเขียนดักเผื่อว่าคีย์ในระบบถูกตั้งชื่อเป็น NEXT_PUBLIC_GEMINI_API_KEY
+    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("หา API Key ไม่พบ ลองเช็กชื่อตัวแปรใน Vercel อีกครั้ง");
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
     const { message, characterId, pageContext } = await req.json();
 
-    // 1. กำหนดบุคลิก (System Instructions) ตามตัวละคร
+    // 2. กำหนดบุคลิก (System Instructions) ตามตัวละคร
     let systemInstruction = "";
     
     if (characterId === 'cat') {
@@ -31,11 +38,11 @@ export async function POST(req: Request) {
 
     const prompt = `[ข้อมูลบริบท: ผู้ใช้กำลังอยู่ที่หน้าเว็บ "${pageContext}"]\nข้อความจากผู้ใช้: ${message}`;
 
-    // 2. ระบบสลับโมเดลอัตโนมัติ (Fallback Mechanism)
+    // 3. ระบบสลับโมเดลอัตโนมัติ (Fallback Mechanism)
     const fallbackModels = ["gemini-1.5-flash", "gemini-1.5-pro"];
     let responseText = "";
     let success = false;
-    let lastErrorMsg = ""; // 💡 ตัวแปรเก็บ Error ไว้รายงานผล
+    let lastErrorMsg = "";
 
     for (const modelName of fallbackModels) {
       try {
@@ -45,20 +52,18 @@ export async function POST(req: Request) {
           systemInstruction: systemInstruction,
         });
 
-        // ส่งคำถามไปให้ AI คิด
         const result = await model.generateContent(prompt);
         responseText = result.response.text();
         success = true;
-        
         break; // สำเร็จแล้ว ให้ออกจากลูป
 
       } catch (error: any) {
         console.warn(`⚠️ เกิดข้อผิดพลาดกับโมเดล ${modelName}:`, error.message);
-        lastErrorMsg = error.message; // เก็บ Error ไว้
+        lastErrorMsg = error.message; 
       }
     }
 
-    // ถ้าลองครบทุกโมเดลแล้วยังพังอยู่ ให้โยน Error ตัวสุดท้ายออกไป
+    // ถ้าลองครบทุกโมเดลแล้วยังพังอยู่
     if (!success) {
       throw new Error(lastErrorMsg);
     }
@@ -68,8 +73,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Critical API Error:", error);
     return NextResponse.json(
-      // 💡 เปิดโหมด Debug: พ่น Error จริงขึ้นหน้าจอแชทเลย
-      { error: `⚠️ [Debug]: ${error.message || 'API เชื่อมต่อไม่ได้'}` }, 
+      { error: `⚠️ [แจ้งเตือนนักพัฒนา]: ${error.message || 'Unknown Error'}` }, 
       { status: 500 }
     );
   }
