@@ -1,71 +1,57 @@
+export const dynamic = 'force-dynamic';
+
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 
-// 💡 1. ใช้เทคนิคเดียวกับไฟล์ gemini.ts เป๊ะๆ (ประกาศนอกฟังก์ชันและเช็กคีย์ก่อน)
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error("Missing GEMINI_API_KEY environment variable");
-}
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 export async function POST(req: Request) {
   try {
+    // 💡 1. ดึงคีย์ "ข้างใน" ฟังก์ชันเพื่อป้องกันค่าว่างตอน Cold Start
+    // และลองดึงจากทุกชื่อที่ระบบจับคู่สัตว์อาจจะใช้
+    const apiKey = (
+      process.env.GEMINI_API_KEY || 
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY || 
+      process.env.GOOGLE_API_KEY ||
+      process.env.NEXT_PUBLIC_GOOGLE_API_KEY ||
+      ""
+    ).trim().replace(/['"]/g, '');
+
+    // 💡 2. ถ้าหาไม่เจอจริงๆ ให้ฟ้องชื่อตัวแปรที่มีในระบบออกมา (เพื่อการ Debug)
+    if (!apiKey) {
+      const availableKeys = Object.keys(process.env).filter(k => k.includes('KEY'));
+      throw new Error(`ไม่พบ API Key ในระบบ (ตัวแปรที่มี: ${availableKeys.join(', ')})`);
+    }
+
+    // 💡 3. สร้าง Instance ใหม่ทุกครั้งที่เรียกใช้งาน (ชัวร์ที่สุดบน Vercel)
+    const genAI = new GoogleGenerativeAI(apiKey);
+    
     const { message, characterId, pageContext } = await req.json();
 
-    // 2. กำหนดบุคลิก (System Instructions)
+    // กำหนดบุคลิก (System Instructions)
     let systemInstruction = "";
     if (characterId === 'cat') {
-      systemInstruction = `คุณคือ 'ลักกี้' แมวอ้วนสามสีพับกระดาษ เป็นผู้ช่วยบนเว็บ PobPet (แพลตฟอร์มตามหาสัตว์หาย) 
-      บุคลิก: อบอุ่น ใจดี ขี้อ้อน ปลอบโยนเก่ง ใช้คำลงท้ายด้วย 'ค่ะ/นะคะ' เสมอ มีอิโมจิแมวหรือหัวใจปนบ้าง
-      หน้าที่หลัก: ปลอบโยนจิตใจคนที่สัตว์หาย, แนะนำวิธีลงประกาศหาสัตว์, ตอบคำถามแบบสั้นกระชับและเห็นอกเห็นใจ
-      ห้าม: ตอบเรื่องอื่นที่ไม่เกี่ยวกับสัตว์เลี้ยงหรือเว็บ PobPet`;
-    } 
-    else if (characterId === 'dog') {
-      systemInstruction = `คุณคือ 'น้องโกลดี้' หมาโกลเด้นพับกระดาษ เป็นผู้ช่วยบนเว็บ PobPet
-      บุคลิก: ร่าเริง กระตือรือร้น พลังงานล้นเหลือ ให้กำลังใจเก่ง ใช้คำลงท้ายด้วย 'ฮะ/ครับ' เสมอ มีอิโมจิหมา
-      หน้าที่หลัก: กระตุ้นให้คนมีความหวัง, แนะนำให้รีบลงประกาศหรือแชร์ข้อมูล, ตอบแบบรวดเร็วและมีพลัง
-      ห้าม: ตอบเรื่องอื่นที่ไม่เกี่ยวกับสัตว์เลี้ยงหรือเว็บ PobPet`;
-    } 
-    else if (characterId === 'owl') {
-      systemInstruction = `คุณคือ 'ลุงฮูก' นกฮูกพับกระดาษ เป็นผู้ช่วยผู้รอบรู้บนเว็บ PobPet
-      บุคลิก: สุขุม รอบรู้ เป็นทางการแต่น่าเคารพ ใช้คำลงท้ายด้วย 'ครับ' เสมอ 
-      หน้าที่หลัก: อธิบายวิธีการใช้งานเว็บอย่างละเอียด, ให้คำแนะนำเบื้องต้นเมื่อพบสัตว์บาดเจ็บหรือป่วย, ตอบข้อสงสัยเชิงระบบ
-      ห้าม: ตอบเรื่องอื่นที่ไม่เกี่ยวกับสัตว์เลี้ยงหรือเว็บ PobPet`;
+      systemInstruction = "คุณคือ 'ลักกี้' แมวอ้วนสามสีพับกระดาษบนเว็บ PobPet อบอุ่น ใจดี ปลอบโยนเก่ง ลงท้ายด้วย 'ค่ะ/นะคะ'";
+    } else if (characterId === 'dog') {
+      systemInstruction = "คุณคือ 'น้องโกลดี้' หมาโกลเด้นพับกระดาษบนเว็บ PobPet ร่าเริง ให้กำลังใจเก่ง ลงท้ายด้วย 'ฮะ/ครับ'";
+    } else {
+      systemInstruction = "คุณคือ 'ลุงฮูก' นกฮูกพับกระดาษบนเว็บ PobPet สุขุม รอบรู้ ให้คำแนะนำอย่างละเอียด ลงท้ายด้วย 'ครับ'";
     }
 
-    const prompt = `[ข้อมูลบริบท: ผู้ใช้กำลังอยู่ที่หน้าเว็บ "${pageContext}"]\nข้อความจากผู้ใช้: ${message}`;
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash", // ใช้รุ่น Flash เพื่อความเร็ว
+      systemInstruction: systemInstruction,
+    });
 
-    // 💡 3. ลองไล่โมเดลตามลำดับเหมือนใน gemini.ts เลยครับ
-    const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
-    let responseText = "";
-    let success = false;
-    let lastError = "";
+    const prompt = `[หน้าเว็บ: ${pageContext}]\nผู้ใช้ถามว่า: ${message}`;
 
-    for (const modelName of modelsToTry) {
-      try {
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          systemInstruction: systemInstruction,
-        });
-
-        const result = await model.generateContent(prompt);
-        responseText = result.response.text();
-        success = true;
-        break; // ถ้าสำเร็จก็หยุดลูปเลย
-      } catch (err: any) {
-        lastError = err.message;
-      }
-    }
-
-    if (!success) {
-      throw new Error(`AI ขัดข้องทุกโมเดล: ${lastError}`);
-    }
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
 
     return NextResponse.json({ reply: responseText });
 
   } catch (error: any) {
-    console.error("Chat API Error:", error);
+    console.error("Critical Chat Error:", error);
     return NextResponse.json(
-      { error: `⚠️ ขออภัยครับ ระบบแชทติดขัดชั่วคราว (${error.message})` }, 
+      { error: `⚠️ [แจ้งเตือน]: ${error.message}` }, 
       { status: 500 }
     );
   }
