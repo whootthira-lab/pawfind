@@ -6,8 +6,9 @@ import { Suspense } from 'react'
 import { Navbar } from '@/components/layout/Navbar'
 import { WelcomePopup } from '@/components/WelcomePopup'
 import { GlobalTicker } from '@/components/layout/GlobalTicker'
+import PetAssistant from '@/components/chat/PetAssistant' // 💡 1. นำเข้าคอมโพเนนต์ AI Chatbot
 
-// 💡 1. ปรับ URL ให้ชี้ไปที่โดเมนจริง pobpet.com
+// 💡 ปรับ URL ให้ชี้ไปที่โดเมนจริง pobpet.com
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pobpet.com'
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
     default: 'PobPet · ตามหาน้อง 🐾',
     template: '%s | PobPet ตามหาน้อง',
   },
-  // 💡 2. เพิ่มข้อความเรื่อง "ข่าวสารกิจกรรม" เข้าไปให้ครอบคลุมฟีเจอร์ใหม่
+  // 💡 เพิ่มข้อความเรื่อง "ข่าวสารกิจกรรม" เข้าไปให้ครอบคลุมฟีเจอร์ใหม่
   description: 'แพลตฟอร์มตามหาสัตว์เลี้ยงด้วย AI ช่วยกันส่งน้องกลับบ้าน แจ้งพบสัตว์หลง หาบ้านให้สัตว์เลี้ยง และศูนย์รวมข่าวสารกิจกรรมเพื่อชุมชนคนรักสัตว์',
   
   openGraph: {
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'th_TH',
     siteName: 'PobPet · ตามหาน้อง',
-    // 💡 3. เรียกใช้รูปภาพที่คุณวุฒิ์เตรียมไว้ในโฟลเดอร์ public
+    // 💡 เรียกใช้รูปภาพที่คุณวุฒิ์เตรียมไว้ในโฟลเดอร์ public
     images: [
       { 
         url: '/og-pobpet.png', 
@@ -37,7 +38,7 @@ export const metadata: Metadata = {
     ],
   },
   
-  // 💡 4. เผื่อการแชร์ลง X (Twitter) ให้แสดงรูปภาพแบบเต็มตา
+  // 💡 เผื่อการแชร์ลง X (Twitter) ให้แสดงรูปภาพแบบเต็มตา
   twitter: { 
     card: 'summary_large_image',
     title: 'PobPet · แพลตฟอร์มเพื่อชุมชนคนรักสัตว์',
@@ -75,6 +76,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="border-t-[3px] border-ori-ink bg-ori-ink text-ori-cream py-6 font-bold text-center text-sm">
           <p>© {new Date().getFullYear()} PobPet · พบเพ็ท · Community for Pets 🐾</p>
         </footer>
+
+        {/* 💡 2. วางร่างสถิตของ AI Chatbot ไว้ตรงนี้ เพื่อให้ปรากฏทุกหน้าของเว็บ */}
+        <PetAssistant />
       </body>
     </html>
   )
