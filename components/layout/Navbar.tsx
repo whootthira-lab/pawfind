@@ -2,7 +2,7 @@
 // components/layout/Navbar.tsx — Origami design system update
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { Menu, X, LogOut, User, CalendarPlus, Trophy, CalendarDays, ShieldCheck } from 'lucide-react'
+import { Menu, X, LogOut, User, CalendarPlus, Trophy, CalendarDays, ShieldCheck, LogIn } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 import { SearchBar } from '@/components/layout/SearchBar'
@@ -35,15 +35,13 @@ export function Navbar() {
     router.push('/') 
   }
 
-  // 💡 ตรวจสอบว่าเป็น Admin หรือไม่ (อ้างอิงจากข้อมูล metadata ใน Supabase)
-  // ถ้าต้องการทดสอบให้เห็นปุ่มชัวร์ๆ สามารถเปลี่ยนเป็น const isAdmin = true; ชั่วคราวได้ครับ
   const isAdmin = user?.user_metadata?.role === 'admin'
 
   return (
     <nav className="sticky top-0 z-[200] border-b-[2.5px] border-ori-ink flex flex-col"
       style={{ background: 'rgba(245,237,216,.96)', backdropFilter: 'blur(12px)' }}>
       
-      {/* ชั้นที่ 1: โลโก้ และ เมนูหลัก (เน้นภารกิจหลัก: ตามหาสัตว์) */}
+      {/* ชั้นที่ 1: โลโก้ และ เมนูหลัก (Desktop) */}
       <div className="max-w-6xl w-full mx-auto px-5 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 select-none shrink-0">
           <div className="w-9 h-9 rounded-full bg-ori-orange border-[2.5px] border-ori-ink flex items-center justify-center text-lg shadow-paper-sm">🐾</div>
@@ -61,7 +59,6 @@ export function Navbar() {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <>
-              {/* 💡 [เพิ่มใหม่] ปุ่มตรวจสอบประกาศของ Admin (เห็นเฉพาะแอดมิน) */}
               {isAdmin && (
                 <Link href="/admin/moderation" className="p-2 hover:bg-ori-orange/10 rounded-full text-ori-orange transition-all group relative">
                   <ShieldCheck size={22} strokeWidth={2.5} />
@@ -69,13 +66,11 @@ export function Navbar() {
                 </Link>
               )}
 
-              {/* 💡 [เพิ่มใหม่] ปุ่มประกาศของฉัน */}
               <Link href="/account/my-events" className="p-2 hover:bg-ori-green/10 rounded-full text-ori-green-d transition-all group relative">
                 <CalendarDays size={22} strokeWidth={2.5} />
                 <span className="absolute -bottom-9 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">ประกาศของฉัน</span>
               </Link>
 
-              {/* ปุ่มสร้างประกาศข่าว */}
               <Link href="/events/create" className="p-2 hover:bg-ori-blue-d/10 rounded-full text-ori-blue-d transition-all group relative">
                 <CalendarPlus size={22} strokeWidth={2.5} />
                 <span className="absolute -bottom-9 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">สร้างประกาศข่าว</span>
@@ -112,7 +107,7 @@ export function Navbar() {
         </div>
       </div>
       
-      {/* Mobile Menu */}
+      {/* Mobile Menu (อัปเดตปุ่ม Login/Logout แล้ว) */}
       {open && (
         <div className="md:hidden border-t-2 border-ori-ink px-5 py-4 flex flex-col gap-4 bg-[#F5EDD8] h-screen overflow-y-auto pb-20">
           <SearchBar />
@@ -123,9 +118,9 @@ export function Navbar() {
             
             <Link href="/events" className="py-2 border-b border-black/5 text-ori-blue-d font-black mt-2" onClick={() => setOpen(false)}>🏆 ข่าวสารชุมชน (ทั้งหมด)</Link>
             
-            {/* 💡 [เพิ่มใหม่] เมนูของ User ในมือถือ */}
-            {user && (
-              <div className="bg-white/50 p-3 rounded-xl mt-2 border-2 border-ori-ink/10 flex flex-col gap-2">
+            {/* 💡 ตรวจสอบว่าล็อกอินหรือยัง สำหรับมือถือ */}
+            {user ? (
+              <div className="bg-white/50 p-3 rounded-xl mt-2 border-2 border-ori-ink/10 flex flex-col gap-3">
                 <Link href="/events/create" className="text-ori-blue-d font-black flex items-center gap-2" onClick={() => setOpen(false)}>
                   <CalendarPlus size={18}/> สร้างข่าวประชาสัมพันธ์
                 </Link>
@@ -137,6 +132,28 @@ export function Navbar() {
                     <ShieldCheck size={18}/> ระบบตรวจสอบ (Admin)
                   </Link>
                 )}
+                
+                <div className="h-px bg-black/10 my-1"></div> {/* เส้นคั่น */}
+                
+                <Link href="/profile" className="text-black font-black flex items-center gap-2" onClick={() => setOpen(false)}>
+                  <User size={18}/> บัญชีของฉัน
+                </Link>
+                <button 
+                  onClick={() => { handleLogout(); setOpen(false); }} 
+                  className="text-red-600 font-black flex items-center gap-2 text-left"
+                >
+                  <LogOut size={18}/> ออกจากระบบ
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4 border-t-2 border-black/10 pt-4">
+                <Link 
+                  href="/login" 
+                  className="w-full bg-[#00B900] text-white font-black py-4 rounded-xl flex items-center justify-center gap-2 shadow-paper-sm border-2 border-transparent hover:border-black transition-all" 
+                  onClick={() => setOpen(false)}
+                >
+                  <LogIn size={20} /> เข้าสู่ระบบ / สมัครสมาชิก
+                </Link>
               </div>
             )}
           </div>

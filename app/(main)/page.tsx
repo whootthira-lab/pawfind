@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import { 
   Search, 
   PlusCircle, 
@@ -8,8 +9,8 @@ import {
   Share2,
   Heart
 } from 'lucide-react'
-import DonationSection from '@/components/DonationSection' // 💡 ปรับให้ตรงกับที่เก็บไฟล์
-import RecentPetsGrid from './RecentPetsGrid' // 💡 ปรับให้ตรงกับที่เก็บไฟล์ (ถ้าไม่ได้อยู่โฟลเดอร์เดียวกันให้แก้ path)
+import DonationSection from '@/components/DonationSection' 
+import RecentPetsGrid from './RecentPetsGrid' 
 
 export const metadata: Metadata = {
   title: 'PobPet | ตามหาสัตว์หายด้วย AI',
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
     description: 'แพลตฟอร์มตามหาสัตว์เลี้ยงอัจฉริยะ เพื่อทุกคน',
     url: 'https://pobpet.com',
     siteName: 'PobPet หาสัตว์หายด้วย AI',
-    images: [{ url: '/home-og.png', width: 1200, height: 630 }],
+    images: [{ url: '/logo-og.png', width: 1200, height: 630 }],
     locale: 'th_TH',
     type: 'website',
   },
@@ -31,9 +32,21 @@ export default function LandingPage() {
       
       {/* --- Section 1: Hero Banner --- */}
       <section className="bg-white border-4 border-black rounded-3xl p-8 md:p-12 shadow-paper text-center overflow-visible max-w-5xl mx-auto w-full mt-4">
-        <h1 className="text-4xl md:text-6xl font-black mb-6 text-ori-ink">PobPet 🐾</h1>
         
-        {/* 💡 จัดระเบียบข้อความวิสัยทัศน์ */}
+        {/* 💡 ส่วนแสดงโลโก้ ปรับขนาดให้เข้ากับทรงกลม */}
+        <div className="flex justify-center mb-8 relative">
+          <div className="relative w-48 h-48 md:w-56 md:h-56 hover:scale-105 transition-transform duration-300">
+            <Image 
+              src="/logo-og.png" 
+              alt="PobPet Logo" 
+              fill
+              className="object-contain drop-shadow-xl"
+              priority
+              sizes="(max-width: 768px) 192px, 224px"
+            />
+          </div>
+        </div>
+        
         <p className="text-lg md:text-xl font-bold text-ori-ink-m mb-12 max-w-4xl mx-auto leading-loose md:leading-[2.5]">
           หาสัตว์หายด้วย AI โดยดำเนินการตามแนวทางของ 
           <span className="text-ori-green-d bg-ori-green-bg/40 px-4 py-2 rounded-xl border-2 border-ori-green inline-block mx-2 shadow-paper-sm whitespace-nowrap align-middle">
