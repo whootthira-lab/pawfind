@@ -1,4 +1,3 @@
-// 💡 1. ยันต์กันผี Cache: บังคับให้ Vercel ดึง API Key ใหม่ทุกครั้งที่มีคนพิมพ์แชท
 export const dynamic = 'force-dynamic';
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -6,19 +5,15 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const apiKey = 
-      process.env.GEMINI_API_KEY || 
-      process.env.NEXT_PUBLIC_GEMINI_API_KEY || 
-      process.env.GOOGLE_API_KEY || 
-      process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
+    // 💡 1. บังคับดึงเฉพาะคีย์ Gemini เท่านั้น (ป้องกันการหยิบคีย์ Google Maps/Firebase มาใช้ผิด)
+    const rawKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
-    if (!apiKey || apiKey === 'undefined' || apiKey.trim() === '') {
-      throw new Error(`มองไม่เห็นคีย์ในระบบเลยครับ ลองเช็กใน Vercel ดูอีกทีนะครับ`);
+    if (!rawKey) {
+      throw new Error(`หาตัวแปร GEMINI_API_KEY ใน Vercel ไม่เจอครับ`);
     }
 
-    const cleanKey = apiKey.trim();
-    // 💡 2. แอบดูคีย์ 5 ตัวแรกในระบบหลังบ้าน (Vercel Logs) ว่ามันดึงมาถูกไหม
-    console.log(`🔑 ตรวจพบ API Key เริ่มต้นด้วย: ${cleanKey.substring(0, 5)}...`);
+    // 💡 2. เครื่องซักผ้า: ลบช่องว่างและเครื่องหมายคำพูด " หรือ ' ที่อาจจะติดมาตอนตั้งค่าใน Vercel
+    const cleanKey = rawKey.replace(/['"]/g, '').trim();
 
     const genAI = new GoogleGenerativeAI(cleanKey);
     const { message, characterId, pageContext } = await req.json();
@@ -54,7 +49,6 @@ export async function POST(req: Request) {
 
     for (const modelName of fallbackModels) {
       try {
-        console.log(`🤖 กำลังพยายามใช้สมอง AI รุ่น: ${modelName}`);
         const model = genAI.getGenerativeModel({
           model: modelName,
           systemInstruction: systemInstruction,
@@ -66,13 +60,12 @@ export async function POST(req: Request) {
         break; // สำเร็จแล้ว ให้ออกจากลูป
 
       } catch (error: any) {
-        console.warn(`⚠️ เกิดข้อผิดพลาดกับโมเดล ${modelName}:`, error.message);
         lastErrorMsg = error.message; 
       }
     }
 
     if (!success) {
-      throw new Error(`Google API ปฏิเสธการเชื่อมต่อ: ${lastErrorMsg}`);
+      throw new Error(`API ผิดพลาด: ${lastErrorMsg}`);
     }
 
     return NextResponse.json({ reply: responseText });
@@ -80,7 +73,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Critical API Error:", error);
     return NextResponse.json(
-      { error: `⚠️ [แจ้งเตือนนักพัฒนา]: ${error.message || 'Unknown Error'}` }, 
+      { error: `⚠️ [แจ้งเตือน]: ${error.message || 'Unknown Error'}` }, 
       { status: 500 }
     );
   }
