@@ -6,7 +6,8 @@ if (!process.env.GEMINI_API_KEY) {
   throw new Error("Missing GEMINI_API_KEY environment variable");
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// 💡 อัปเดตจุดสำคัญ: เติมคำว่า export เพื่อให้แชทบอทยืมสมองตัวนี้ไปใช้ได้
+export const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // 💡 Helper Function: แปลง URL กลับเป็น Format ที่ Gemini เข้าใจ
 async function fetchImageAsPart(urlOrBase64: string) {
