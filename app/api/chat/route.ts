@@ -3,15 +3,20 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    // 💡 1. ย้ายการดึง API Key เข้ามาไว้ "ข้างใน" ฟังก์ชัน 
-    // และเขียนดักเผื่อว่าคีย์ในระบบถูกตั้งชื่อเป็น NEXT_PUBLIC_GEMINI_API_KEY
-    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    // 💡 1. เครื่องสแกนกวาดหาคีย์: ดักจับทุกชื่อตัวแปรที่คุณวุฒิ์อาจจะเคยตั้งไว้
+    const apiKey = 
+      process.env.GEMINI_API_KEY || 
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY || 
+      process.env.GOOGLE_API_KEY || 
+      process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
-    if (!apiKey) {
-      throw new Error("หา API Key ไม่พบ ลองเช็กชื่อตัวแปรใน Vercel อีกครั้ง");
+    // ตรวจสอบว่าคีย์ที่ดึงมาว่างเปล่า หรือเป็นแค่คำว่า undefined หรือไม่
+    if (!apiKey || apiKey === 'undefined' || apiKey.trim() === '') {
+      throw new Error(`มองไม่เห็นคีย์ในระบบเลยครับ (GEMINI_API_KEY: ${!!process.env.GEMINI_API_KEY}, GOOGLE_API_KEY: ${!!process.env.GOOGLE_API_KEY})`);
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
+    // ลบช่องว่างหัวท้ายของคีย์ (เผื่อตอนก๊อปปี้มาเผลอติดเว้นวรรค)
+    const genAI = new GoogleGenerativeAI(apiKey.trim());
     const { message, characterId, pageContext } = await req.json();
 
     // 2. กำหนดบุคลิก (System Instructions) ตามตัวละคร
@@ -65,7 +70,7 @@ export async function POST(req: Request) {
 
     // ถ้าลองครบทุกโมเดลแล้วยังพังอยู่
     if (!success) {
-      throw new Error(lastErrorMsg);
+      throw new Error(`Google API ปฏิเสธการเชื่อมต่อ: ${lastErrorMsg}`);
     }
 
     return NextResponse.json({ reply: responseText });
