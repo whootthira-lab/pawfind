@@ -1,6 +1,6 @@
 // app/api/ticker/route.ts
 
-// 💡 1. ใส่คำสั่งนี้เพื่อบังคับให้ไฟล์นี้ทำงานแบบ Dynamic เสมอ (ล้างปัญหา Error ตอน Build)
+// 💡 เปลี่ยนมาใช้คำสั่งนี้เพื่อเคลียร์ปัญหา Error ตอน Build บน Vercel ให้ผ่านฉลุย 100%
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server'
@@ -11,10 +11,10 @@ export async function GET(request: Request) {
     const supabase = createClient()
     const tickerItems = []
 
-    // 1. ดึงสัตว์หายล่าสุด (ดึง district เพิ่มเข้ามาด้วย)
+    // 1. ดึงสัตว์หายล่าสุด พร้อมอำเภอและจังหวัด
     const { data: lostPets } = await supabase
       .from('pets')
-      .select('id, name, province, district, reward_amount') // 👈 เพิ่ม district
+      .select('id, name, province, district, reward_amount')
       .eq('status', 'lost')
       .eq('is_resolved', false)
       .order('created_at', { ascending: false })
@@ -25,9 +25,9 @@ export async function GET(request: Request) {
         const reward = pet.reward_amount > 0 ? ` (💰 รางวัล ${pet.reward_amount.toLocaleString()}บ.)` : ''
         tickerItems.push({
           id: `pet-${pet.id}`,
-          text: `ตามหาน้อง: ${pet.name || 'ไม่ทราบชื่อ'}${reward}`, // แยกส่วนข้อความหลัก
-          district: pet.district, // ส่งอำเภอแยกไปให้ Component จัดการ
-          province: pet.province, // ส่งจังหวัดแยก
+          text: `ตามหาน้อง: ${pet.name || 'ไม่ทราบชื่อ'}${reward}`,
+          district: pet.district,
+          province: pet.province,
           link: `/pet/${pet.id}`,
           color: 'text-ori-orange border-ori-orange',
           badge: '🚨 ด่วน'
@@ -35,10 +35,10 @@ export async function GET(request: Request) {
       })
     }
 
-    // 2. ดึงกิจกรรมที่ผ่านการอนุมัติ (ดึง district เพิ่มเข้ามาด้วย)
+    // 2. ดึงกิจกรรมที่ผ่านการอนุมัติ พร้อมอำเภอและจังหวัด
     const { data: events } = await supabase
       .from('events')
-      .select('id, title, province, district') // 👈 เพิ่ม district
+      .select('id, title, province, district')
       .eq('status', 'approved')
       .order('start_date', { ascending: true })
       .limit(3)
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       events.forEach(ev => {
         tickerItems.push({
           id: `event-${ev.id}`,
-          text: ev.title, // ส่งเฉพาะหัวข้อ
+          text: ev.title,
           district: ev.district,
           province: ev.province,
           link: `/events/${ev.id}`, 
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
       })
     }
 
-    // 3. ข้อความเริ่มต้นกรณีไม่มีข้อมูล
+    // 3. ข้อความเริ่มต้นกรณีหลังบ้านไม่มีข้อมูล
     if (tickerItems.length === 0) {
       tickerItems.push({
         id: 'default-1',
