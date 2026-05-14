@@ -5,13 +5,14 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    // 💡 1. ดึงคีย์มาแบบตรงไปตรงมา
     const rawKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
-    const cleanKey = rawKey.replace(/['"]/g, '').trim();
+    
+    // 💡 เครื่องซักผ้าขั้นสุดยอด: บังคับลบทุกอย่างที่ไม่ใช่ A-Z, a-z, 0-9, ขีด (-) และ Underscore (_)
+    // รับรองว่าผีช่องว่างหรือ Enter ที่มองไม่เห็นจะถูกกำจัดทิ้ง 100%
+    const cleanKey = rawKey.replace(/[^a-zA-Z0-9_-]/g, '');
 
-    // 💡 2. เครื่องจับโกหก: ถ้ากุญแจไม่ได้ขึ้นต้นด้วย "AIza" ให้ฟ้องออกมาทันที!
     if (!cleanKey.startsWith("AIza")) {
-      throw new Error(`เจอตัวการแล้ว! ระบบดึงคีย์ปลอมมาใช้ (ความยาว ${cleanKey.length} ตัวอักษร, ข้อความ: "${cleanKey.substring(0, 10)}...") รบกวนเช็กชื่อตัวแปรใน Vercel ให้ตรงกับไฟล์จับคู่สัตว์ครับ`);
+      throw new Error(`คีย์ที่ดึงมาผิดปกติครับ (ได้ค่ามาเป็น: ${cleanKey.substring(0, 5)}...)`);
     }
 
     const genAI = new GoogleGenerativeAI(cleanKey);
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
 
     const prompt = `[ข้อมูลบริบท: ผู้ใช้กำลังอยู่ที่หน้าเว็บ "${pageContext}"]\nข้อความจากผู้ใช้: ${message}`;
 
-    // ลองใช้ Flash ตัวเดียวก่อนเพื่อลดความซับซ้อนของการเกิด Error
+    // เพื่อความชัวร์และเร็วที่สุด เราจะทดสอบเจาะจงไปที่ gemini-1.5-flash ตัวเดียวก่อนครับ
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
       systemInstruction: systemInstruction,
