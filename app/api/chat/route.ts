@@ -5,15 +5,14 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    // 💡 1. บังคับดึงเฉพาะคีย์ Gemini เท่านั้น (ป้องกันการหยิบคีย์ Google Maps/Firebase มาใช้ผิด)
-    const rawKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
-    if (!rawKey) {
-      throw new Error(`หาตัวแปร GEMINI_API_KEY ใน Vercel ไม่เจอครับ`);
-    }
-
-    // 💡 2. เครื่องซักผ้า: ลบช่องว่างและเครื่องหมายคำพูด " หรือ ' ที่อาจจะติดมาตอนตั้งค่าใน Vercel
+    // 💡 1. ดึงคีย์มาแบบตรงไปตรงมา
+    const rawKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
     const cleanKey = rawKey.replace(/['"]/g, '').trim();
+
+    // 💡 2. เครื่องจับโกหก: ถ้ากุญแจไม่ได้ขึ้นต้นด้วย "AIza" ให้ฟ้องออกมาทันที!
+    if (!cleanKey.startsWith("AIza")) {
+      throw new Error(`เจอตัวการแล้ว! ระบบดึงคีย์ปลอมมาใช้ (ความยาว ${cleanKey.length} ตัวอักษร, ข้อความ: "${cleanKey.substring(0, 10)}...") รบกวนเช็กชื่อตัวแปรใน Vercel ให้ตรงกับไฟล์จับคู่สัตว์ครับ`);
+    }
 
     const genAI = new GoogleGenerativeAI(cleanKey);
     const { message, characterId, pageContext } = await req.json();
@@ -41,32 +40,14 @@ export async function POST(req: Request) {
 
     const prompt = `[ข้อมูลบริบท: ผู้ใช้กำลังอยู่ที่หน้าเว็บ "${pageContext}"]\nข้อความจากผู้ใช้: ${message}`;
 
-    // ระบบสลับโมเดลอัตโนมัติ (Fallback Mechanism)
-    const fallbackModels = ["gemini-1.5-flash", "gemini-1.5-pro"];
-    let responseText = "";
-    let success = false;
-    let lastErrorMsg = "";
+    // ลองใช้ Flash ตัวเดียวก่อนเพื่อลดความซับซ้อนของการเกิด Error
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction: systemInstruction,
+    });
 
-    for (const modelName of fallbackModels) {
-      try {
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          systemInstruction: systemInstruction,
-        });
-
-        const result = await model.generateContent(prompt);
-        responseText = result.response.text();
-        success = true;
-        break; // สำเร็จแล้ว ให้ออกจากลูป
-
-      } catch (error: any) {
-        lastErrorMsg = error.message; 
-      }
-    }
-
-    if (!success) {
-      throw new Error(`API ผิดพลาด: ${lastErrorMsg}`);
-    }
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
 
     return NextResponse.json({ reply: responseText });
 
