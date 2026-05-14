@@ -1,9 +1,10 @@
 // app/api/ticker/route.ts
+
+// 💡 1. ใส่คำสั่งนี้เพื่อบังคับให้ไฟล์นี้ทำงานแบบ Dynamic เสมอ (ล้างปัญหา Error ตอน Build)
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-
-// 💡 บังคับให้ Cache ข้อมูลไว้ 300 วินาที (5 นาที) เพื่อประสิทธิภาพ
-export const revalidate = 300 
 
 export async function GET(request: Request) {
   try {
@@ -73,6 +74,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Ticker API Error:', error)
     return NextResponse.json([{ 
+      id: 'error-1',
       text: 'ยินดีต้อนรับสู่ PobPet 🐾', 
       link: '/', 
       badge: 'PobPet', 
