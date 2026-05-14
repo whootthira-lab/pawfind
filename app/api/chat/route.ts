@@ -31,10 +31,11 @@ export async function POST(req: Request) {
 
     const prompt = `[ข้อมูลบริบท: ผู้ใช้กำลังอยู่ที่หน้าเว็บ "${pageContext}"]\nข้อความจากผู้ใช้: ${message}`;
 
-    // 💡 2. ระบบสลับโมเดลอัตโนมัติ (Fallback Mechanism)
+    // 2. ระบบสลับโมเดลอัตโนมัติ (Fallback Mechanism)
     const fallbackModels = ["gemini-1.5-flash", "gemini-1.5-pro"];
     let responseText = "";
     let success = false;
+    let lastErrorMsg = ""; // 💡 ตัวแปรเก็บ Error ไว้รายงานผล
 
     for (const modelName of fallbackModels) {
       try {
@@ -49,25 +50,26 @@ export async function POST(req: Request) {
         responseText = result.response.text();
         success = true;
         
-        break; // ถ้าสำเร็จแล้ว ให้ออกจากลูป (ไม่ต้องรันตัวสำรอง)
+        break; // สำเร็จแล้ว ให้ออกจากลูป
 
-      } catch (error) {
-        console.warn(`⚠️ เกิดข้อผิดพลาดกับโมเดล ${modelName}:`, error);
-        // ระบบจะวนลูปกลับไปใช้โมเดลตัวถัดไปในอาร์เรย์ fallbackModels โดยอัตโนมัติ
+      } catch (error: any) {
+        console.warn(`⚠️ เกิดข้อผิดพลาดกับโมเดล ${modelName}:`, error.message);
+        lastErrorMsg = error.message; // เก็บ Error ไว้
       }
     }
 
-    // ถ้าลองครบทุกโมเดลแล้วยังพังอยู่
+    // ถ้าลองครบทุกโมเดลแล้วยังพังอยู่ ให้โยน Error ตัวสุดท้ายออกไป
     if (!success) {
-      throw new Error("AI Models ล่มทั้งหมด");
+      throw new Error(lastErrorMsg);
     }
 
     return NextResponse.json({ reply: responseText });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Critical API Error:", error);
     return NextResponse.json(
-      { error: 'ขออภัยด้วยนะ ตอนนี้ระบบความคิดของเราติดขัดนิดหน่อย ลองพิมพ์มาใหม่อีกครั้งนะ!' }, 
+      // 💡 เปิดโหมด Debug: พ่น Error จริงขึ้นหน้าจอแชทเลย
+      { error: `⚠️ [Debug]: ${error.message || 'API เชื่อมต่อไม่ได้'}` }, 
       { status: 500 }
     );
   }
