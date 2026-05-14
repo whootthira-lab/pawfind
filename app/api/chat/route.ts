@@ -1,24 +1,17 @@
-export const dynamic = 'force-dynamic';
-
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 
+// 💡 1. ใช้เทคนิคเดียวกับไฟล์ gemini.ts เป๊ะๆ (ประกาศนอกฟังก์ชันและเช็กคีย์ก่อน)
+if (!process.env.GEMINI_API_KEY) {
+  throw new Error("Missing GEMINI_API_KEY environment variable");
+}
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 export async function POST(req: Request) {
   try {
-    const rawKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
-    
-    // 💡 เครื่องซักผ้าขั้นสุดยอด: บังคับลบทุกอย่างที่ไม่ใช่ A-Z, a-z, 0-9, ขีด (-) และ Underscore (_)
-    // รับรองว่าผีช่องว่างหรือ Enter ที่มองไม่เห็นจะถูกกำจัดทิ้ง 100%
-    const cleanKey = rawKey.replace(/[^a-zA-Z0-9_-]/g, '');
-
-    if (!cleanKey.startsWith("AIza")) {
-      throw new Error(`คีย์ที่ดึงมาผิดปกติครับ (ได้ค่ามาเป็น: ${cleanKey.substring(0, 5)}...)`);
-    }
-
-    const genAI = new GoogleGenerativeAI(cleanKey);
     const { message, characterId, pageContext } = await req.json();
 
-    // กำหนดบุคลิก (System Instructions)
+    // 2. กำหนดบุคลิก (System Instructions)
     let systemInstruction = "";
     if (characterId === 'cat') {
       systemInstruction = `คุณคือ 'ลักกี้' แมวอ้วนสามสีพับกระดาษ เป็นผู้ช่วยบนเว็บ PobPet (แพลตฟอร์มตามหาสัตว์หาย) 
@@ -41,21 +34,38 @@ export async function POST(req: Request) {
 
     const prompt = `[ข้อมูลบริบท: ผู้ใช้กำลังอยู่ที่หน้าเว็บ "${pageContext}"]\nข้อความจากผู้ใช้: ${message}`;
 
-    // เพื่อความชัวร์และเร็วที่สุด เราจะทดสอบเจาะจงไปที่ gemini-1.5-flash ตัวเดียวก่อนครับ
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      systemInstruction: systemInstruction,
-    });
+    // 💡 3. ลองไล่โมเดลตามลำดับเหมือนใน gemini.ts เลยครับ
+    const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+    let responseText = "";
+    let success = false;
+    let lastError = "";
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: systemInstruction,
+        });
+
+        const result = await model.generateContent(prompt);
+        responseText = result.response.text();
+        success = true;
+        break; // ถ้าสำเร็จก็หยุดลูปเลย
+      } catch (err: any) {
+        lastError = err.message;
+      }
+    }
+
+    if (!success) {
+      throw new Error(`AI ขัดข้องทุกโมเดล: ${lastError}`);
+    }
 
     return NextResponse.json({ reply: responseText });
 
   } catch (error: any) {
-    console.error("Critical API Error:", error);
+    console.error("Chat API Error:", error);
     return NextResponse.json(
-      { error: `⚠️ [แจ้งเตือน]: ${error.message || 'Unknown Error'}` }, 
+      { error: `⚠️ ขออภัยครับ ระบบแชทติดขัดชั่วคราว (${error.message})` }, 
       { status: 500 }
     );
   }
