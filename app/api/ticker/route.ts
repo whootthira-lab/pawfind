@@ -1,6 +1,5 @@
 // app/api/ticker/route.ts
 
-// 💡 เปลี่ยนมาใช้คำสั่งนี้เพื่อเคลียร์ปัญหา Error ตอน Build บน Vercel ให้ผ่านฉลุย 100%
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server'
@@ -11,37 +10,14 @@ export async function GET(request: Request) {
     const supabase = createClient()
     const tickerItems = []
 
-    // 1. ดึงสัตว์หายล่าสุด พร้อมอำเภอและจังหวัด
-    const { data: lostPets } = await supabase
-      .from('pets')
-      .select('id, name, province, district, reward_amount')
-      .eq('status', 'lost')
-      .eq('is_resolved', false)
-      .order('created_at', { ascending: false })
-      .limit(5)
-
-    if (lostPets) {
-      lostPets.forEach(pet => {
-        const reward = pet.reward_amount > 0 ? ` (💰 รางวัล ${pet.reward_amount.toLocaleString()}บ.)` : ''
-        tickerItems.push({
-          id: `pet-${pet.id}`,
-          text: `ตามหาน้อง: ${pet.name || 'ไม่ทราบชื่อ'}${reward}`,
-          district: pet.district,
-          province: pet.province,
-          link: `/pet/${pet.id}`,
-          color: 'text-ori-orange border-ori-orange',
-          badge: '🚨 ด่วน'
-        })
-      })
-    }
-
-    // 2. ดึงกิจกรรมที่ผ่านการอนุมัติ พร้อมอำเภอและจังหวัด
+    // 1. ดึงเฉพาะกิจกรรมที่ผ่านการอนุมัติ พร้อมอำเภอและจังหวัด
+    // (เพิ่ม limit เป็น 5 เพื่อให้อักษรวิ่งมีเนื้อหาแสดงผลพอดี หลังจากเอาประกาศสัตว์หายออก)
     const { data: events } = await supabase
       .from('events')
       .select('id, title, province, district')
       .eq('status', 'approved')
       .order('start_date', { ascending: true })
-      .limit(3)
+      .limit(5)
 
     if (events) {
       events.forEach(ev => {
@@ -57,7 +33,7 @@ export async function GET(request: Request) {
       })
     }
 
-    // 3. ข้อความเริ่มต้นกรณีหลังบ้านไม่มีข้อมูล
+    // 2. ข้อความเริ่มต้นกรณีหลังบ้านไม่มีข่าวกิจกรรมเลย
     if (tickerItems.length === 0) {
       tickerItems.push({
         id: 'default-1',
