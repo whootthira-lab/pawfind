@@ -27,10 +27,10 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'th_TH',
     siteName: 'PobPet · ตามหาน้อง',
-    // 💡 เรียกใช้รูปภาพที่คุณวุฒิ์เตรียมไว้ในโฟลเดอร์ public
+    // 💡 2. แก้ไขรูปภาพให้เป็น Absolute URL (ใส่ ${BASE_URL} นำหน้า)
     images: [
       { 
-        url: '/og-pobpet.png', 
+        url: `${BASE_URL}/og-pobpet.png`, 
         width: 1200, 
         height: 630,
         alt: 'PobPet - แพลตฟอร์มเพื่อชุมชนคนรักสัตว์'
@@ -43,7 +43,8 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'PobPet · แพลตฟอร์มเพื่อชุมชนคนรักสัตว์',
     description: 'แจ้งสัตว์เลี้ยงสูญหาย ประกาศพบสัตว์หลงทาง หาบ้านให้น้องๆ และติดตามข่าวสารกิจกรรมชุมชนคนรักสัตว์',
-    images: ['/og-pobpet.png'],
+    // 💡 แก้เป็น Absolute URL ที่นี่ด้วยเช่นกัน
+    images: [`${BASE_URL}/og-pobpet.png`],
   },
 }
 
@@ -77,7 +78,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <p>© {new Date().getFullYear()} PobPet · พบเพ็ท · Community for Pets 🐾</p>
         </footer>
 
-        {/* 💡 2. วางร่างสถิตของ AI Chatbot ไว้ตรงนี้ เพื่อให้ปรากฏทุกหน้าของเว็บ */}
+        {/* 💡 วางร่างสถิตของ AI Chatbot ไว้ตรงนี้ เพื่อให้ปรากฏทุกหน้าของเว็บ */}
         <PetAssistant />
       </body>
     </html>
