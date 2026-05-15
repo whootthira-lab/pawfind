@@ -1,5 +1,6 @@
 // app/auth/callback/route.ts
 // ── เพิ่ม redirect ไป /profile/complete ถ้าข้อมูลยังไม่ครบ ──
+// ── เพิ่ม ?welcome=true เมื่อเข้าสู่ระบบสำเร็จ ──
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -36,7 +37,11 @@ export async function GET(request: Request) {
         }
       }
 
-      return NextResponse.redirect(`${origin}${next}`)
+      // 💡 สร้าง URL ใหม่เพื่อแนบ ?welcome=true เข้าไป
+      const redirectUrl = new URL(next, origin)
+      redirectUrl.searchParams.set('welcome', 'true')
+      
+      return NextResponse.redirect(redirectUrl.toString())
     }
   }
 

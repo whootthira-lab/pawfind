@@ -122,7 +122,8 @@ export default function ProfileCompletePage() {
         .single()
 
       if (profile?.occupation && profile?.interests?.length && profile?.phone_number) {
-        router.push('/')
+        // 💡 เพิ่ม welcome=true ให้กรณีหลุดมาหน้านี้แล้วพบว่าข้อมูลครบแล้วด้วย
+        router.push('/?welcome=true')
         return
       }
 
@@ -134,7 +135,7 @@ export default function ProfileCompletePage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [router, supabase])
 
   // ── Toggle interest chip ────────────────────────────────
   const toggleInterest = (val: string) => {
@@ -172,11 +173,13 @@ export default function ProfileCompletePage() {
     }
 
     setDone(true)
-    setTimeout(() => router.push('/'), 1800)
+    // 💡 เติม ?welcome=true ตอนเซฟสำเร็จและส่งกลับไปหน้าแรก
+    setTimeout(() => router.push('/?welcome=true'), 1800)
   }
 
   // ── Skip ────────────────────────────────────────────────
-  const handleSkip = () => router.push('/')
+  // 💡 เติม ?welcome=true ตอนกดข้าม
+  const handleSkip = () => router.push('/?welcome=true')
 
   // ── Validation per step ─────────────────────────────────
   const canNext = () => {
