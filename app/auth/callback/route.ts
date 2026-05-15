@@ -1,51 +1,45 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+// app/auth/callback/route.ts
+// ── เพิ่ม redirect ไป /profile/complete ถ้าข้อมูลยังไม่ครบ ──
+
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/profile'
+  const code  = searchParams.get('code')
+  const next  = searchParams.get('next') ?? '/'
 
   if (code) {
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return cookieStore.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set({ 
-              name, 
-              value, 
-              ...options,
-              // 💡 จุดสำคัญ: ช่วยให้เบราว์เซอร์จดจำสถานะล็อกอินบน HTTPS ได้ดีขึ้น
-              secure: true,
-              sameSite: 'lax',
-              path: '/',
-            })
-          },
-          remove(name: string, options: CookieOptions) {
-            cookieStore.delete({ name, ...options })
-          },
-        },
-      }
-    )
-    
-    // แลก Code จากอีเมลเป็น Session (สถานะล็อกอิน)
+    const supabase = createClient()
+
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    
+
     if (!error) {
-      // 💡 จุดที่แก้ไข: สร้าง URL ปลายทาง และแนบ welcome=true เข้าไปเพื่อให้ป๊อปอัปเด้ง
-      const redirectUrl = new URL(next, origin)
-      redirectUrl.searchParams.set('welcome', 'true')
-      
-      // ✅ ส่งผู้ใช้ไปยังหน้า Profile (หรือหน้าก่อนหน้า) พร้อมคำสั่งเปิดป๊อปอัป
-      return NextResponse.redirect(redirectUrl.toString())
+      // ── ตรวจว่า profile ครบไหม ──────────────────────────
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('phone_number, occupation, interests')
+          .eq('id', session.user.id)
+          .single()
+
+        // ถ้า login ด้วย LINE และยังไม่มีเบอร์โทร/อาชีพ/ความสนใจ
+        const isLineUser   = session.user.app_metadata?.provider === 'line'
+        const isIncomplete = !profile?.phone_number
+          || !profile?.occupation
+          || !profile?.interests?.length
+
+        if (isLineUser && isIncomplete) {
+          return NextResponse.redirect(`${origin}/profile/complete`)
+        }
+      }
+
+      return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
-  // กรณี Code ผิดพลาดหรือหมดอายุ
-  return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+  // ถ้า error → redirect กลับ login
+  return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
 }

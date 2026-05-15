@@ -7,7 +7,8 @@ import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   LogIn, Mail, Loader2, CheckCircle2, AlertCircle, 
-  UserPlus, MapPin, Phone, Camera, Link as LinkIcon, Cake, UserCircle 
+  UserPlus, MapPin, Phone, Camera, Link as LinkIcon, Cake, UserCircle,
+  Briefcase, Heart
 } from 'lucide-react'
 
 // ── 1. เตรียมตัวเลือกบทบาทชุมชน ──
@@ -26,6 +27,38 @@ const expertiseOptions = [
 const thailandProvinces = [
   "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
 ].sort()
+
+// ── 3. อาชีพ (Occupation) ──
+const occupationOptions = [
+  { value: '', label: '-- เลือกอาชีพ --' },
+  { value: 'student', label: '🎓 นักเรียน / นักศึกษา' },
+  { value: 'employee', label: '💼 พนักงานบริษัท / ลูกจ้าง' },
+  { value: 'government', label: '🏛 ข้าราชการ / รัฐวิสาหกิจ' },
+  { value: 'business_owner', label: '🏪 เจ้าของกิจการ / ธุรกิจส่วนตัว' },
+  { value: 'freelance', label: '🖥 Freelance / อาชีพอิสระ' },
+  { value: 'agriculturist', label: '🌾 เกษตรกร' },
+  { value: 'healthcare', label: '🏥 บุคลากรทางการแพทย์' },
+  { value: 'educator', label: '📚 ครู / อาจารย์' },
+  { value: 'retired', label: '🏖 เกษียณอายุ' },
+  { value: 'unemployed', label: '🔍 ว่างงาน / กำลังหางาน' },
+  { value: 'other', label: '✏️ อื่นๆ' },
+]
+
+// ── 4. ความสนใจ (Interests) — เลือกได้หลายข้อ ──
+const interestOptions = [
+  { value: 'dog',         label: '🐕 สุนัข' },
+  { value: 'cat',         label: '🐈 แมว' },
+  { value: 'bird',        label: '🦜 นกสวยงาม / นกเสียง' },
+  { value: 'fish',        label: '🐟 ปลาสวยงาม' },
+  { value: 'exotic',      label: '🦎 สัตว์ Exotic' },
+  { value: 'rabbit',      label: '🐰 กระต่าย / สัตว์ขนาดเล็ก' },
+  { value: 'health',      label: '🏥 สุขภาพและการดูแลสัตว์' },
+  { value: 'prosthetics', label: '🦿 ขาเทียมสัตว์ (นวัตกรรม)' },
+  { value: 'adoption',    label: '💖 การรับเลี้ยงและหาบ้าน' },
+  { value: 'contest',     label: '🏆 การประกวดสัตว์' },
+  { value: 'community',   label: '🤝 ชุมชนและอาสาสมัคร' },
+  { value: 'memorial',    label: '🕯 ของที่ระลึกสัตว์เลี้ยง' },
+]
 
 export default function LoginPage() {
   const [step, setStep] = useState<'email' | 'register' | 'success'>('email')
@@ -49,7 +82,9 @@ export default function LoginPage() {
     subdistrict: '',
     contact_link: '',
     community_role: 'general',
-    community_role_custom: ''
+    community_role_custom: '',
+    occupation: '',
+    interests: [] as string[]
   })
 
   const supabase = createBrowserClient(
@@ -150,7 +185,13 @@ export default function LoginPage() {
     }
 
     setLoading(true)
-    const metadata = { ...formData, email }
+    const metadata = {
+      ...formData,
+      email,
+      // map interests array → join สำหรับ metadata (Supabase จะ insert ใน trigger)
+      interests: formData.interests,
+      occupation: formData.occupation,
+    }
     await handleSendOTP(email, metadata)
   }
 
@@ -348,7 +389,61 @@ export default function LoginPage() {
                   onChange={e => setFormData({...formData, contact_link: e.target.value})} />
               </div>
 
-              <div className="md:col-span-2 mt-2 bg-wagashi-kinako/30 p-5 rounded-2xl border-4 border-black/10 shadow-inner">
+
+              {/* ── อาชีพ ── */}
+              <div className="space-y-1">
+                <label className="font-black text-sm ml-1 flex items-center gap-1 uppercase text-gray-500">
+                  <Briefcase size={14}/> อาชีพ
+                </label>
+                <select
+                  value={formData.occupation}
+                  onChange={e => setFormData({...formData, occupation: e.target.value})}
+                  className="w-full border-2 border-black rounded-lg p-3 font-bold bg-white focus:bg-gray-50 outline-none transition-colors cursor-pointer"
+                >
+                  {occupationOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+
+
+              {/* ── ความสนใจ ── */}
+              <div className="md:col-span-2 space-y-2">
+                <label className="font-black text-sm ml-1 flex items-center gap-2 uppercase text-gray-500">
+                  <Heart size={14}/> ความสนใจเกี่ยวกับสัตว์เลี้ยง (เลือกได้หลายข้อ)
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {interestOptions.map(opt => {
+                    const isSelected = formData.interests.includes(opt.value)
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          const next = isSelected
+                            ? formData.interests.filter(i => i !== opt.value)
+                            : [...formData.interests, opt.value]
+                          setFormData({...formData, interests: next})
+                        }}
+                        className={`px-3 py-2.5 rounded-xl border-2 font-bold text-sm text-left transition-all active:scale-95 ${
+                          isSelected
+                            ? 'border-black bg-wagashi-kinako shadow-paper-sm'
+                            : 'border-black/30 bg-white hover:border-black hover:bg-gray-50'
+                        }`}
+                      >
+                        {opt.label}
+                        {isSelected && <span className="float-right text-green-600">✓</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-[10px] font-bold text-gray-400 ml-1 italic">
+                  * ช่วยให้เราแนะนำเนื้อหาและบริการที่ตรงกับคุณได้ดียิ่งขึ้น
+                </p>
+              </div>
+
+                            <div className="md:col-span-2 mt-2 bg-wagashi-kinako/30 p-5 rounded-2xl border-4 border-black/10 shadow-inner">
                 <label className="font-black text-sm ml-1 flex items-center gap-2 text-ori-ink mb-3">
                   🐾 คุณต้องการช่วยเหลือหรือให้บริการเกี่ยวกับสัตว์ด้านไหนได้บ้าง?
                 </label>

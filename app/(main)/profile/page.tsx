@@ -5,7 +5,7 @@ import { MatchResultCard } from '@/components/pet/MatchResult'
 import { ResolveButton } from '@/components/pet/ResolveButton'
 import { 
   User, CheckCircle, Loader2, PlusCircle, MessageSquare, 
-  Save, Camera, MapPin, Phone, UserCircle, Settings 
+  Save, Camera, MapPin, Phone, UserCircle, Settings, Briefcase, Heart 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
@@ -23,6 +23,37 @@ const expertiseOptions = [
   { value: 'petsitter', label: 'รับฝากหรือดูแลสัตว์ที่บ้าน' },
   { value: 'retailer', label: 'ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
   { value: 'other', label: 'อื่นๆ (โปรดระบุ)' },
+]
+
+
+const occupationOptions = [
+  { value: '', label: '-- เลือกอาชีพ --' },
+  { value: 'student', label: '🎓 นักเรียน / นักศึกษา' },
+  { value: 'employee', label: '💼 พนักงานบริษัท / ลูกจ้าง' },
+  { value: 'government', label: '🏛 ข้าราชการ / รัฐวิสาหกิจ' },
+  { value: 'business_owner', label: '🏪 เจ้าของกิจการ / ธุรกิจส่วนตัว' },
+  { value: 'freelance', label: '🖥 Freelance / อาชีพอิสระ' },
+  { value: 'agriculturist', label: '🌾 เกษตรกร' },
+  { value: 'healthcare', label: '🏥 บุคลากรทางการแพทย์' },
+  { value: 'educator', label: '📚 ครู / อาจารย์' },
+  { value: 'retired', label: '🏖 เกษียณอายุ' },
+  { value: 'unemployed', label: '🔍 ว่างงาน / กำลังหางาน' },
+  { value: 'other', label: '✏️ อื่นๆ' },
+]
+
+const interestOptions = [
+  { value: 'dog',         label: '🐕 สุนัข' },
+  { value: 'cat',         label: '🐈 แมว' },
+  { value: 'bird',        label: '🦜 นกสวยงาม' },
+  { value: 'fish',        label: '🐟 ปลาสวยงาม' },
+  { value: 'exotic',      label: '🦎 สัตว์ Exotic' },
+  { value: 'rabbit',      label: '🐰 กระต่าย / สัตว์เล็ก' },
+  { value: 'health',      label: '🏥 สุขภาพสัตว์' },
+  { value: 'prosthetics', label: '🦿 ขาเทียมสัตว์' },
+  { value: 'adoption',    label: '💖 รับเลี้ยง / หาบ้าน' },
+  { value: 'contest',     label: '🏆 ประกวดสัตว์' },
+  { value: 'community',   label: '🤝 อาสาสมัคร' },
+  { value: 'memorial',    label: '🕯 ของที่ระลึก' },
 ]
 
 export default function ProfilePage() {
@@ -52,7 +83,8 @@ export default function ProfilePage() {
     subdistrict: '',
     contact_link: '',
     community_role: 'general',
-    community_role_custom: ''
+    community_role_custom: '',
+    interests: [] as string[]
   })
 
   const supabase = useMemo(() => createBrowserClient(
@@ -92,7 +124,8 @@ export default function ProfilePage() {
           subdistrict: pData.subdistrict || '',
           contact_link: pData.contact_link || '',
           community_role: pData.community_role || 'general',
-          community_role_custom: pData.community_role_custom || ''
+          community_role_custom: pData.community_role_custom || '',
+          interests: pData.interests || []
         })
       }
 
@@ -136,7 +169,8 @@ export default function ProfilePage() {
         .from('profiles')
         .update({
           ...profile,
-          community_role_custom: profile.community_role === 'other' ? profile.community_role_custom : null
+          community_role_custom: profile.community_role === 'other' ? profile.community_role_custom : null,
+          interests: profile.interests.length ? profile.interests : null
         })
         .eq('id', user.id)
 
@@ -245,13 +279,16 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <label className="font-black text-sm">อาชีพ</label>
-              <input 
-                placeholder="เช่น ค้าขาย, พนักงานบริษัท, นักศึกษา..."
-                value={profile.occupation} 
-                onChange={e => setProfile({...profile, occupation: e.target.value})} 
-                className="ori-input" 
-              />
+              <label className="font-black text-sm flex items-center gap-1"><Briefcase size={14}/> อาชีพ</label>
+              <select
+                value={profile.occupation}
+                onChange={e => setProfile({...profile, occupation: e.target.value})}
+                className="ori-input bg-white cursor-pointer"
+              >
+                {occupationOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </div>
 
             <div className="md:col-span-2 space-y-2 pt-2">
@@ -260,6 +297,35 @@ export default function ProfilePage() {
                 <input placeholder="จังหวัด" value={profile.province} onChange={e => setProfile({...profile, province: e.target.value})} className="ori-input text-sm" />
                 <input placeholder="อำเภอ" value={profile.district} onChange={e => setProfile({...profile, district: e.target.value})} className="ori-input text-sm" />
                 <input placeholder="ตำบล" value={profile.subdistrict} onChange={e => setProfile({...profile, subdistrict: e.target.value})} className="ori-input text-sm" />
+              </div>
+            </div>
+
+            <div className="md:col-span-2 space-y-3 pt-4 border-t-2 border-gray-100">
+              <label className="font-black text-sm flex items-center gap-1"><Heart size={14}/> ความสนใจเกี่ยวกับสัตว์เลี้ยง (เลือกได้หลายข้อ)</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {interestOptions.map(opt => {
+                  const isSelected = profile.interests.includes(opt.value)
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        const next = isSelected
+                          ? profile.interests.filter(i => i !== opt.value)
+                          : [...profile.interests, opt.value]
+                        setProfile({...profile, interests: next})
+                      }}
+                      className={`px-3 py-2 rounded-xl border-2 font-bold text-sm text-left transition-all flex items-center justify-between gap-1 ${
+                        isSelected
+                          ? 'border-black bg-wagashi-kinako shadow-paper-sm'
+                          : 'border-black/25 bg-white hover:border-black'
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {isSelected && <span className="text-green-600 font-black">✓</span>}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
