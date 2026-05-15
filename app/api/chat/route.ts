@@ -14,6 +14,11 @@ const KNOWLEDGE_BASE = `
 - ผลงานพิเศษ: ทดลองขาเทียม 3D Print ให้กับนกกระเรียน สวนสัตว์นครราชสีมา (2566)
 - ติดต่อ PobPet: ผ่านแบบฟอร์มในเว็บ หรือ LINE OA ของ PobPet
 
+## ปัญหาการใช้งานพบบ่อย (FAQ & Troubleshooting)
+### ผู้ใช้แจ้งว่า "ไม่พบประกาศของตัวเอง" หรือ "ข้อมูลสัตว์หายไปจากหน้าบัญชี"
+- **สาเหตุหลัก:** ผู้ใช้อาจล็อกอินผิดบัญชี (เช่น เคยลงประกาศด้วย Email แต่ครั้งนี้กดล็อกอินด้วย LINE) ระบบจะมองว่าเป็นคนละบัญชีกัน
+- **คำแนะนำที่ AI ต้องตอบ:** ให้สอบถามผู้ใช้อย่างสุภาพว่า "ตอนที่ลงประกาศครั้งแรก คุณนุดได้ล็อกอินผ่านอีเมล หรือผ่าน LINE คะ/ครับ? ลองกดออกจากระบบ แล้วเลือกล็อกอินด้วยช่องทางเดิมดูน้า ประกาศยังอยู่ปลอดภัยแน่นอนครับ/ค่ะ!"
+
 ## วิธีใช้ระบบ
 
 ### ลงประกาศสัตว์หาย:
@@ -334,28 +339,30 @@ export async function POST(req: Request) {
     const openAIData = await openAIRes.json()
     const reply = openAIData.choices[0].message.content
 
-    // ── Log to Supabase (non-blocking) ───────────────────────
-    // ไม่ใช้ await เพื่อไม่ให้ช้า แต่ยังบันทึกได้
-    ;(async () => {
-      try {
-        const supabase = createClient()
+    // ── Log to Supabase (blocking/await) ───────────────────────
+    // 💡 แก้ไขให้ใช้ await ป้องกันปัญหา Vercel ปิดการทำงานก่อนบันทึกเสร็จ
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
 
-        // ดึง user_id ถ้า login อยู่
-        const { data: { session } } = await supabase.auth.getSession()
+      const { error: dbError } = await supabase.from('chat_logs').insert({
+        message,
+        reply,
+        character_id: characterId,
+        page_context: pageContext,
+        sentiment,
+        user_id: session?.user?.id ?? null,
+      })
 
-        await supabase.from('chat_logs').insert({
-          message,
-          reply,
-          character_id: characterId,
-          page_context: pageContext,
-          sentiment,
-          user_id: session?.user?.id ?? null,
-        })
-      } catch (dbErr) {
-        // log ล้มเหลว → ไม่กระทบ user
-        console.warn('[Chat Log] Failed to save:', dbErr)
+      // 💡 แจ้งเตือนใน Console ให้เห็นชัดเจนว่าติด RLS หรือไม่
+      if (dbError) {
+        console.error('🚨 [Chat Log] Supabase Error:', dbError.message)
+      } else {
+        console.log('✅ [Chat Log] Saved successfully!')
       }
-    })()
+    } catch (dbErr) {
+      console.error('🚨 [Chat Log] Code Error:', dbErr)
+    }
 
     return NextResponse.json({ reply, sentiment })
 
