@@ -179,7 +179,7 @@ export async function GET(req: Request) {
     userPetMap.set(p.user_id, arr)
   }
 
-  for (const [userId, petNames] of userPetMap) {
+  for (const [userId, petNames] of Array.from(userPetMap.entries())) {
     await supabase.from('notifications').insert({
       user_id: userId,
       type:    'pet_delete_warning',
