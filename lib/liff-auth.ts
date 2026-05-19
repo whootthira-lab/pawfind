@@ -1,15 +1,9 @@
 // lib/liff-auth.ts
 // ── LIFF Auth ที่รองรับ iOS (PKCE flow) ──────────────────────
-//
-// ปัญหา iOS: Safari มี ITP (Intelligent Tracking Prevention)
-// บล็อก third-party cookies ทำให้ Supabase session หลุดใน LIFF
-//
-// แก้โดย: ใช้ PKCE + skipBrowserRedirect: true
-// ─────────────────────────────────────────────────────────────
+// ต้องติดตั้ง: npm install @line/liff
 
 import { createBrowserClient } from '@supabase/ssr'
 
-// ตรวจว่าอยู่ใน LIFF environment ไหม
 export function isInLiff(): boolean {
   if (typeof window === 'undefined') return false
   return (
@@ -19,18 +13,16 @@ export function isInLiff(): boolean {
   )
 }
 
-// ตรวจว่าเป็น iOS ไหม
 export function isIOS(): boolean {
   if (typeof window === 'undefined') return false
   return /iPad|iPhone|iPod/.test(navigator.userAgent)
 }
 
-// ── Main LIFF init + Auth ─────────────────────────────────────
 export async function initLiffWithAuth(liffId?: string): Promise<{
-  success:  boolean
-  userId?:  string
+  success:    boolean
+  userId?:    string
   isNewUser?: boolean
-  reason?:  string
+  reason?:    string
 }> {
   if (typeof window === 'undefined') {
     return { success: false, reason: 'Not in browser' }
@@ -52,8 +44,16 @@ export async function initLiffWithAuth(liffId?: string): Promise<{
     const id = liffId || process.env.NEXT_PUBLIC_LIFF_ID
     if (!id) return { success: false, reason: 'Missing LIFF_ID' }
 
-    // Dynamic import เพื่อหลีกเลี่ยง SSR error
-    const liff = (await import('@line/liff')).default
+    // ตรวจว่า @line/liff ติดตั้งไว้ไหม
+    let liff: any
+    try {
+      const liffModule = await import('@line/liff' as any)
+      liff = liffModule.default
+    } catch {
+      console.warn('[LIFF] @line/liff not installed. Run: npm install @line/liff')
+      return { success: false, reason: '@line/liff package not installed' }
+    }
+
     await liff.init({ liffId: id })
 
     if (!liff.isLoggedIn()) {
@@ -70,11 +70,10 @@ export async function initLiffWithAuth(liffId?: string): Promise<{
     }
 
     // ── 4. Sign in กับ Supabase ────────────────────────────
-    // iOS-safe: ใช้ skipBrowserRedirect: true เพื่อหลีกเลี่ยง cross-site tracking
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'line',
       options: {
-        skipBrowserRedirect: true,
+        skipBrowserRedirect: true,  // iOS-safe
         queryParams: {
           access_type: 'offline',
           prompt:      'consent',
@@ -83,23 +82,19 @@ export async function initLiffWithAuth(liffId?: string): Promise<{
     })
 
     if (error) {
-      // Fallback: ลอง exchange LINE token โดยตรง (ถ้า Supabase รองรับ)
-      console.warn('[LIFF Auth] OAuth failed, trying token exchange:', error.message)
+      console.warn('[LIFF Auth] OAuth failed:', error.message)
     }
 
-    // ── 5. บันทึก line_user_id ใน profiles ───────────────
+    // ── 5. บันทึก line_user_id ────────────────────────────
     const { data: { session: newSession } } = await supabase.auth.getSession()
     if (newSession?.user) {
       const userId = newSession.user.id
-
-      // upsert line_user_id
       await supabase.from('profiles').upsert({
         id:            userId,
         line_user_id:  lineProfile.userId,
         display_name:  newSession.user.user_metadata?.full_name || lineProfile.displayName,
         avatar_url:    newSession.user.user_metadata?.avatar_url || lineProfile.pictureUrl,
       })
-
       return { success: true, userId, isNewUser: false }
     }
 
@@ -110,19 +105,4 @@ export async function initLiffWithAuth(liffId?: string): Promise<{
     console.error('[LIFF Auth]', msg)
     return { success: false, reason: msg }
   }
-}
-
-// ── LIFF React Hook ────────────────────────────────────────────
-// ใช้ใน LIFF pages:
-// const { ready, userId, error } = useLiffAuth()
-export function useLiffAuth() {
-  // ใช้ใน client components เท่านั้น
-  // import { useEffect, useState } from 'react'
-  // const [state, setState] = useState({ ready: false, userId: null, error: null })
-  // useEffect(() => { initLiffWithAuth().then(...) }, [])
-  // return state
-  //
-  // หมายเหตุ: ไม่ implement hook ที่นี่ เพราะต้องการ React
-  // ให้ใช้ initLiffWithAuth() โดยตรงใน useEffect แทน
-  return null
 }
