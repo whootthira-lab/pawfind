@@ -400,7 +400,7 @@ export default function PetProfilePage() {
               <p className="font-bold text-sm">ยังไม่มีประวัติสุขภาพ</p>
               {isOwner && (
                 <p className="text-xs mt-1">
-                  พิมพ์ใน Chatbot ว่า "วันนี้ฉีดวัคซีน{pet.name}"
+                  พิมพ์ใน Chatbot ว่า &quot;วันนี้ฉีดวัคซีน{pet.name}&quot;
                 </p>
               )}
             </div>

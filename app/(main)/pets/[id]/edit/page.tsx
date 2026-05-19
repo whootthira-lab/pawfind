@@ -773,7 +773,7 @@ export default function EditPetPage() {
           ) : (
             <div className="p-4 bg-red-50 rounded-2xl border-2 border-red-400">
               <p className="font-black text-red-800 mb-3">
-                ยืนยันลบโปรไฟล์ "{form.name}"?
+                ยืนยันลบโปรไฟล์ &quot;{form.name}&quot;?
               </p>
               <div className="flex gap-2">
                 <button onClick={handleDelete} disabled={deleting}
