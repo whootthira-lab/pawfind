@@ -530,10 +530,8 @@ export default function PetAssistant() {
       >
         <motion.button
           onClick={isOpen ? () => setIsOpen(false) : openChat}
-	  // @ts-ignore
-          animate={anim.animate}
-	  // @ts-ignore
-          transition={anim.transition}
+          animate={anim.animate as any}
+          transition={anim.transition as any}
           whileHover={{
             scale: 1.08, y: -6,
             boxShadow: isOpen ? '2px 2px 0 #1A1208' : '7px 7px 0 #1A1208',
