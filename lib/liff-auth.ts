@@ -70,8 +70,10 @@ export async function initLiffWithAuth(liffId?: string): Promise<{
     }
 
     // ── 4. Sign in กับ Supabase ────────────────────────────
+    // ใช้ 'as any' เพราะ Supabase types ไม่รู้จัก 'line' เป็น built-in provider
+    // LINE ต้องตั้งค่าเป็น Custom OAuth Provider ใน Supabase Dashboard ก่อน
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'line',
+      provider: 'line' as any,
       options: {
         skipBrowserRedirect: true,  // iOS-safe
         queryParams: {
