@@ -15,7 +15,8 @@ export function speakText(text: string, lang = 'th-TH'): void {
     .replace(/\*(.*?)\*/g, '$1')        // italic
     .replace(/#{1,3}\s/g, '')           // headers
     .replace(/\[.*?\]\(.*?\)/g, '')     // links
-    .replace(/[🐱🐶🦉🐾💛🔥⭐]/gu, '')  // emojis ที่อ่านออกเสียงแปลก
+    // ลบ emoji ด้วย char code range (ไม่ใช้ /u flag เพื่อ compatibility)
+    .replace(/[\uD800-\uDFFF]/g, '')   // surrogate pairs (emoji)
     .trim()
 
   currentUtterance = new SpeechSynthesisUtterance(cleaned)
