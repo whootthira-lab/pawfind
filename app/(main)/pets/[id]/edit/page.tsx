@@ -84,7 +84,7 @@ export default function EditPetPage() {
   const [newFiles,    setNewFiles]    = useState<File[]>([])
   const [newPreviews, setNewPreviews] = useState<string[]>([])
   // index ของรูปหลัก — negative = existing, positive = new
-  // ใช้ string: &quot;existing-0&quot;, &quot;new-0&quot;
+  // ใช้ string: "existing-0", "new-0"
   const [primaryKey,  setPrimaryKey]  = useState<string>('existing-0')
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -387,46 +387,46 @@ export default function EditPetPage() {
 
   // ── Loading ─────────────────────────────────────────────
   if (loading) return (
-    <div className=&quot;min-h-[60vh] flex items-center justify-center&quot;>
-      <Loader2 size={48} className=&quot;animate-spin text-ori-orange&quot; />
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <Loader2 size={48} className="animate-spin text-ori-orange" />
     </div>
   )
 
   const hasPrimarySelection = totalImages > 0
 
   return (
-    <div className=&quot;max-w-2xl mx-auto px-4 py-10 mb-20&quot;>
+    <div className="max-w-2xl mx-auto px-4 py-10 mb-20">
 
       {/* ── Header ── */}
-      <div className=&quot;flex items-center gap-3 mb-8&quot;>
+      <div className="flex items-center gap-3 mb-8">
         <Link href={`/pets/${id}`}
-          className=&quot;p-2 hover:bg-gray-100 rounded-xl transition-all&quot;>
+          className="p-2 hover:bg-gray-100 rounded-xl transition-all">
           <ChevronLeft size={22} />
         </Link>
         <div>
-          <h1 className=&quot;text-3xl font-black flex items-center gap-2&quot;>
+          <h1 className="text-3xl font-black flex items-center gap-2">
             <PawPrint size={28} /> แก้ไขโปรไฟล์น้อง
           </h1>
-          <p className=&quot;text-sm font-bold text-ori-ink-l&quot;>
+          <p className="text-sm font-bold text-ori-ink-l">
             {form.name || 'โหลดข้อมูล...'}
           </p>
         </div>
       </div>
 
-      <div className=&quot;space-y-6&quot;>
+      <div className="space-y-6">
 
         {/* ── รูปภาพ ── */}
-        <div className=&quot;bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper&quot;>
-          <h2 className=&quot;font-black text-lg mb-4 flex items-center justify-between&quot;>
+        <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
+          <h2 className="font-black text-lg mb-4 flex items-center justify-between">
             <span>📸 รูปภาพน้อง</span>
-            <span className=&quot;text-sm font-bold text-ori-ink-l&quot;>
+            <span className="text-sm font-bold text-ori-ink-l">
               {totalImages}/{maxPhotos} รูป
             </span>
           </h2>
 
           {/* Existing images */}
           {(existingImages.length > 0 || newFiles.length > 0) && (
-            <div className=&quot;flex flex-wrap gap-3 mb-4&quot;>
+            <div className="flex flex-wrap gap-3 mb-4">
 
               {/* Existing */}
               {existingImages.map((img, i) => {
@@ -434,7 +434,7 @@ export default function EditPetPage() {
                 const isPrimary = primaryKey === key
                 const deleted   = img.toDelete
                 return (
-                  <div key={img.id} className=&quot;relative&quot;>
+                  <div key={img.id} className="relative">
                     <div
                       onClick={() => !deleted && setPrimaryKey(key)}
                       className={`w-20 h-20 rounded-xl overflow-hidden border-4
@@ -445,12 +445,12 @@ export default function EditPetPage() {
                             : 'border-gray-200 hover:border-gray-400 cursor-pointer'
                         }`}
                     >
-                      <img src={img.storage_url} alt=&quot;&quot; className=&quot;w-full h-full object-cover&quot; />
+                      <img src={img.storage_url} alt="" className="w-full h-full object-cover" />
                     </div>
                     {isPrimary && !deleted && (
-                      <div className=&quot;absolute -top-1.5 -left-1.5 bg-ori-orange
+                      <div className="absolute -top-1.5 -left-1.5 bg-ori-orange
                         text-white text-[9px] font-black px-1.5 py-0.5
-                        rounded-full border border-white&quot;>
+                        rounded-full border border-white">
                         หลัก
                       </div>
                     )}
@@ -467,10 +467,10 @@ export default function EditPetPage() {
                       {deleted ? <Plus size={10} /> : <X size={10} />}
                     </button>
                     {deleted && (
-                      <div className=&quot;absolute inset-0 flex items-center justify-center
-                        pointer-events-none&quot;>
-                        <span className=&quot;text-[9px] font-black text-red-600
-                          bg-white/90 px-1 rounded&quot;>จะลบ</span>
+                      <div className="absolute inset-0 flex items-center justify-center
+                        pointer-events-none">
+                        <span className="text-[9px] font-black text-red-600
+                          bg-white/90 px-1 rounded">จะลบ</span>
                       </div>
                     )}
                   </div>
@@ -482,7 +482,7 @@ export default function EditPetPage() {
                 const key      = `new-${i}`
                 const isPrimary = primaryKey === key
                 return (
-                  <div key={`new-${i}`} className=&quot;relative&quot;>
+                  <div key={`new-${i}`} className="relative">
                     <div
                       onClick={() => setPrimaryKey(key)}
                       className={`w-20 h-20 rounded-xl overflow-hidden border-4
@@ -492,24 +492,24 @@ export default function EditPetPage() {
                           : 'border-blue-300 hover:border-blue-500'
                       }`}
                     >
-                      <img src={src} alt=&quot;&quot; className=&quot;w-full h-full object-cover&quot; />
+                      <img src={src} alt="" className="w-full h-full object-cover" />
                       {/* ใหม่ badge */}
-                      <div className=&quot;absolute bottom-0 left-0 right-0 bg-blue-500/80
-                        text-white text-[8px] font-black text-center py-0.5&quot;>
+                      <div className="absolute bottom-0 left-0 right-0 bg-blue-500/80
+                        text-white text-[8px] font-black text-center py-0.5">
                         ใหม่
                       </div>
                     </div>
                     {isPrimary && (
-                      <div className=&quot;absolute -top-1.5 -left-1.5 bg-ori-orange
+                      <div className="absolute -top-1.5 -left-1.5 bg-ori-orange
                         text-white text-[9px] font-black px-1.5 py-0.5
-                        rounded-full border border-white&quot;>
+                        rounded-full border border-white">
                         หลัก
                       </div>
                     )}
                     <button onClick={() => removeNewImage(i)}
-                      className=&quot;absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500
                         text-white rounded-full border-2 border-white
-                        flex items-center justify-center hover:bg-red-700&quot;>
+                        flex items-center justify-center hover:bg-red-700">
                       <X size={10} />
                     </button>
                   </div>
@@ -519,12 +519,12 @@ export default function EditPetPage() {
               {/* Add more */}
               {totalImages < maxPhotos && (
                 <button onClick={() => fileRef.current?.click()}
-                  className=&quot;w-20 h-20 rounded-xl border-4 border-dashed
+                  className="w-20 h-20 rounded-xl border-4 border-dashed
                     border-gray-300 hover:border-ori-ink flex flex-col
                     items-center justify-center text-gray-400
-                    hover:text-ori-ink transition-all&quot;>
+                    hover:text-ori-ink transition-all">
                   <Plus size={20} />
-                  <span className=&quot;text-[9px] font-bold mt-0.5&quot;>เพิ่ม</span>
+                  <span className="text-[9px] font-bold mt-0.5">เพิ่ม</span>
                 </button>
               )}
             </div>
@@ -536,40 +536,40 @@ export default function EditPetPage() {
               onClick={() => fileRef.current?.click()}
               onDragOver={e => e.preventDefault()}
               onDrop={e => { e.preventDefault(); handleNewImages(e.dataTransfer.files) }}
-              className=&quot;border-4 border-dashed border-gray-300 rounded-2xl
+              className="border-4 border-dashed border-gray-300 rounded-2xl
                 min-h-[120px] flex flex-col items-center justify-center gap-2
-                cursor-pointer hover:border-ori-ink hover:bg-gray-50 transition-all&quot;
+                cursor-pointer hover:border-ori-ink hover:bg-gray-50 transition-all"
             >
-              <Upload size={32} className=&quot;text-gray-400&quot; />
-              <p className=&quot;font-black text-sm&quot;>กดเพื่อเพิ่มรูปน้อง</p>
-              <p className=&quot;text-xs font-bold text-gray-400&quot;>สูงสุด {maxPhotos} รูป</p>
+              <Upload size={32} className="text-gray-400" />
+              <p className="font-black text-sm">กดเพื่อเพิ่มรูปน้อง</p>
+              <p className="text-xs font-bold text-gray-400">สูงสุด {maxPhotos} รูป</p>
             </div>
           )}
 
-          <input ref={fileRef} type=&quot;file&quot; multiple accept=&quot;image/*&quot;
-            className=&quot;hidden&quot;
+          <input ref={fileRef} type="file" multiple accept="image/*"
+            className="hidden"
             onChange={e => handleNewImages(e.target.files)} />
 
           {/* Primary hint */}
           {totalImages > 1 && (
-            <p className=&quot;text-xs font-bold text-ori-ink-l mt-2&quot;>
+            <p className="text-xs font-bold text-ori-ink-l mt-2">
               💡 กดที่รูปเพื่อเลือกเป็นรูปหลัก
             </p>
           )}
 
           {/* AI Caption */}
           {totalImages > 0 && (
-            <div className=&quot;mt-4&quot;>
-              <div className=&quot;flex items-center justify-between mb-2&quot;>
-                <label className=&quot;font-black text-sm&quot;>
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="font-black text-sm">
                   🤖 คำบรรยาย AI (ช่วย Matching)
                 </label>
                 <button onClick={generateCaption} disabled={captioning}
-                  className=&quot;flex items-center gap-1.5 px-3 py-1.5 text-xs
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs
                     font-black bg-purple-100 text-purple-700 border border-purple-300
-                    rounded-xl hover:bg-purple-200 transition-all disabled:opacity-50&quot;>
+                    rounded-xl hover:bg-purple-200 transition-all disabled:opacity-50">
                   {captioning
-                    ? <Loader2 size={12} className=&quot;animate-spin&quot; />
+                    ? <Loader2 size={12} className="animate-spin" />
                     : <Sparkles size={12} />
                   }
                   สร้างใหม่
@@ -578,116 +578,116 @@ export default function EditPetPage() {
               <textarea
                 value={form.ai_caption}
                 onChange={e => setForm(f => ({ ...f, ai_caption: e.target.value }))}
-                placeholder=&quot;คำบรรยายสำหรับ AI Matching&quot;
+                placeholder="คำบรรยายสำหรับ AI Matching"
                 rows={2}
-                className=&quot;ori-input resize-none text-sm&quot;
+                className="ori-input resize-none text-sm"
               />
             </div>
           )}
         </div>
 
         {/* ── ข้อมูลพื้นฐาน ── */}
-        <div className=&quot;bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper&quot;>
-          <h2 className=&quot;font-black text-lg mb-4&quot;>🐾 ข้อมูลพื้นฐาน</h2>
-          <div className=&quot;grid grid-cols-1 sm:grid-cols-2 gap-4&quot;>
+        <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
+          <h2 className="font-black text-lg mb-4">🐾 ข้อมูลพื้นฐาน</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-            <div className=&quot;space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>ชื่อน้อง *</label>
+            <div className="space-y-1">
+              <label className="font-black text-sm">ชื่อน้อง *</label>
               <input value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                className=&quot;ori-input&quot; />
+                className="ori-input" />
             </div>
 
-            <div className=&quot;space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>ประเภทสัตว์ *</label>
+            <div className="space-y-1">
+              <label className="font-black text-sm">ประเภทสัตว์ *</label>
               <select value={form.species}
                 onChange={e => setForm(f => ({ ...f, species: e.target.value }))}
-                className=&quot;ori-input bg-white cursor-pointer&quot;>
+                className="ori-input bg-white cursor-pointer">
                 {SPECIES_OPTIONS.map(s => (
                   <option key={s} value={s}>{s || '-- เลือก --'}</option>
                 ))}
               </select>
             </div>
 
-            <div className=&quot;space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>สายพันธุ์</label>
+            <div className="space-y-1">
+              <label className="font-black text-sm">สายพันธุ์</label>
               <input value={form.breed}
                 onChange={e => setForm(f => ({ ...f, breed: e.target.value }))}
-                className=&quot;ori-input&quot; />
+                className="ori-input" />
             </div>
 
-            <div className=&quot;space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>เพศ</label>
+            <div className="space-y-1">
+              <label className="font-black text-sm">เพศ</label>
               <select value={form.gender}
                 onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
-                className=&quot;ori-input bg-white cursor-pointer&quot;>
+                className="ori-input bg-white cursor-pointer">
                 {GENDER_OPTIONS.map(g => (
                   <option key={g.value} value={g.value}>{g.label}</option>
                 ))}
               </select>
             </div>
 
-            <div className=&quot;space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>สี / ลักษณะขน</label>
+            <div className="space-y-1">
+              <label className="font-black text-sm">สี / ลักษณะขน</label>
               <input value={form.color}
                 onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
-                className=&quot;ori-input&quot; />
+                className="ori-input" />
             </div>
 
-            <div className=&quot;space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>วันเกิด</label>
-              <input type=&quot;date&quot; value={form.birthday}
+            <div className="space-y-1">
+              <label className="font-black text-sm">วันเกิด</label>
+              <input type="date" value={form.birthday}
                 onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))}
-                className=&quot;ori-input&quot; />
+                className="ori-input" />
             </div>
 
-            <div className=&quot;space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>น้ำหนัก (กก.)</label>
-              <input type=&quot;number&quot; step=&quot;0.1&quot; value={form.weight}
+            <div className="space-y-1">
+              <label className="font-black text-sm">น้ำหนัก (กก.)</label>
+              <input type="number" step="0.1" value={form.weight}
                 onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
-                placeholder=&quot;0.0&quot;
-                className=&quot;ori-input&quot; />
+                placeholder="0.0"
+                className="ori-input" />
             </div>
 
-            <div className=&quot;space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>เลขไมโครชิป</label>
+            <div className="space-y-1">
+              <label className="font-black text-sm">เลขไมโครชิป</label>
               <input value={form.microchip_id}
                 onChange={e => setForm(f => ({ ...f, microchip_id: e.target.value }))}
-                placeholder=&quot;15 หลัก (ถ้ามี)&quot;
-                className=&quot;ori-input&quot; />
+                placeholder="15 หลัก (ถ้ามี)"
+                className="ori-input" />
             </div>
 
-            <div className=&quot;sm:col-span-2 space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>ตำหนิพิเศษ</label>
+            <div className="sm:col-span-2 space-y-1">
+              <label className="font-black text-sm">ตำหนิพิเศษ</label>
               <input value={form.special_marks}
                 onChange={e => setForm(f => ({ ...f, special_marks: e.target.value }))}
-                placeholder=&quot;เช่น แผลเป็นที่ขาซ้าย หูขาดเล็กน้อย&quot;
-                className=&quot;ori-input&quot; />
+                placeholder="เช่น แผลเป็นที่ขาซ้าย หูขาดเล็กน้อย"
+                className="ori-input" />
             </div>
           </div>
         </div>
 
         {/* ── Mode ── */}
-        <div className=&quot;bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper&quot;>
-          <h2 className=&quot;font-black text-lg mb-1&quot;>🔀 Mode</h2>
-          <p className=&quot;text-sm font-bold text-ori-ink-l mb-4&quot;>
+        <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
+          <h2 className="font-black text-lg mb-1">🔀 Mode</h2>
+          <p className="text-sm font-bold text-ori-ink-l mb-4">
             เปิด/ปิด Mode ได้ตลอดเวลา · โปรไฟล์จะแสดงต่อสาธารณะเมื่อเปิด Mode
           </p>
-          <div className=&quot;grid sm:grid-cols-2 gap-3&quot;>
+          <div className="grid sm:grid-cols-2 gap-3">
             {MODE_CONFIG.map(m => {
               const active = modes[m.key]
               return (
-                <button key={m.key} type=&quot;button&quot;
+                <button key={m.key} type="button"
                   onClick={() => setModes(prev => ({ ...prev, [m.key]: !prev[m.key] }))}
                   className={`p-4 rounded-2xl border-2 text-left transition-all ${
                     active ? MODE_COLOR[m.color] : 'border-gray-200 bg-gray-50 hover:border-gray-400'
                   }`}>
-                  <div className=&quot;flex items-center gap-2 mb-1&quot;>
+                  <div className="flex items-center gap-2 mb-1">
                     <m.icon size={16} />
-                    <span className=&quot;font-black text-sm&quot;>{m.label}</span>
-                    {active && <span className=&quot;ml-auto text-xs font-black&quot;>✓ เปิด</span>}
+                    <span className="font-black text-sm">{m.label}</span>
+                    {active && <span className="ml-auto text-xs font-black">✓ เปิด</span>}
                   </div>
-                  <p className=&quot;text-xs font-bold opacity-70&quot;>{m.desc}</p>
+                  <p className="text-xs font-bold opacity-70">{m.desc}</p>
                 </button>
               )
             })}
@@ -695,100 +695,100 @@ export default function EditPetPage() {
         </div>
 
         {/* ── ประวัติพ่อแม่ ── */}
-        <div className=&quot;bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper&quot;>
-          <h2 className=&quot;font-black text-lg mb-4&quot;>🧬 ประวัติพ่อ-แม่</h2>
-          <div className=&quot;grid sm:grid-cols-2 gap-4&quot;>
-            <div className=&quot;space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>ชื่อพ่อ</label>
+        <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
+          <h2 className="font-black text-lg mb-4">🧬 ประวัติพ่อ-แม่</h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="font-black text-sm">ชื่อพ่อ</label>
               <input value={form.father_name}
                 onChange={e => setForm(f => ({ ...f, father_name: e.target.value }))}
-                className=&quot;ori-input&quot; />
+                className="ori-input" />
             </div>
-            <div className=&quot;space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>ชื่อแม่</label>
+            <div className="space-y-1">
+              <label className="font-black text-sm">ชื่อแม่</label>
               <input value={form.mother_name}
                 onChange={e => setForm(f => ({ ...f, mother_name: e.target.value }))}
-                className=&quot;ori-input&quot; />
+                className="ori-input" />
             </div>
           </div>
         </div>
 
         {/* ── ผู้ติดต่อฉุกเฉิน ── */}
-        <div className=&quot;bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper&quot;>
-          <h2 className=&quot;font-black text-lg mb-1&quot;>🆘 ผู้ติดต่อฉุกเฉิน</h2>
-          <p className=&quot;text-sm font-bold text-ori-ink-l mb-4&quot;>
+        <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
+          <h2 className="font-black text-lg mb-1">🆘 ผู้ติดต่อฉุกเฉิน</h2>
+          <p className="text-sm font-bold text-ori-ink-l mb-4">
             ถ้าติดต่อเจ้าของไม่ได้ คนที่พบน้องจะเห็นข้อมูลนี้
           </p>
-          <div className=&quot;grid sm:grid-cols-2 gap-4&quot;>
-            <div className=&quot;space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>ชื่อ</label>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="font-black text-sm">ชื่อ</label>
               <input value={form.emergency_name}
                 onChange={e => setForm(f => ({ ...f, emergency_name: e.target.value }))}
-                className=&quot;ori-input&quot; />
+                className="ori-input" />
             </div>
-            <div className=&quot;space-y-1&quot;>
-              <label className=&quot;font-black text-sm&quot;>เบอร์โทร</label>
+            <div className="space-y-1">
+              <label className="font-black text-sm">เบอร์โทร</label>
               <input value={form.emergency_tel}
                 onChange={e => setForm(f => ({ ...f, emergency_tel: e.target.value }))}
-                className=&quot;ori-input&quot; />
+                className="ori-input" />
             </div>
           </div>
         </div>
 
         {/* ── Error ── */}
         {error && (
-          <div className=&quot;p-4 bg-red-50 border-2 border-red-400 rounded-2xl
-            flex items-center gap-3 text-red-800&quot;>
-            <AlertCircle size={18} className=&quot;shrink-0&quot; />
-            <span className=&quot;font-bold text-sm&quot;>{error}</span>
+          <div className="p-4 bg-red-50 border-2 border-red-400 rounded-2xl
+            flex items-center gap-3 text-red-800">
+            <AlertCircle size={18} className="shrink-0" />
+            <span className="font-bold text-sm">{error}</span>
           </div>
         )}
 
         {/* ── Save ── */}
         <button onClick={handleSave} disabled={saving}
-          className=&quot;w-full py-5 bg-ori-ink text-white font-black text-lg
+          className="w-full py-5 bg-ori-ink text-white font-black text-lg
             rounded-2xl border-4 border-ori-ink shadow-paper
             hover:shadow-paper-lg hover:-translate-y-1 transition-all
-            flex items-center justify-center gap-2 disabled:opacity-50&quot;>
+            flex items-center justify-center gap-2 disabled:opacity-50">
           {saving
-            ? <><Loader2 size={20} className=&quot;animate-spin&quot; /> กำลังบันทึก...</>
+            ? <><Loader2 size={20} className="animate-spin" /> กำลังบันทึก...</>
             : <><Save size={20} /> บันทึกการแก้ไข</>
           }
         </button>
 
         {/* ── Danger zone ── */}
-        <div className=&quot;border-4 border-dashed border-red-300 rounded-3xl p-6&quot;>
-          <h3 className=&quot;font-black text-red-700 mb-1 flex items-center gap-2&quot;>
+        <div className="border-4 border-dashed border-red-300 rounded-3xl p-6">
+          <h3 className="font-black text-red-700 mb-1 flex items-center gap-2">
             <Trash2 size={18} /> Danger Zone
           </h3>
-          <p className=&quot;text-sm font-bold text-red-500 mb-4&quot;>
+          <p className="text-sm font-bold text-red-500 mb-4">
             ลบโปรไฟล์น้อง — ข้อมูลจะถูกซ่อน 60 วัน ก่อนลบถาวร
           </p>
           {!showDelete ? (
             <button onClick={() => setShowDelete(true)}
-              className=&quot;px-4 py-2 text-sm font-black text-red-600 border-2
-                border-red-400 rounded-xl hover:bg-red-50 transition-all&quot;>
+              className="px-4 py-2 text-sm font-black text-red-600 border-2
+                border-red-400 rounded-xl hover:bg-red-50 transition-all">
               ลบโปรไฟล์น้อง
             </button>
           ) : (
-            <div className=&quot;p-4 bg-red-50 rounded-2xl border-2 border-red-400&quot;>
-              <p className=&quot;font-black text-red-800 mb-3&quot;>
-                ยืนยันลบโปรไฟล์ &quot;{form.name}&quot;?
+            <div className="p-4 bg-red-50 rounded-2xl border-2 border-red-400">
+              <p className="font-black text-red-800 mb-3">
+                ยืนยันลบโปรไฟล์ "{form.name}"?
               </p>
-              <div className=&quot;flex gap-2&quot;>
+              <div className="flex gap-2">
                 <button onClick={handleDelete} disabled={deleting}
-                  className=&quot;px-4 py-2 bg-red-600 text-white font-black text-sm
+                  className="px-4 py-2 bg-red-600 text-white font-black text-sm
                     rounded-xl border-2 border-red-700 hover:bg-red-700
-                    transition-all disabled:opacity-50 flex items-center gap-1.5&quot;>
+                    transition-all disabled:opacity-50 flex items-center gap-1.5">
                   {deleting
-                    ? <Loader2 size={14} className=&quot;animate-spin&quot; />
+                    ? <Loader2 size={14} className="animate-spin" />
                     : <Trash2 size={14} />
                   }
                   ยืนยันลบ
                 </button>
                 <button onClick={() => setShowDelete(false)}
-                  className=&quot;px-4 py-2 text-sm font-black border-2 border-gray-300
-                    rounded-xl hover:bg-gray-50 transition-all&quot;>
+                  className="px-4 py-2 text-sm font-black border-2 border-gray-300
+                    rounded-xl hover:bg-gray-50 transition-all">
                   ยกเลิก
                 </button>
               </div>
