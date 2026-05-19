@@ -142,7 +142,7 @@ export async function POST(req: Request) {
         const user    = await getUserByLineId(lineUserId)
 
         // เช็ค Member plan
-        let characterId = 'cat'
+        const characterId = 'cat'
         if (user) {
           const supabase = createClient()
           const { data: sub } = await supabase

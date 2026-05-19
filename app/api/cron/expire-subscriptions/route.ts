@@ -14,7 +14,7 @@ export async function GET(req: Request) {
 
   const supabase = createClient()
   const now      = new Date()
-  let   results  = {
+  const   results  = {
     notified_day1:  0,
     notified_day15: 0,
     notified_day25: 0,
