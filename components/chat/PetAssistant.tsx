@@ -2,11 +2,24 @@
 // components/chat/PetAssistant.tsx
 
 import { useState, useEffect, useRef } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { X, Send, Loader2, ChevronDown } from 'lucide-react'
-import Image from 'next/image'
+import { AnimatePresence, motion }      from 'framer-motion'
+import { X, Send, Loader2, ChevronDown, Volume2, VolumeX } from 'lucide-react'
+import Image          from 'next/image'
+import Link           from 'next/link'
 import { usePathname } from 'next/navigation'
+import { createBrowserClient } from '@supabase/ssr'
+import { speakText, stopSpeaking, isSpeaking } from '@/lib/speech-synthesis'
 
+// ── Types ─────────────────────────────────────────────────────
+type CharId = keyof typeof CHARS
+
+interface Message {
+  role:           'user' | 'bot'
+  text:           string
+  action_buttons?: { label: string; link: string }[]
+}
+
+// ── Characters ────────────────────────────────────────────────
 const CHARS = {
   cat: {
     id: 'cat', name: 'ลักกี้', img: '/avatars/lucky.png',
@@ -24,25 +37,23 @@ const CHARS = {
     id: 'owl', name: 'ลุงฮูก', img: '/avatars/owl.png',
     color: '#A0522D', colorL: '#FFF8F2', badge: '🦉',
     tagline: 'รอบรู้ · ลุ่มลึก · เชี่ยวชาญ',
-    greet: 'สวัสดีครับ ผมลุงฮูก 🦉“ความเร่งรีบอาจพาให้พลาด เราจะไปอย่างรอบคอบด้วยกัน” ยินดีให้คำแนะนำทุกเรื่องเกี่ยวกับสัตว์เลี้ยงและระบบครับ',
+    greet: 'สวัสดีครับ ผมลุงฮูก 🦉\n"ความเร่งรีบอาจพาให้พลาด เราจะไปอย่างรอบคอบด้วยกัน"\nยินดีให้คำแนะนำทุกเรื่องเกี่ยวกับสัตว์เลี้ยงและระบบครับ',
   },
 } as const
 
-type CharId = keyof typeof CHARS
-
-// 🎬 ══════════════════════════════════════════════════════════════
-const CHAR_ANIMATION: Record<CharId, { animate: any; transition: any }> = {
+// ── Animations ────────────────────────────────────────────────
+const CHAR_ANIMATION: Record<CharId, { animate: object; transition: object }> = {
   cat: {
-    animate: { y: [0, -3, 0], scale: [1, 1.01, 1] },
-    transition: { duration: 4, repeat: Infinity, ease: 'easeInOut' }
+    animate:    { y: [0, -3, 0], scale: [1, 1.01, 1] },
+    transition: { duration: 4, repeat: Infinity, ease: 'easeInOut' },
   },
   dog: {
-    animate: { y: [0, -5, 0], rotate: [-1.5, 1.5, -1.5] },
-    transition: { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }
+    animate:    { y: [0, -5, 0], rotate: [-1.5, 1.5, -1.5] },
+    transition: { duration: 1.5, repeat: Infinity, ease: 'easeInOut' },
   },
   owl: {
-    animate: { y: [0, -1.5, 0], rotate: [-2, 2, -2] },
-    transition: { duration: 5, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.5 }
+    animate:    { y: [0, -1.5, 0], rotate: [-2, 2, -2] },
+    transition: { duration: 5, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.5 },
   },
 }
 
@@ -54,42 +65,90 @@ const QUICK_REPLIES = [
   '❓ ระบบใช้งานอย่างไร',
 ]
 
+// ════════════════════════════════════════════════════════════
 export default function PetAssistant() {
   const pathname = usePathname()
   const [isOpen,     setIsOpen]     = useState(false)
   const [charId,     setCharId]     = useState<CharId>('cat')
   const [input,      setInput]      = useState('')
-  const [messages,   setMessages]   = useState<{ role: 'user' | 'bot'; text: string }[]>([])
+  const [messages,   setMessages]   = useState<Message[]>([])
   const [isLoading,  setIsLoading]  = useState(false)
   const [showPicker, setShowPicker] = useState(false)
-  
-  // 💡 State สำหรับเก็บขอบเขตหน้าจอ (ไม่ให้ลากปุ่มหลุดจอ)
-  const [bounds, setBounds] = useState({ top: 0, left: 0, right: 0, bottom: 0 })
+  const [speaking,   setSpeaking]   = useState(false)
+  const [bounds,     setBounds]     = useState({ top: 0, left: 0, right: 0, bottom: 0 })
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLInputElement>(null)
   const ch = CHARS[charId]
 
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  // ── Hidden routes ──────────────────────────────────────────
   const isHidden = ['/login', '/register', '/admin'].some(r => pathname.startsWith(r))
     || (pathname.includes('/pet/') && pathname.split('/').length > 2)
 
-  // คำนวณขอบเขตหน้าจอเพื่อดักการลาก
+  // ── Drag bounds ────────────────────────────────────────────
   useEffect(() => {
-    const updateBounds = () => {
+    const update = () => {
       if (typeof window !== 'undefined') {
         setBounds({
-          top: -(window.innerHeight - 120), // เผื่อขอบบน
-          left: -(window.innerWidth - 120), // เผื่อขอบซ้าย
-          right: 10,
+          top:    -(window.innerHeight - 120),
+          left:   -(window.innerWidth  - 120),
+          right:  10,
           bottom: 10,
         })
       }
     }
-    updateBounds()
-    window.addEventListener('resize', updateBounds)
-    return () => window.removeEventListener('resize', updateBounds)
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
   }, [])
 
+  // ── Notification checker ──────────────────────────────────
+  // ตรวจสอบ notification ที่ยังไม่อ่านเมื่อเปิด chat
+  useEffect(() => {
+    if (!isOpen) return
+    const checkNotifications = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const { data: notifs } = await supabase
+        .from('notifications')
+        .select('id, title, body, link, type')
+        .eq('user_id', session.user.id)
+        .eq('is_read', false)
+        .lte('scheduled_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(3)
+
+      if (!notifs?.length) return
+
+      // แสดงแจ้งเตือนเป็น bot messages
+      const notifMsgs: Message[] = notifs.map(n => ({
+        role: 'bot' as const,
+        text: `🔔 ${n.title}\n${n.body || ''}`,
+        action_buttons: n.link ? [{ label: 'ดูรายละเอียด', link: n.link }] : undefined,
+      }))
+
+      setMessages(prev => {
+        // ไม่เพิ่มถ้ามีข้อความอยู่แล้ว (เพื่อไม่ซ้ำ)
+        if (prev.length > 0) return prev
+        return notifMsgs
+      })
+
+      // Mark as read
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .in('id', notifs.map(n => n.id))
+    }
+    checkNotifications()
+  }, [isOpen])
+
+  // ── Proactive at /report ───────────────────────────────────
   useEffect(() => {
     if (pathname !== '/report') return
     const t = setTimeout(() => {
@@ -101,18 +160,26 @@ export default function PetAssistant() {
     return () => clearTimeout(t)
   }, [pathname, isOpen, messages.length])
 
+  // ── Scroll to bottom ───────────────────────────────────────
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, isLoading])
 
+  // ── Focus input on open ────────────────────────────────────
   useEffect(() => {
     if (isOpen) setTimeout(() => inputRef.current?.focus(), 300)
+  }, [isOpen])
+
+  // ── Stop speaking on close ─────────────────────────────────
+  useEffect(() => {
+    if (!isOpen) { stopSpeaking(); setSpeaking(false) }
   }, [isOpen])
 
   const switchChar = (id: CharId) => {
     setCharId(id)
     setMessages([{ role: 'bot', text: CHARS[id].greet }])
     setShowPicker(false)
+    stopSpeaking(); setSpeaking(false)
   }
 
   const openChat = () => {
@@ -120,6 +187,22 @@ export default function PetAssistant() {
     if (messages.length === 0) setMessages([{ role: 'bot', text: ch.greet }])
   }
 
+  // ── TTS handler ────────────────────────────────────────────
+  const handleSpeak = (text: string) => {
+    if (speaking) {
+      stopSpeaking()
+      setSpeaking(false)
+    } else {
+      speakText(text)
+      setSpeaking(true)
+      // Reset button เมื่อพูดจบ
+      const checkInterval = setInterval(() => {
+        if (!isSpeaking()) { setSpeaking(false); clearInterval(checkInterval) }
+      }, 500)
+    }
+  }
+
+  // ── Send message ───────────────────────────────────────────
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return
     const userMsg = text.trim()
@@ -127,18 +210,22 @@ export default function PetAssistant() {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }])
     setIsLoading(true)
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
+      const res  = await fetch('/api/chat', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: userMsg,
+          message:     userMsg,
           characterId: charId,
           pageContext: pathname,
-          history: messages.slice(-6),
+          history:     messages.slice(-6).map(m => ({ role: m.role, text: m.text })),
         }),
       })
       const data = await res.json()
-      setMessages(prev => [...prev, { role: 'bot', text: data.reply || 'ขออภัย เกิดข้อผิดพลาด' }])
+      setMessages(prev => [...prev, {
+        role:           'bot',
+        text:           data.reply || 'ขออภัย เกิดข้อผิดพลาด',
+        action_buttons: data.action_buttons?.length ? data.action_buttons : undefined,
+      }])
     } catch {
       setMessages(prev => [...prev, { role: 'bot', text: 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่นะคะ' }])
     } finally {
@@ -151,8 +238,10 @@ export default function PetAssistant() {
   const anim = CHAR_ANIMATION[charId]
 
   return (
-    <div className="fixed bottom-6 right-6 z-[999]" style={{ fontFamily: "'Noto Sans Thai', sans-serif" }}>
+    <div className="fixed bottom-6 right-6 z-[999]"
+      style={{ fontFamily: "'Noto Sans Thai', sans-serif" }}>
 
+      {/* ── Chat Window ── */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -190,7 +279,7 @@ export default function PetAssistant() {
                 </div>
               </div>
 
-              {/* Picker */}
+              {/* Character picker */}
               <div style={{ position: 'relative' }}>
                 <button onClick={() => setShowPicker(p => !p)} style={{
                   background: 'rgba(255,255,255,.4)', border: '2px solid #1A1208',
@@ -213,7 +302,8 @@ export default function PetAssistant() {
                       }}
                     >
                       {(Object.values(CHARS) as (typeof CHARS)[CharId][]).map(c => (
-                        <button key={c.id} onClick={() => switchChar(c.id as CharId)}
+                        <button key={c.id}
+                          onClick={() => switchChar(c.id as CharId)}
                           style={{
                             width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                             padding: '10px 12px',
@@ -267,37 +357,91 @@ export default function PetAssistant() {
                   เริ่มพิมพ์หรือเลือกปุ่มด้านล่างได้เลยนะคะ 🐾
                 </div>
               )}
+
               {messages.map((msg, i) => (
                 <motion.div key={i}
                   initial={{ opacity: 0, x: msg.role === 'user' ? 16 : -16 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.18 }}
-                  style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', gap: 6 }}
+                  style={{ display: 'flex', flexDirection: 'column',
+                    alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', gap: 4 }}
                 >
-                  {msg.role === 'bot' && (
+                  {/* Bubble row */}
+                  <div style={{ display: 'flex',
+                    justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                    alignItems: 'flex-end', gap: 6, width: '100%' }}>
+
+                    {msg.role === 'bot' && (
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                        border: `2px solid ${ch.color}`, overflow: 'hidden',
+                        background: ch.colorL, alignSelf: 'flex-end',
+                      }}>
+                        <Image src={ch.img} alt={ch.name} width={28} height={28}
+                          className="w-full h-full object-cover" />
+                      </div>
+                    )}
+
                     <div style={{
-                      width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                      border: `2px solid ${ch.color}`, overflow: 'hidden',
-                      background: ch.colorL, alignSelf: 'flex-end',
+                      maxWidth: '76%', padding: '9px 13px',
+                      background: msg.role === 'user' ? ch.color : '#FFFFFF',
+                      color: '#1A1208', border: '2px solid #1A1208',
+                      borderRadius: msg.role === 'user' ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                      fontSize: 13, fontWeight: 500, lineHeight: 1.6,
+                      boxShadow: '2px 2px 0 #1A1208', whiteSpace: 'pre-line',
+                      borderLeft: msg.role === 'bot' ? `5px solid ${ch.color}` : undefined,
                     }}>
-                      <Image src={ch.img} alt={ch.name} width={28} height={28}
-                        className="w-full h-full object-cover" />
+                      {msg.text}
+                    </div>
+
+                    {/* 🔊 TTS button (bot only) */}
+                    {msg.role === 'bot' && (
+                      <button
+                        onClick={() => handleSpeak(msg.text)}
+                        title="ฟังเสียง"
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          padding: '2px', opacity: 0.45, flexShrink: 0,
+                          transition: 'opacity 0.15s',
+                          color: '#1A1208',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.opacity = '0.9')}
+                        onMouseLeave={e => (e.currentTarget.style.opacity = '0.45')}
+                      >
+                        {speaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  {msg.role === 'bot' && msg.action_buttons?.length && (
+                    <div style={{
+                      display: 'flex', flexWrap: 'wrap', gap: 6,
+                      paddingLeft: 34,  // align กับ bubble
+                    }}>
+                      {msg.action_buttons.map((btn, bi) => (
+                        <Link key={bi} href={btn.link}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            padding: '4px 10px', fontSize: 11, fontWeight: 700,
+                            background: ch.colorL, color: '#1A1208',
+                            border: `1.5px solid ${ch.color}`, borderRadius: 20,
+                            boxShadow: `1px 1px 0 ${ch.color}`,
+                            textDecoration: 'none',
+                            transition: 'transform 0.1s',
+                          }}
+                          onMouseDown={e => (e.currentTarget.style.transform = 'translateY(1px)')}
+                          onMouseUp={e => (e.currentTarget.style.transform = 'translateY(0)')}
+                        >
+                          {btn.label} →
+                        </Link>
+                      ))}
                     </div>
                   )}
-                  <div style={{
-                    maxWidth: '76%', padding: '9px 13px',
-                    background: msg.role === 'user' ? ch.color : '#FFFFFF',
-                    color: '#1A1208', border: '2px solid #1A1208',
-                    borderRadius: msg.role === 'user' ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-                    fontSize: 13, fontWeight: 500, lineHeight: 1.6,
-                    boxShadow: '2px 2px 0 #1A1208', whiteSpace: 'pre-line',
-                    borderLeft: msg.role === 'bot' ? `5px solid ${ch.color}` : undefined,
-                  }}>
-                    {msg.text}
-                  </div>
                 </motion.div>
               ))}
 
+              {/* Typing indicator */}
               {isLoading && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                   style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
@@ -315,10 +459,10 @@ export default function PetAssistant() {
                     boxShadow: '2px 2px 0 #1A1208',
                     borderLeft: `5px solid ${ch.color}`,
                   }}>
-                    {[0, 1, 2].map(i => (
-                      <div key={i} style={{
+                    {[0, 1, 2].map(idx => (
+                      <div key={idx} style={{
                         width: 7, height: 7, borderRadius: '50%', background: ch.color,
-                        animation: `dotBounce 0.9s ${i * 0.15}s infinite`,
+                        animation: `dotBounce 0.9s ${idx * 0.15}s infinite`,
                       }} />
                     ))}
                   </div>
@@ -350,8 +494,12 @@ export default function PetAssistant() {
               display: 'flex', gap: 6, padding: '8px 10px',
               borderTop: '3px solid #1A1208', background: '#FFFFFF', flexShrink: 0,
             }}>
-              <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
-                placeholder="พิมพ์ข้อความ..." disabled={isLoading}
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                placeholder="พิมพ์ข้อความ..."
+                disabled={isLoading}
                 style={{
                   flex: 1, border: `2px solid ${ch.color}`, borderRadius: 12,
                   padding: '7px 12px', fontSize: 13, outline: 'none',
@@ -371,24 +519,22 @@ export default function PetAssistant() {
         )}
       </AnimatePresence>
 
-      {/* 🎬 Wrapper สำหรับระบบลาก (Drag) สไตล์ AssistiveTouch */}
+      {/* ── Floating Button (Draggable) ── */}
       <motion.div
         drag
         dragConstraints={bounds}
         dragElastic={0.1}
-        dragMomentum={false} // ทำให้ลากแล้วหยุดตรงนั้น (ไม่ไหลต่อ)
+        dragMomentum={false}
         style={{ touchAction: 'none', zIndex: 1000 }}
         whileDrag={{ scale: 1.05, cursor: 'grabbing' }}
       >
-        {/* 🎬 Floating Button — ตัวละครดุ๊กดิ๊ก */}
         <motion.button
           onClick={isOpen ? () => setIsOpen(false) : openChat}
           animate={anim.animate}
           transition={anim.transition}
-          whileHover={{ 
-            scale: 1.08, 
-            y: -6, 
-            boxShadow: isOpen ? '2px 2px 0 #1A1208' : '7px 7px 0 #1A1208' 
+          whileHover={{
+            scale: 1.08, y: -6,
+            boxShadow: isOpen ? '2px 2px 0 #1A1208' : '7px 7px 0 #1A1208',
           }}
           whileTap={{ scale: 0.94 }}
           style={{
@@ -396,7 +542,7 @@ export default function PetAssistant() {
             border: '3px solid #1A1208', borderRadius: '50%',
             cursor: 'grab', padding: 0, overflow: 'hidden',
             boxShadow: isOpen ? '2px 2px 0 #1A1208' : '5px 5px 0 #1A1208',
-            display: 'block', position: 'relative', outline: 'none'
+            display: 'block', position: 'relative', outline: 'none',
           }}
         >
           <Image src={ch.img} alt={ch.name} width={70} height={70}
@@ -411,8 +557,8 @@ export default function PetAssistant() {
       </motion.div>
 
       <style jsx global>{`
-        @keyframes dotBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
-        @keyframes onlinePulse { 0%{box-shadow:0 0 0 0 rgba(45,106,45,.7)} 70%{box-shadow:0 0 0 6px rgba(45,106,45,0)} 100%{box-shadow:0 0 0 0 rgba(45,106,45,0)} }
+        @keyframes dotBounce  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+        @keyframes onlinePulse{ 0%{box-shadow:0 0 0 0 rgba(45,106,45,.7)} 70%{box-shadow:0 0 0 6px rgba(45,106,45,0)} 100%{box-shadow:0 0 0 0 rgba(45,106,45,0)} }
       `}</style>
     </div>
   )

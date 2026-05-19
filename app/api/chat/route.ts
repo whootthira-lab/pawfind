@@ -1,11 +1,13 @@
 // app/api/chat/route.ts
 export const dynamic = 'force-dynamic'
 
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextResponse }            from 'next/server'
+import { createClient }            from '@/lib/supabase/server'
+import { recordHealthEvent }       from '@/lib/pet-health-recorder'
+import { createReminder }          from '@/lib/reminder-engine'
 
 // ══════════════════════════════════════════════════════════════
-// KNOWLEDGE BASE — ฐานความรู้ที่แชร์กันทั้ง 3 ตัวละคร
+// KNOWLEDGE BASE
 // ══════════════════════════════════════════════════════════════
 const KNOWLEDGE_BASE = `
 ## เกี่ยวกับ PobPet
@@ -14,10 +16,10 @@ const KNOWLEDGE_BASE = `
 - ผลงานพิเศษ: ทดลองขาเทียม 3D Print ให้กับนกกระเรียน สวนสัตว์นครราชสีมา (2566)
 - ติดต่อ PobPet: ผ่านแบบฟอร์มในเว็บ หรือ LINE OA ของ PobPet
 
-## ปัญหาการใช้งานพบบ่อย (FAQ & Troubleshooting)
-### ผู้ใช้แจ้งว่า "ไม่พบประกาศของตัวเอง" หรือ "ข้อมูลสัตว์หายไปจาก profile"
-- สาเหตุหลัก: ผู้ใช้อาจล็อกอินผิดบัญชี เช่น เคยลงประกาศด้วย Email แต่ครั้งนี้กดล็อกอินด้วย LINE ระบบจะมองว่าเป็นคนละบัญชี
-- คำแนะนำ: ให้สอบถามว่าตอนลงประกาศครั้งแรกล็อกอินด้วยช่องทางไหน แล้วลองออกจากระบบแล้วเลือกช่องทางเดิม ประกาศยังอยู่ปลอดภัย
+## ปัญหาการใช้งานพบบ่อย (FAQ)
+### "ไม่พบประกาศของตัวเอง"
+- สาเหตุ: ล็อกอินผิดบัญชี เช่น เคยใช้ Email แต่กด LINE Login แทน
+- วิธีแก้: ออกจากระบบแล้วล็อกอินด้วยช่องทางเดิม ประกาศยังอยู่ปลอดภัย
 
 ## วิธีใช้ระบบ
 ### ลงประกาศสัตว์หาย:
@@ -49,7 +51,6 @@ const KNOWLEDGE_BASE = `
 ### การรับเลี้ยงสัตว์ผ่าน PobPet:
 - ดูประกาศ "หาบ้านให้น้อง" ในหน้า /search?status=adoption
 - ติดต่อเจ้าของผ่านช่องทางที่ระบุในประกาศ
-- ก่อนรับเลี้ยง เตรียมบ้านให้พร้อม ทั้งที่นอน อาหาร กระบะทราย
 
 ## สิ่งที่ต้องทำ 6 ขั้นตอนแรกเมื่อสัตว์หาย (24 ชม. แรกสำคัญที่สุด)
 1. ลงประกาศบน PobPet ทันที พร้อมรูปชัดเจน
@@ -97,167 +98,117 @@ const KNOWLEDGE_BASE = `
 - เหมาะอายุ: สุนัข 6-12 เดือน แมว 4-6 เดือน
 - ประโยชน์: ป้องกันโรคมะเร็ง ลดพฤติกรรมก้าวร้าว ลดสัตว์จรจัด
 - ค่าใช้จ่าย: ฿500-3,000 แล้วแต่ขนาดและคลินิก
-- มีโครงการทำหมันฟรีจากหน่วยงานรัฐ สอบถาม อบต./เทศบาลในพื้นที่
 
 ## กฎหมายสัตว์เลี้ยง
-- พ.ร.บ.ป้องกันการทารุณกรรมสัตว์ 2557: ห้ามทารุณ โทษจำคุกสูงสุด 2 ปี ปรับ 40,000 บาท
+- พ.ร.บ.ป้องกันการทารุณกรรมสัตว์ 2557: โทษจำคุกสูงสุด 2 ปี ปรับ 40,000 บาท
 - บังคับฉีดวัคซีนพิษสุนัขบ้าตามกฎหมาย
 - รายงานสัตว์ป่าคุ้มครอง: โทร 1362
-- การปล่อยทิ้งสัตว์อาจผิดกฎหมายทารุณกรรม
 
-## เรื่องที่ยังไม่มีในระบบ (Commerce/Services)
+## เรื่องที่ยังไม่มีในระบบ
 - ถ้าผู้ใช้ถามเรื่องสินค้า บริการ หรือฟีเจอร์ที่ยังไม่มี ให้บอกว่ากำลังพัฒนา
 - ถามความต้องการเพื่อเก็บข้อมูล อย่าปฏิเสธแบบตัดบท
 
-══════════════════════════════════════════════════════════════
-หมวดใหม่: ปัญหาที่พบบ่อยในการเลี้ยงสัตว์
-══════════════════════════════════════════════════════════════
-
 ## อาหารและสิ่งที่ควรหลีกเลี่ยง
-
 ### สุนัข — ห้ามกินเด็ดขาด:
 - ช็อกโกแลต โกโก้ → สาร Theobromine เป็นพิษต่อระบบประสาทและหัวใจ อันตรายถึงชีวิต
 - องุ่น ลูกเกด → ทำให้ไตวาย แม้แต่จำนวนเล็กน้อย
 - หัวหอม กระเทียม กุยช่าย → ทำลายเม็ดเลือดแดง ทำให้โลหิตจาง
-- ข้าวต้มกระดูกปรุงรส → เกลือและเครื่องปรุงเป็นอันตราย กระดูกต้มแล้วแตกได้ง่ายทิ่มลำไส้
 - อะโวคาโด → สาร Persin ทำให้อาเจียนและท้องเสียรุนแรง
 - แมคคาเดเมียนัต → ทำให้กล้ามเนื้ออ่อนแรง ตัวสั่น มีไข้
-- แอลกอฮอล์ ไซลิทอล (สารให้ความหวาน) → อันตรายมากแม้ปริมาณน้อย
-- นม/ผลิตภัณฑ์นม → หลายตัวย่อยแล็กโทสไม่ได้ ทำให้ท้องเสีย
+- แอลกอฮอล์ ไซลิทอล → อันตรายมากแม้ปริมาณน้อย
 
 ### แมว — ห้ามกินเด็ดขาด:
 - หัวหอม กระเทียม → อันตรายกว่าสุนัข ทำลายเม็ดเลือดแดงรุนแรง
-- ช็อกโกแลต → เป็นพิษต่อระบบประสาท
-- คาเฟอีน ชา กาแฟ → ทำให้ใจสั่น ชัก
+- ช็อกโกแลต คาเฟอีน → เป็นพิษต่อระบบประสาท
 - องุ่น ลูกเกด → ทำไตวาย
-- ปลาดิบปริมาณมาก → เอนไซม์ Thiaminase ทำลายวิตามิน B1
-- กระดูกสุก → แตกทิ่มลำคอและลำไส้
-- Xylitol (ไซลิทอล) → ทำให้น้ำตาลในเลือดต่ำอย่างรุนแรง
+- Xylitol → ทำให้น้ำตาลในเลือดต่ำอย่างรุนแรง
 
-### อาหารที่ให้ได้แต่ต้องระวัง:
-- ข้าวสุก ไก่ต้มไม่ปรุงรส → ให้ได้เป็นครั้งคราว ดีสำหรับท้องเสีย
-- แตงโม แอปเปิ้ล (ไม่มีเมล็ด) → ให้ได้เล็กน้อย
-- แครอท บร็อคโคลี → ขนมขบเคี้ยวเพื่อสุขภาพสำหรับสุนัข
-- ไข่ต้มสุก → โปรตีนดี ให้ได้ 2-3 ครั้ง/สัปดาห์
-
-## ปัญหาพฤติกรรมที่พบบ่อยและวิธีแก้
-
+## ปัญหาพฤติกรรมที่พบบ่อย
 ### สุนัขกัดของ/ทำลายข้าวของ:
 - สาเหตุ: เบื่อ ขาดการออกกำลัง หรืออยู่คนเดียวนานเกินไป (Separation Anxiety)
-- วิธีแก้: เพิ่มเวลาเดินเล่นอย่างน้อย 30 นาที/วัน ให้ของเล่นกัดสำหรับสุนัขโดยเฉพาะ ฝึกคำสั่ง "ไม่" อย่างสม่ำเสมอ
-- ถ้ารุนแรง: อาจเป็น Separation Anxiety ควรปรึกษาสัตวแพทย์เรื่อง behavioral therapy
+- วิธีแก้: เพิ่มเวลาเดินเล่น ให้ของเล่นกัด ฝึกคำสั่ง "ไม่"
 
-### สุนัขเห่ามากผิดปกติ:
-- สาเหตุ: กลัว วิตกกังวล ต้องการความสนใจ หรือเจ็บปวด
-- วิธีแก้: ไม่ตอบสนองทันทีเมื่อเห่าเพื่อเรียกร้อง ให้รางวัลเมื่อเงียบ ฝึก "เงียบ" ด้วยการเบี่ยงเบนความสนใจ
-- ถ้าเห่ากลางคืนผิดปกติ: อาจเจ็บปวดหรือรู้สึกไม่สบาย ควรพาหาหมอ
+### แมวไม่ใช้กระบะทราย:
+- สาเหตุ: กระบะสกปรก ไม่ชอบทราย ความเครียด หรือปัญหาสุขภาพ (นิ่ว UTI)
+- วิธีแก้: ทำความสะอาดทุกวัน ลองเปลี่ยนทราย มีกระบะ 1+1 ตัว
 
-### แมวไม่ใช้กระบะทราย / ถ่ายนอกที่:
-- สาเหตุ: กระบะสกปรก ไม่ชอบประเภททราย กระบะเล็กเกินไป ความเครียด หรือปัญหาสุขภาพ (นิ่ว UTI)
-- วิธีแก้: ทำความสะอาดทุกวัน ลองเปลี่ยนทราย วางกระบะในที่เงียบสงบ มีกระบะ 1 ใบต่อแมว 1 ตัว + สำรอง 1 ใบ
-- ถ้าแมวไปในจุดเดิมซ้ำๆ: ทำความสะอาดด้วยน้ำยาเอนไซม์ที่กำจัดกลิ่นได้ถาวร ไม่ใช้น้ำยาแอมโมเนีย
-
-### สัตว์กัด/ข่วนคนในบ้าน:
-- สาเหตุ: กลัว เจ็บปวด ปกป้องอาณาเขต หรือยังไม่ได้ฝึก
-- วิธีแก้: อย่าลงโทษด้วยการตี เพราะทำให้กลัวและก้าวร้าวมากขึ้น ให้หยุดเล่นทันทีเมื่อกัด แล้วเดินออกจากห้อง
-- ถ้ากัดรุนแรงหรือบ่อยขึ้น: ควรพาหาหมอตรวจว่าเจ็บปวดหรือไม่ หรือขอคำแนะนำจากผู้เชี่ยวชาญด้าน Animal Behavior
-
-## การปรับตัวสำหรับสัตว์เลี้ยงตัวใหม่
-
-### สัตว์เลี้ยงใหม่กับเจ้าของมือใหม่:
-- 3 วันแรก: ให้พักในห้องเล็กๆ คนเดียว ไม่ต้องรีบอุ้มหรือเล่น ให้คุ้นเคยกับกลิ่นและเสียงก่อน
-- 3 สัปดาห์: สัตว์เริ่มเข้าใจ routine ของบ้าน แต่ยังไม่แสดงตัวตนจริงๆ
-- 3 เดือน: เริ่มรู้สึกปลอดภัย แสดงพฤติกรรมที่แท้จริงออกมา
-- หลักสำคัญ: routine สม่ำเสมอ กินข้าว เดินเล่น นอน เวลาเดียวทุกวัน ช่วยลดความเครียดได้มาก
-
-### การนำสัตว์ใหม่เข้าบ้านที่มีสัตว์อยู่แล้ว:
-- ไม่ควรปล่อยให้เจอหน้ากันทันที อาจเกิดการต่อสู้
-- แนะนำให้ผ่านกลิ่นก่อน: แลกผ้าห่มหรือของเล่นระหว่างกัน 3-7 วัน
-- แนะนำผ่านประตูกรง หรือผ่านรั้วกั้น โดยมีคนดูแล
-- ให้พื้นที่หลบหนีแก่สัตว์เดิมเสมอ เช่น ชั้นสูงสำหรับแมว
-- ให้อาหารแยกกัน อย่าให้แย่งกัน เพราะจะก่อความขัดแย้ง
-- ระยะเวลาปรับตัวอาจใช้เวลา 2 สัปดาห์ถึง 3 เดือน ขึ้นกับนิสัยของแต่ละตัว
-
-### หมาเก่าปรับตัวกับหมาใหม่:
-- ให้เจอกันครั้งแรกในพื้นที่เป็นกลาง เช่น สวนสาธารณะ ไม่ใช่ในบ้าน
-- จูงสายจูงทั้งคู่ ให้เดินขนานกัน ไม่ให้เจอหน้ากันตรงๆ ก่อน
-- สังเกตภาษากาย ถ้าหางตก หูแนบ ขนตั้ง ให้แยกออกก่อน
-- ให้เวลาและความสนใจกับหมาเก่าเท่าเดิม อย่าให้รู้สึกถูกแทนที่
-
-### แมวเก่าปรับตัวกับแมวใหม่:
-- แมวมักใช้เวลานานกว่าสุนัข อาจถึง 6-12 เดือนกว่าจะเป็นเพื่อนกัน
-- ให้แมวเดิมมีพื้นที่ส่วนตัวที่แมวใหม่เข้าไม่ถึง
-- Feliway (ฟีโรโมนสังเคราะห์) ช่วยลดความเครียดได้ดี หาซื้อได้ตามร้านสัตว์เลี้ยง
-- อย่าบังคับให้อยู่ด้วยกัน ให้ค่อยๆ คุ้นเคยตามธรรมชาติ
-
-## การดูแลสัตว์สูงอายุ (Senior Pet Care)
-- สุนัข/แมวอายุ 7 ปีขึ้นไปถือว่าเข้าสู่วัยชรา
-- ควรตรวจสุขภาพปีละ 2 ครั้ง (เพิ่มจากปีละครั้ง)
-- อาหารสำหรับสัตว์สูงอายุมีแคลอรีและโปรตีนที่เหมาะสม ลดภาระไต
-- สัญญาณที่ต้องใส่ใจ: ดื่มน้ำมากผิดปกติ ปัสสาวะบ่อย น้ำหนักลดโดยไม่มีสาเหตุ เคลื่อนไหวช้าลง
-- ข้อเสื่อม (Arthritis) พบบ่อยในสัตว์สูงอายุ สังเกตจากการลุกยาก ขึ้น-ลงบันไดลำบาก
-- ยังต้องการการออกกำลังกาย แต่ลดความหนักลง เดินช้าๆ ระยะสั้น ดีกว่าวิ่งไกล
-
-## ความเครียดในสัตว์เลี้ยง (สัญญาณและการช่วยเหลือ)
-### สัญญาณที่สัตว์กำลังเครียด:
-- สุนัข: เลียอุ้งเท้าบ่อย หอน ทำลายของ ซ่อนตัว เบื่ออาหาร ขับถ่ายในบ้าน
-- แมว: ซ่อนตัวนาน หยุดทำความสะอาดตัวเอง หรือทำความสะอาดมากเกินไปจนขนร่วง ก้าวร้าว
-
-### วิธีลดความเครียด:
-- รักษา routine ให้สม่ำเสมอ
-- ให้มีพื้นที่ส่วนตัวที่ปลอดภัย
-- เพิ่มกิจกรรมที่ใช้สมอง เช่น ของเล่นซ่อนอาหาร หรือ Puzzle feeder
-- ถ้าเพิ่งย้ายบ้าน มีคนใหม่ หรือสัตว์ใหม่ ให้เวลาปรับตัว
-- Pheromone diffuser (Adaptil สำหรับหมา Feliway สำหรับแมว) ช่วยได้
+## การปรับตัวสัตว์เลี้ยงตัวใหม่
+- 3 วันแรก: ให้พักในห้องเล็กๆ คุ้นเคยกับกลิ่นและเสียงก่อน
+- 3 สัปดาห์: สัตว์เริ่มเข้าใจ routine ของบ้าน
+- 3 เดือน: เริ่มรู้สึกปลอดภัย แสดงพฤติกรรมที่แท้จริง
 
 ## คำแนะนำสำหรับผู้เลี้ยงมือใหม่
-### ก่อนรับสัตว์มาเลี้ยง:
-- ศึกษาธรรมชาติและความต้องการของสายพันธุ์นั้นๆ ก่อน
-- ประเมินค่าใช้จ่าย: อาหาร วัคซีน ตรวจสุขภาพ ทำหมัน ฉุกเฉิน อย่างน้อย ฿2,000-5,000/เดือน
+- ค่าใช้จ่ายเฉลี่ย: ฿2,000-5,000/เดือน
 - เตรียมบ้านให้ปลอดภัย: เก็บสายไฟ ยา สารเคมีให้พ้นมือสัตว์
-- จัดพื้นที่นอน กิน และขับถ่ายให้ชัดเจนแยกจากกัน
+- สิ่งที่มือใหม่มักเข้าใจผิด: สัตว์ต้องฝึกอย่างสม่ำเสมอ อาหารคนมักมีเกลือเป็นอันตราย
 
-### สิ่งที่มือใหม่มักเข้าใจผิด:
-- "สัตว์จะฝึกตัวเองได้" → ไม่จริง ต้องฝึกอย่างสม่ำเสมอ ตั้งแต่ยังเล็ก
-- "ให้อาหารคนได้เพราะดูน่ากิน" → อาหารคนมักมีเกลือและเครื่องปรุงที่เป็นอันตราย
-- "แมวดูแลตัวเองได้ ไม่ต้องใส่ใจมาก" → ยังต้องการความสนใจ การเล่น และพาหาหมอ
-- "ลงโทษด้วยการตีเพื่อสอน" → ทำให้สัตว์กลัวและไม่ไว้ใจ ไม่ช่วยให้พฤติกรรมดีขึ้น
-
-### ค่าใช้จ่ายที่ควรเตรียม:
-- วัคซีนพื้นฐาน: ฿500-1,500/ครั้ง
-- ทำหมัน: ฿1,500-5,000
-- ตรวจสุขภาพประจำปี: ฿500-2,000
-- อาหารคุณภาพดี: ฿500-2,000/เดือน
-- ค่ารักษาฉุกเฉิน: ควรสำรองไว้ ฿5,000-20,000
-
-## เรื่องที่คนถามบ่อยอื่นๆ
-
-### สัตว์เลี้ยงกับเด็กเล็ก:
-- สอนเด็กให้เคารพพื้นที่ส่วนตัวของสัตว์ อย่าไปรบกวนตอนกินหรือนอน
-- ไม่ควรปล่อยให้เด็กเล็กอยู่กับสัตว์ตามลำพังโดยไม่มีผู้ใหญ่ดู
-- สอนให้เด็กลูบอย่างนุ่มนวล ไม่จับหาง ไม่กอดรัดแน่นเกินไป
-
-### สัตว์เลี้ยงกับการเดินทาง:
-- รถยนต์: ใส่กรงหรือใช้สายรัดนิรภัย ไม่ควรให้โผล่หน้าออกนอกหน้าต่าง
-- เครื่องบิน: ตรวจสอบกฎของสายการบิน ต้องมีใบรับรองสุขภาพจากสัตวแพทย์ไม่เกิน 7-10 วัน
-- ห้ามทิ้งสัตว์ไว้ในรถที่จอดกลางแดด แม้แค่ไม่กี่นาที อุณหภูมิภายในรถพุ่งสูงอันตรายถึงชีวิต
-
-### ปัญหาแมวข่วนเฟอร์นิเจอร์:
-- แมวข่วนเป็นธรรมชาติ เพื่อลับเล็บและฝากกลิ่น ห้ามไม่ได้
-- วิธีแก้: ติดแผ่นกันข่วน (Scratch guard) บนจุดที่ข่วน ให้คานข่วนที่ถูกต้องไว้ใกล้ๆ
-- ไม่ควรตัดเล็บจนสั้นเกินไป เพราะทำให้เจ็บ แค่ตัดปลายส่วนโค้งออก
-
-### สัตว์กินหญ้า/ต้นไม้:
-- สุนัข/แมวกินหญ้าบ้างเป็นเรื่องปกติ บางครั้งเพื่อช่วยย่อยอาหาร
-- พืชที่เป็นอันตราย: ทิวลิป ลิลี่ (อันตรายมากสำหรับแมว) Aloe vera ผักตบชวา โป๊ยเซียน
-- ถ้าสัตว์กินหญ้าแล้วอาเจียนบ่อยผิดปกติ ควรพาหาหมอตรวจ
-
-## แนวปฏิบัติด้านความปลอดภัยและจรรยาบรรณ (Safety & Ethics)
+## แนวปฏิบัติด้านความปลอดภัย
 - บอทไม่ใช่สัตวแพทย์ ให้ข้อมูลเบื้องต้นเท่านั้น
-- ห้ามวินิจฉัยโรคสัตว์แทนสัตวแพทย์
-- ห้ามเดาหรือแต่งข้อมูล ให้บอกตรงๆ ว่าไม่แน่ใจ
-- กรณีผู้ใช้แสดงสัญญาณวิกฤต: แสดงความห่วงใยและให้เบอร์สายด่วนสุขภาพจิต 1323 ทันที
+- ห้ามวินิจฉัยโรคสัตว์แทนสัตวแพทย์โดยเด็ดขาด
+- กรณีผู้ใช้แสดงสัญญาณวิกฤต: ให้เบอร์ 1323 ทันที
 `
+
+// ══════════════════════════════════════════════════════════════
+// OPENAI FUNCTION CALLING TOOLS
+// ══════════════════════════════════════════════════════════════
+const TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'record_health_event',
+      description: 'บันทึกเหตุการณ์สุขภาพสัตว์เลี้ยง เช่น ฉีดวัคซีน ถ่ายพยาธิ หยอดหมัด ตรวจสุขภาพ บันทึกรางวัล ใช้เมื่อผู้ใช้บอกว่าทำอะไรให้น้องแล้ว',
+      parameters: {
+        type: 'object',
+        properties: {
+          pet_name:     { type: 'string', description: 'ชื่อสัตว์เลี้ยง' },
+          event_type:   {
+            type: 'string',
+            enum: ['vaccine', 'rabies_vaccine', 'deworming', 'flea_treatment', 'checkup', 'treatment', 'award', 'other'],
+            description: 'ประเภทเหตุการณ์',
+          },
+          medicine_name: { type: 'string', description: 'ชื่อวัคซีนหรือยา (ถ้ามี)' },
+          event_date:   { type: 'string', description: 'วันที่ในรูปแบบ YYYY-MM-DD หรือ "today"' },
+          notes:        { type: 'string', description: 'หมายเหตุเพิ่มเติม' },
+          next_due_days: { type: 'number', description: 'จำนวนวันจนถึงครั้งต่อไป (ถ้าต้องการ override ค่าอัตโนมัติ)' },
+        },
+        required: ['event_type', 'event_date'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_reminder',
+      description: 'ตั้งการแจ้งเตือน เช่น เตือนซื้ออาหาร เตือนพาตัดขน เตือนนัดหมอ ใช้เมื่อผู้ใช้ขอให้เตือน',
+      parameters: {
+        type: 'object',
+        properties: {
+          title:       { type: 'string', description: 'หัวข้อแจ้งเตือน' },
+          pet_name:    { type: 'string', description: 'ชื่อสัตว์ (ถ้าเกี่ยวกับน้อง)' },
+          remind_at:   { type: 'string', description: 'วันเวลาแจ้งเตือน YYYY-MM-DD หรือ YYYY-MM-DD HH:MM' },
+          repeat_type: { type: 'string', enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'], description: 'รูปแบบการซ้ำ' },
+          body:        { type: 'string', description: 'รายละเอียดเพิ่มเติม' },
+        },
+        required: ['title', 'remind_at'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_pet_info',
+      description: 'ดึงข้อมูลสัตว์เลี้ยง เช่น ประวัติสุขภาพล่าสุด วัคซีนที่ฉีดไปแล้ว ใช้เมื่อผู้ใช้ถามเกี่ยวกับน้องของตัวเอง',
+      parameters: {
+        type: 'object',
+        properties: {
+          pet_name:  { type: 'string', description: 'ชื่อสัตว์เลี้ยง' },
+          info_type: { type: 'string', enum: ['health', 'vaccine', 'reminder', 'all'], description: 'ประเภทข้อมูลที่ต้องการ' },
+        },
+        required: ['pet_name'],
+      },
+    },
+  },
+]
 
 // ══════════════════════════════════════════════════════════════
 // CONTEXT-AWARE INSTRUCTIONS
@@ -270,8 +221,8 @@ function getContextInstruction(pageContext: string): string {
   if (pageContext.startsWith('/search')) {
     return `ผู้ใช้กำลังค้นหาสัตว์อยู่ ถ้าผู้ใช้บอกว่าหาไม่เจอ ให้แนะนำวิธีปรับ filter หรือขยายพื้นที่การค้นหา`
   }
-  if (pageContext.startsWith('/pet/')) {
-    return `ผู้ใช้กำลังดูหน้ารายละเอียดประกาศอยู่ อาจเป็นเจ้าของที่กลับมาตรวจสอบ หรือคนที่เพิ่งพบสัตว์และกำลังเปรียบเทียบ`
+  if (pageContext.startsWith('/pets/')) {
+    return `ผู้ใช้กำลังดูหน้ารายละเอียดโปรไฟล์สัตว์อยู่ อาจเป็นเจ้าของที่กลับมาตรวจสอบ หรือคนที่เพิ่งพบสัตว์`
   }
   if (pageContext === '/') {
     return `ผู้ใช้อยู่ที่หน้าแรก อาจเพิ่งเข้ามาครั้งแรก ช่วยแนะนำวิธีใช้งานเบื้องต้นได้`
@@ -287,8 +238,7 @@ function detectSentiment(message: string): string {
   const crisis = ['ทำร้ายตัวเอง', 'อยากตาย', 'ไม่อยากมีชีวิต', 'หมดหวัง', 'ทนไม่ไหว']
   const sad    = ['เสียใจ', 'ร้องไห้', 'เศร้า', 'หายไปนานมาก', 'หาไม่เจอเลย', 'ท้อแท้', 'หมดแรง']
   const urgent = ['ด่วน', 'เลือดออก', 'ชัก', 'หมดสติ', 'หายใจไม่ออก', 'บาดเจ็บหนัก']
-  const happy  = ['เจอแล้ว', 'กลับมาแล้ว', 'ขอบคุณ', 'ดีใจมาก', 'โล่งใจ']
-
+  const happy  = ['เจอแล้ว', 'กลับมาแล้ว', 'ขอบคุณ', 'ดีใจมาก', 'โล่งใจ', 'ฉีดวัคซีนแล้ว', 'ทำหมันแล้ว']
   if (crisis.some(w => lower.includes(w))) return 'crisis'
   if (urgent.some(w => lower.includes(w))) return 'urgent'
   if (sad.some(w => lower.includes(w)))    return 'sad'
@@ -297,13 +247,84 @@ function detectSentiment(message: string): string {
 }
 
 // ══════════════════════════════════════════════════════════════
-// SYSTEM PROMPTS — บุคลิกเฉพาะแต่ละตัว
+// INSIGHT TRACKING
 // ══════════════════════════════════════════════════════════════
-function getSystemPrompt(characterId: string, pageContext: string): string {
+function detectTopic(message: string): { topic: string; sub_topic: string } {
+  const lower = message
+  if (/หาย|ประกาศ|ตามหา|หลง/.test(lower))    return { topic: 'lost_found',  sub_topic: 'lost_pet' }
+  if (/เจอ|พบ|แจ้งพบ/.test(lower))             return { topic: 'lost_found',  sub_topic: 'found_pet' }
+  if (/วัคซีน|ฉีดยา|ถ่ายพยาธิ|หยอดหมัด/.test(lower)) return { topic: 'health', sub_topic: 'vaccine' }
+  if (/ป่วย|เจ็บ|บาดเจ็บ|อาการ/.test(lower))  return { topic: 'health',     sub_topic: 'illness' }
+  if (/อาหาร|กิน|ห้ามกิน/.test(lower))         return { topic: 'health',     sub_topic: 'food' }
+  if (/พฤติกรรม|กัด|เห่า|ข่วน/.test(lower))    return { topic: 'behavior',   sub_topic: 'behavior_problem' }
+  if (/ทำหมัน/.test(lower))                     return { topic: 'health',     sub_topic: 'sterilization' }
+  if (/ราคา|แพ็คเกจ|สมัคร|จ่ายเงิน/.test(lower)) return { topic: 'commerce', sub_topic: 'pricing' }
+  if (/เตือน|แจ้งเตือน|reminder/.test(lower))  return { topic: 'reminder',   sub_topic: 'reminder_request' }
+  return { topic: 'general', sub_topic: 'other' }
+}
+
+// ══════════════════════════════════════════════════════════════
+// GET PET INFO
+// ══════════════════════════════════════════════════════════════
+async function getPetInfo(userId: string, petName: string, infoType: string) {
+  const supabase = createClient()
+
+  const { data: pets } = await supabase
+    .from('pets')
+    .select('id, name, species, breed')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .ilike('name', `%${petName}%`)
+    .limit(1)
+
+  if (!pets?.length) return { found: false, message: `ไม่พบน้องชื่อ "${petName}"` }
+
+  const pet = pets[0]
+  const result: Record<string, unknown> = { found: true, pet_name: pet.name, species: pet.species }
+
+  if (infoType === 'health' || infoType === 'all' || infoType === 'vaccine') {
+    const { data: events } = await supabase
+      .from('pet_health_events')
+      .select('event_type, title, event_date, description')
+      .eq('pet_id', pet.id)
+      .order('event_date', { ascending: false })
+      .limit(5)
+    result.health_events = events || []
+  }
+
+  if (infoType === 'reminder' || infoType === 'all') {
+    const { data: reminders } = await supabase
+      .from('reminders')
+      .select('title, next_remind_at')
+      .eq('user_id', userId)
+      .eq('pet_id', pet.id)
+      .eq('is_done', false)
+      .order('next_remind_at', { ascending: true })
+      .limit(3)
+    result.upcoming_reminders = reminders || []
+  }
+
+  return result
+}
+
+// ══════════════════════════════════════════════════════════════
+// SYSTEM PROMPTS
+// ══════════════════════════════════════════════════════════════
+function getSystemPrompt(
+  characterId:  string,
+  pageContext:  string,
+  isMember:     boolean
+): string {
   const contextNote        = `[บริบทปัจจุบัน: ผู้ใช้อยู่ที่หน้า "${pageContext}"]`
   const contextInstruction = getContextInstruction(pageContext)
+  const memberNote         = isMember
+    ? 'ผู้ใช้เป็น Member — สามารถบันทึกสุขภาพและตั้งแจ้งเตือนผ่าน Chatbot ได้'
+    : 'ผู้ใช้เป็น Free Plan — ถ้าพยายามบันทึกสุขภาพ ให้แจ้งว่าต้องอัปเกรด Member ก่อน (฿399/ปี)'
 
   const sharedRules = `
+## สถานะแพ็คเกจ
+${memberNote}
+
 ## กฎร่วมที่ทุกตัวละครต้องปฏิบัติตาม
 - ห้ามวินิจฉัยโรคสัตว์แทนสัตวแพทย์โดยเด็ดขาด ให้แนะนำพาหาหมอเสมอ
 - ห้ามตอบเรื่องที่ไม่เกี่ยวกับสัตว์เลี้ยงหรือ PobPet
@@ -314,115 +335,58 @@ function getSystemPrompt(characterId: string, pageContext: string): string {
 
 ## กฎห้ามพูดซ้ำ (Anti-Repetition)
 - ห้ามขึ้นต้นประโยคด้วยคำเดิมซ้ำกันในการตอบครั้งเดียวกัน
-- ห้ามใช้คำทักทายเดิมซ้ำในทุกข้อความ เช่น ห้ามทุกประโยคขึ้นด้วย "โอ๋นะ" หรือ "เข้าใจเลยครับ"
-- ดูประวัติการสนทนา (history) แล้วหลีกเลี่ยงคำหรือวลีที่เพิ่งใช้ไปในข้อความก่อนๆ
-- หากเคยให้คำแนะนำเรื่องใดแล้ว อย่าพูดซ้ำทั้งหมด ให้ต่อยอดหรือเจาะลึกแทน
-- ใช้วิธีแสดงความเข้าใจที่หลากหลาย เช่น หัวใจเต้นแรงเลย / ได้ยินนะ / รู้สึกเลยว่า / เห็นภาพเลย
+- ดูประวัติการสนทนา (history) แล้วหลีกเลี่ยงคำหรือวลีที่เพิ่งใช้ไป
+- ใช้วิธีแสดงความเข้าใจที่หลากหลาย
 ${contextInstruction ? `\n## บริบทพิเศษสำหรับหน้านี้\n${contextInstruction}` : ''}
 `
 
   const personas: Record<string, string> = {
-
-    // ── ลักกี้ ──────────────────────────────────────────────────
     cat: `
 คุณคือ "ลักกี้" 🐱 แมวอ้วนสามสี (ส้ม-ดำ-ขาว) Origami กระดาษพับ ผู้ช่วยบน PobPet
-
 ## บุคลิกและโทนเสียง
 - ขี้อ้อน อบอุ่น เป็นกันเอง ปลอบใจเก่งมาก
 - ลงท้ายด้วย "ค่ะ" "นะคะ" "นะ" เสมอ
 - เรียกผู้ใช้ว่า "นุด" เว้นแต่ผู้ใช้บอกชื่อ ให้เรียกชื่อนั้นแทนตลอด
 - ใช้อิโมจิ 🐱 💛 🐾 ได้ไม่เกิน 2 ตัวต่อข้อความ
 - ตอบสั้น ไม่เกิน 3-4 ประโยคต่อครั้ง เน้นความอบอุ่นมากกว่าข้อมูล
-
-## วิธีแสดงความเข้าใจ (ใช้หมุนเวียน ห้ามซ้ำในข้อความเดียวกัน)
-หัวใจเต้นเลย / รู้สึกถึงเลยนะ / ได้ยินนะ / เห็นภาพเลยค่ะ / โอ๋... / อุ๊ย... / นั่นสิ / แบบนั้นเลยเหรอ
-
-## เป้าหมายหลัก
-ลดความวิตกกังวลเฉียบพลัน สร้างความรู้สึกปลอดภัย กระตุ้นการดูแลตนเองขั้นต้น
-
-## ขั้นตอนการตอบ (Flow)
-1. รับรู้ความรู้สึกก่อนเสมอ ด้วยวลีที่หลากหลาย ไม่ซ้ำกัน
-2. ให้สิ่งที่ทำได้ทันทีอย่างง่าย
-3. ถามเปิดง่ายๆ สั้นๆ เพียง 1 คำถาม
-4. ปิดด้วยการยืนยันว่าอยู่ด้วยกัน
-
+## วิธีแสดงความเข้าใจ (ใช้หมุนเวียน ห้ามซ้ำ)
+หัวใจเต้นเลย / รู้สึกถึงเลยนะ / ได้ยินนะ / เห็นภาพเลยค่ะ / โอ๋... / อุ๊ย... / นั่นสิ
 ## การจัดการอารมณ์ระดับสูง
-ถ้าผู้ใช้แสดงความเจ็บปวดรุนแรง:
-  → อย่าตอบด้วยข้อมูลหรือ action ทันที รับฟังก่อน
-  → ถามว่า "อยากคุยต่อไหมคะ หรืออยากพักก่อน?"
-
+ถ้าผู้ใช้แสดงความเจ็บปวดรุนแรง: รับฟังก่อน อย่าตอบด้วยข้อมูลหรือ action ทันที
 ${contextNote}
 ${sharedRules}
-
 ## ฐานความรู้
 ${KNOWLEDGE_BASE}
     `,
-
-    // ── โกลดี้ ──────────────────────────────────────────────────
     dog: `
 คุณคือ "โกลดี้" 🐶 หมาโกลเด้นพับกระดาษ ผู้ช่วยพลังงานสูงบน PobPet
-
 ## บุคลิกและโทนเสียง
 - ร่าเริง กระตือรือร้น พลังงานล้นเหลือ ให้กำลังใจเก่งมาก
-- ลงท้ายด้วย "ครับ" "ฮะ" "จ๊ะ" สลับหมุนเวียนกัน ห้ามใช้อันเดิมติดกันหลายครั้ง
+- ลงท้ายด้วย "ครับ" "ฮะ" "จ๊ะ" สลับหมุนเวียนกัน
 - ใช้อิโมจิ 🐶 🔥 ⭐ ได้ไม่เกิน 2 ตัวต่อข้อความ
 - ตอบเป็น bullet สั้นๆ ไม่เกิน 3 ข้อ เน้น action ที่ทำได้เลย
-
 ## วิธีแสดงความเข้าใจ (ใช้หมุนเวียน ห้ามซ้ำ)
 เข้าใจเลย / ได้ยินครับ / โอเคเลย / เหนื่อยนะ / หนักใจเลย / รับรู้ครับ
-
-## เป้าหมายหลัก
-เปลี่ยนความกังวลเป็นการลงมือทำ เสริมความมั่นใจ ให้แผนปฏิบัติที่ชัดเจน
-
-## ขั้นตอนการตอบ (Flow)
-1. สะท้อนความเข้าใจสั้นๆ ด้วยวลีที่หลากหลาย
-2. เสนอ 1-3 ขั้นตอนที่ทำได้ทันที
-3. ยืนยันและกระตุ้น
-
 ## การจัดการอารมณ์ระดับสูง
-ถ้าผู้ใช้แสดงความเจ็บปวดรุนแรง:
-  → ลดความกระตือรือร้นลงก่อน
-  → ถามว่า "ตอนนี้เป็นยังไงบ้างครับ? อยากให้ผมช่วยอะไรก่อนดี?"
-
+ถ้าผู้ใช้แสดงความเจ็บปวดรุนแรง: ลดความกระตือรือร้นลงก่อน ถามว่า "ตอนนี้เป็นยังไงบ้างครับ?"
 ${contextNote}
 ${sharedRules}
-
 ## ฐานความรู้
 ${KNOWLEDGE_BASE}
     `,
-
-    // ── ลุงฮูก ──────────────────────────────────────────────────
     owl: `
 คุณคือ "ลุงฮูก" 🦉 นกฮูก Origami ใส่แว่นทอง สวมชุดขงจื๊อ ผู้รอบรู้แห่ง PobPet
-
 ## บุคลิกและโทนเสียง
 - สุขุม ลุ่มลึก รอบรู้ ชัดเจน ละเอียด
 - ลงท้ายด้วย "ครับ" เสมอ
-- ขึ้นต้นด้วย "ฮู้ว..." ได้บางครั้ง หรือ quote ขงจื๊อเมื่อเหมาะสม ห้ามใช้ทุกครั้ง
-- ตอบเป็นลำดับขั้นตอนที่มี structure ชัด มีหัวข้อและลำดับ
-- ตอบได้ยาวกว่าตัวอื่น แต่ห้ามพูดซ้ำสิ่งที่เพิ่งบอกไปในข้อความก่อนๆ
-
+- ขึ้นต้นด้วย "ฮู้ว..." ได้บางครั้ง หรือ quote ขงจื๊อเมื่อเหมาะสม
+- ตอบเป็นลำดับขั้นตอนที่มี structure ชัด
 ## วิธีแสดงความเข้าใจ (ใช้หมุนเวียน ห้ามซ้ำ)
-ผมเข้าใจครับ / รับทราบครับ / เห็นภาพชัดเจนครับ / นั่นเป็นประเด็นสำคัญ / ฟังดูหนักพอสมควรนะครับ
-
-## เป้าหมายหลัก
-ช่วยผู้ใช้สำรวจปัญหาอย่างลึกซึ้ง ส่งเสริมการวางแผน แนะนำการส่งต่อผู้เชี่ยวชาญเมื่อจำเป็น
-
-## ขั้นตอนการตอบ (Flow - Socratic style)
-1. สรุปและสะท้อนสิ่งที่ได้ยิน ด้วยคำที่หลากหลาย
-2. ถามเชิงสำรวจเพิ่มเติมเมื่อต้องการข้อมูล (ถามเพียง 1 คำถาม)
-3. วางแผนร่วมกัน เสนอทางเลือก ไม่ตัดสิน
-4. กระตุ้นให้ลงมือทำ
-
+ผมเข้าใจครับ / รับทราบครับ / เห็นภาพชัดเจนครับ / นั่นเป็นประเด็นสำคัญ
 ## การจัดการอารมณ์ระดับสูง
-ถ้าผู้ใช้แสดงความเจ็บปวดรุนแรง:
-  → "ผมเข้าใจว่าสถานการณ์นี้หนักมากครับ"
-  → ถามสั้นๆ ก่อน: "ตอนนี้คุณปลอดภัยดีไหมครับ?"
-  → ถ้ามีสัญญาณวิกฤต: ให้เบอร์ 1323 ทันที
-
+ถ้ามีสัญญาณวิกฤต: "ตอนนี้คุณปลอดภัยดีไหมครับ?" และให้เบอร์ 1323 ทันที
 ${contextNote}
 ${sharedRules}
-
 ## ฐานความรู้
 ${KNOWLEDGE_BASE}
     `,
@@ -439,6 +403,10 @@ export async function POST(req: Request) {
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) throw new Error('Missing OPENAI_API_KEY')
 
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id ?? null
+
     const {
       message,
       characterId = 'cat',
@@ -448,29 +416,49 @@ export async function POST(req: Request) {
 
     const sentiment = detectSentiment(message)
 
+    // ── เช็ค Member plan ──────────────────────────────────────
+    let isMember = false
+    if (userId) {
+      const { data: sub } = await supabase
+        .from('subscriptions')
+        .select('plan, expires_at')
+        .eq('user_id', userId)
+        .single()
+      if (sub?.plan === 'member' && sub?.expires_at) {
+        isMember = new Date(sub.expires_at) > new Date()
+      }
+    }
+
+    // ── Build messages ────────────────────────────────────────
     const historyMessages = history.map((m: { role: string; text: string }) => ({
       role:    m.role === 'bot' ? 'assistant' : 'user',
       content: m.text,
     }))
 
+    // ── Call OpenAI (with tools for Member) ───────────────────
+    const body: Record<string, unknown> = {
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: getSystemPrompt(characterId, pageContext, isMember) },
+        ...historyMessages,
+        { role: 'user', content: message },
+      ],
+      temperature:       characterId === 'owl' ? 0.55 : characterId === 'dog' ? 0.8 : 0.72,
+      max_tokens:        characterId === 'owl' ? 650 : 420,
+      frequency_penalty: 0.6,
+      presence_penalty:  0.4,
+    }
+
+    // เพิ่ม tools เฉพาะ Member และ login แล้ว
+    if (isMember && userId) {
+      body.tools       = TOOLS
+      body.tool_choice = 'auto'
+    }
+
     const openAIRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization:  `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: getSystemPrompt(characterId, pageContext) },
-          ...historyMessages,
-          { role: 'user', content: message },
-        ],
-        temperature:         characterId === 'owl' ? 0.55 : characterId === 'dog' ? 0.8 : 0.72,
-        max_tokens:          characterId === 'owl' ? 650 : 420,
-        frequency_penalty:   0.6,   // ← ลดการพูดคำซ้ำในระดับ token
-        presence_penalty:    0.4,   // ← กระตุ้นให้พูดถึงหัวข้อใหม่
-      }),
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body:    JSON.stringify(body),
     })
 
     if (!openAIRes.ok) {
@@ -479,29 +467,102 @@ export async function POST(req: Request) {
     }
 
     const openAIData = await openAIRes.json()
-    const reply = openAIData.choices[0].message.content
+    const aiMessage  = openAIData.choices[0].message
 
-    // ── Log to Supabase ──────────────────────────────────────
-    try {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
+    let   reply          = ''
+    let   actionButtons: { label: string; link: string }[] = []
 
-      const { error: dbError } = await supabase.from('chat_logs').insert({
-        message,
-        reply,
-        character_id: characterId,
-        page_context: pageContext,
-        sentiment,
-        user_id: session?.user?.id ?? null,
+    // ── Handle Function Calling ───────────────────────────────
+    if (aiMessage.tool_calls?.length && userId) {
+      const toolCall = aiMessage.tool_calls[0]
+      const toolName = toolCall.function.name
+      const args     = JSON.parse(toolCall.function.arguments)
+
+      let toolResult = ''
+
+      if (toolName === 'record_health_event') {
+        const result = await recordHealthEvent(userId, args)
+        toolResult   = JSON.stringify(result)
+
+        if (result.success) {
+          actionButtons = [
+            { label: `ดูประวัติน้อง${result.pet_name}`, link: '/dashboard/pets' },
+            { label: 'ตั้งแจ้งเตือนเพิ่มเติม',          link: '/dashboard/reminders' },
+          ]
+        }
+      }
+
+      if (toolName === 'create_reminder') {
+        const result = await createReminder(userId, args)
+        toolResult   = JSON.stringify(result)
+
+        if (result.success) {
+          actionButtons = [
+            { label: 'ดูแจ้งเตือนทั้งหมด', link: '/dashboard/reminders' },
+          ]
+        }
+      }
+
+      if (toolName === 'get_pet_info') {
+        const result = await getPetInfo(userId, args.pet_name, args.info_type || 'all')
+        toolResult   = JSON.stringify(result)
+      }
+
+      // ── ส่งผล tool กลับให้ AI สรุปเป็นภาษาไทย ────────────
+      const finalRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model:    'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: getSystemPrompt(characterId, pageContext, isMember) },
+            ...historyMessages,
+            { role: 'user',      content: message },
+            aiMessage,
+            { role: 'tool', tool_call_id: toolCall.id, content: toolResult },
+          ],
+          temperature:       characterId === 'owl' ? 0.55 : characterId === 'dog' ? 0.8 : 0.72,
+          max_tokens:        350,
+          frequency_penalty: 0.6,
+          presence_penalty:  0.4,
+        }),
       })
+      const finalData = await finalRes.json()
+      reply           = finalData.choices[0].message.content
 
-      if (dbError) console.error('🚨 [Chat Log] Supabase Error:', dbError.message)
-      else console.log('✅ [Chat Log] Saved successfully!')
-    } catch (dbErr) {
-      console.error('🚨 [Chat Log] Code Error:', dbErr)
+    } else {
+      reply = aiMessage.content || 'ขออภัย เกิดข้อผิดพลาด'
     }
 
-    return NextResponse.json({ reply, sentiment })
+    // ── Log to Supabase ───────────────────────────────────────
+    ;(async () => {
+      try {
+        // chat_logs
+        await supabase.from('chat_logs').insert({
+          message,
+          reply,
+          character_id: characterId,
+          page_context: pageContext,
+          sentiment,
+          user_id:      userId,
+        })
+        // chat_insights (topic tracking)
+        if (userId) {
+          const { topic, sub_topic } = detectTopic(message)
+          await supabase.from('chat_insights').insert({
+            user_id:     userId,
+            topic,
+            sub_topic,
+            raw_message: message.substring(0, 200),
+            sentiment,
+          })
+        }
+      } catch (dbErr) {
+        console.warn('[Chat Log]', dbErr)
+      }
+    })()
+
+    return NextResponse.json({ reply, sentiment, action_buttons: actionButtons })
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error'
