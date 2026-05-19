@@ -200,7 +200,7 @@ export default async function PetProfilePage({ params }: Props) {
             <div className="bg-washi border-2 border-black p-6 rounded-lg mb-8 shadow-paper-sm">
               <h3 className="font-bold text-lg mb-3">🤖 บทวิเคราะห์จาก Gemini AI</h3>
               <p className="text-gray-800 leading-relaxed italic">
-                "{pet.ai_description}"
+                &quot;{pet.ai_description}&quot;
               </p>
             </div>
 
@@ -208,6 +208,7 @@ export default async function PetProfilePage({ params }: Props) {
               <div className="border-2 border-black rounded-xl p-6 bg-gray-50 mt-10">
                 <div className="flex items-center gap-4 mb-5 border-b-2 border-black pb-4">
                   {reporter.avatar_url ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={reporter.avatar_url} alt={reporter.display_name || 'Profile'} className="w-14 h-14 rounded-full border-2 border-black object-cover" />
                   ) : (
                     <UserCircle2 size={56} className="text-gray-400" />
@@ -215,7 +216,7 @@ export default async function PetProfilePage({ params }: Props) {
                   <div>
                     <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">ข้อมูลผู้แจ้ง</p>
                     <p className="text-xl font-black">
-                      {reporter.display_name || `${reporter.first_name} ${reporter.last_name}`}
+                      {reporter.display_name || `${reporter.first_name || ''} ${reporter.last_name || ''}`}
                     </p>
                   </div>
                 </div>
