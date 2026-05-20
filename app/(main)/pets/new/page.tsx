@@ -1,7 +1,7 @@
 'use client'
 // app/(main)/pets/new/page.tsx
 
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { createBrowserClient }       from '@supabase/ssr'
 import { useRouter }                 from 'next/navigation'
 import Image                         from 'next/image'
@@ -82,19 +82,29 @@ export default function NewPetPage() {
   const [planInfo,       setPlanInfo]       = useState<{ plan: string; limit: number; current: number } | null>(null)
   const [planChecked,    setPlanChecked]    = useState(false)
 
-  // ── Check plan on mount ─────────────────────────────────
-  useMemo(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) { router.push('/login?next=/pets/new'); return }
-      const res = await fetch('/api/subscriptions/status')
-      const data = await res.json()
-      setPlanInfo(data)
-      setPlanChecked(true)
-      if (data.current >= data.limit) {
-        setError(`คุณมีโปรไฟล์น้อง ${data.current} ตัวแล้ว (สูงสุด ${data.limit} ตัวสำหรับแพ็คเกจ ${data.plan === 'free' ? 'Free' : 'Member'})`)
+  // ── Check plan on mount (✅ แก้จาก useMemo เป็น useEffect) ──
+  useEffect(() => {
+    const checkPlan = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { 
+        router.push('/login?next=/pets/new')
+        return 
       }
-    })
-  }, [])
+      
+      try {
+        const res = await fetch('/api/subscriptions/status')
+        const data = await res.json()
+        setPlanInfo(data)
+        setPlanChecked(true)
+        if (data.current >= data.limit) {
+          setError(`คุณมีโปรไฟล์น้อง ${data.current} ตัวแล้ว (สูงสุด ${data.limit} ตัวสำหรับแพ็คเกจ ${data.plan === 'free' ? 'Free' : 'Member'})`)
+        }
+      } catch (err) {
+        console.error('Failed to load plan info', err)
+      }
+    }
+    checkPlan()
+  }, [router, supabase.auth])
 
   // ── Image handlers ──────────────────────────────────────
   const maxPhotos = planInfo?.plan === 'member' ? 10 : 3

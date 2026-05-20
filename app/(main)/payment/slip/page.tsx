@@ -1,7 +1,7 @@
 'use client'
 // app/(main)/payment/slip/page.tsx
 
-import { useState, useRef, useMemo } from 'react'
+import { Suspense, useState, useRef, useMemo } from 'react'
 import { createBrowserClient }        from '@supabase/ssr'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image                          from 'next/image'
@@ -24,7 +24,8 @@ const SLIP_CONFIG: Record<string, { label: string; amount: number }> = {
 
 type VerifyStatus = 'idle' | 'uploading' | 'verifying' | 'approved' | 'pending' | 'rejected'
 
-export default function PaymentSlipPage() {
+// 1. แยกเนื้อหาเดิมออกมาเป็น Component ย่อย
+function PaymentSlipContent() {
   const router       = useRouter()
   const searchParams = useSearchParams()
 
@@ -339,5 +340,18 @@ export default function PaymentSlipPage() {
         <span>AI ตรวจสอบสลิปภายใน 30 วินาที · ถ้าไม่ผ่านอัตโนมัติ Admin ตรวจภายใน 2 ชม.</span>
       </div>
     </div>
+  )
+}
+
+// 2. สร้าง Component หลัก ห่อด้วย Suspense ตามกฎของ Next.js
+export default function PaymentSlipPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 size={48} className="animate-spin text-ori-orange" />
+      </div>
+    }>
+      <PaymentSlipContent />
+    </Suspense>
   )
 }
