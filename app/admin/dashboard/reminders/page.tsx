@@ -163,7 +163,7 @@ export default function RemindersPage() {
         flex items-center gap-3 mb-6">
         <span className="text-lg">🤖</span>
         <p className="text-xs font-bold text-purple-700">
-          พิมพ์ใน Chatbot ว่า "เตือนฉีดวัคซีนน้องบัตเตอร์เดือนหน้า"
+          พิมพ์ใน Chatbot ว่า &quot;เตือนฉีดวัคซีนน้องบัตเตอร์เดือนหน้า&quot;
           ระบบจะเพิ่มแจ้งเตือนให้อัตโนมัติค่ะ
         </p>
       </div>
@@ -331,7 +331,7 @@ function ReminderCard({
             <button
               onClick={() => onDone(reminder.id)}
               disabled={completing === reminder.id}
-              title="ทำเสร็จแล้ว"
+              title=&quot;ทำเสร็จแล้ว&quot;
               className="w-8 h-8 rounded-lg bg-green-100 text-green-700
                 border border-green-300 flex items-center justify-center
                 hover:bg-green-200 transition-all disabled:opacity-50">
@@ -343,7 +343,7 @@ function ReminderCard({
             <button
               onClick={() => onDelete(reminder.id)}
               disabled={deleting === reminder.id}
-              title="ลบ"
+              title=&quot;ลบ&quot;
               className="w-8 h-8 rounded-lg bg-red-50 text-red-500
                 border border-red-200 flex items-center justify-center
                 hover:bg-red-100 transition-all disabled:opacity-50">

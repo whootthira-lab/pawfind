@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 
   const supabase = createClient()
   const now      = new Date()
-  let   results  = {
+  const   results  = {
     renewal_alerted: 0,   // ← Day -30 / Day -7
     notified_day1:  0,
     notified_day15: 0,
