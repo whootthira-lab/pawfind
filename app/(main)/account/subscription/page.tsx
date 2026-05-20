@@ -1,10 +1,10 @@
 'use client'
 // app/(main)/account/subscription/page.tsx
 
-import { useState, useEffect, useMemo } from 'react'
-import { createBrowserClient }          from '@supabase/ssr'
-import Link                             from 'next/link'
-import { useSearchParams }              from 'next/navigation'
+import { useState, useEffect, useMemo, Suspense } from 'react'
+import { createBrowserClient }                    from '@supabase/ssr'
+import Link                                       from 'next/link'
+import { useSearchParams }                        from 'next/navigation'
 import {
   Crown, PawPrint, Plus, AlertCircle,
   CheckCircle2, ChevronRight, Receipt,
@@ -41,6 +41,18 @@ function thDate(d: string | null) {
 
 // ══════════════════════════════════════════════════════════════
 export default function SubscriptionPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 size={48} className="animate-spin text-ori-orange" />
+      </div>
+    }>
+      <SubscriptionContent />
+    </Suspense>
+  )
+}
+
+function SubscriptionContent() {
   const supabase     = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
