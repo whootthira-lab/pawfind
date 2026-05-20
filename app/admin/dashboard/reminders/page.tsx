@@ -51,14 +51,13 @@ function daysFromNow(d: string | null): number {
 // ── Status badge ──────────────────────────────────────────────
 function StatusBadge({ reminder }: { reminder: Reminder }) {
   if (reminder.is_done) return (
-    <span className=&quot;text-xs font-black text-gray-400 bg-gray-100
-      px-2 py-0.5 rounded-full&quot;>เสร็จแล้ว</span>
+    <span className="text-xs font-black text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">เสร็จแล้ว</span>
   )
   const days = daysFromNow(reminder.next_remind_at || reminder.remind_at)
-  if (days < 0)  return <span className=&quot;text-xs font-black text-red-600 bg-red-50 px-2 py-0.5 rounded-full&quot;>เลยกำหนด {Math.abs(days)} วัน</span>
-  if (days === 0) return <span className=&quot;text-xs font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full&quot;>วันนี้!</span>
-  if (days <= 7)  return <span className=&quot;text-xs font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full&quot;>อีก {days} วัน</span>
-  return <span className=&quot;text-xs font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full&quot;>อีก {days} วัน</span>
+  if (days < 0)  return <span className="text-xs font-black text-red-600 bg-red-50 px-2 py-0.5 rounded-full">เลยกำหนด {Math.abs(days)} วัน</span>
+  if (days === 0) return <span className="text-xs font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">วันนี้!</span>
+  if (days <= 7)  return <span className="text-xs font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">อีก {days} วัน</span>
+  return <span className="text-xs font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full">อีก {days} วัน</span>
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -131,45 +130,43 @@ export default function RemindersPage() {
   const later    = upcoming.filter(r => daysFromNow(r.next_remind_at || r.remind_at) > 7)
 
   if (loading) return (
-    <div className=&quot;min-h-[60vh] flex items-center justify-center&quot;>
-      <Loader2 size={48} className=&quot;animate-spin text-ori-orange&quot; />
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <Loader2 size={48} className="animate-spin text-ori-orange" />
     </div>
   )
 
   return (
-    <div className=&quot;max-w-2xl mx-auto px-4 py-10 mb-20&quot;>
+    <div className="max-w-2xl mx-auto px-4 py-10 mb-20">
 
       {/* Header */}
-      <div className=&quot;flex items-center justify-between mb-6&quot;>
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className=&quot;text-3xl font-black flex items-center gap-2&quot;>
+          <h1 className="text-3xl font-black flex items-center gap-2">
             <Bell size={28} /> แจ้งเตือน
           </h1>
-          <p className=&quot;text-sm font-bold text-ori-ink-l mt-0.5&quot;>
+          <p className="text-sm font-bold text-ori-ink-l mt-0.5">
             รอดำเนินการ {upcoming.length} · เสร็จแล้ว {done.length}
           </p>
         </div>
         {/* ปุ่มชวนให้ใช้ Chatbot เพิ่ม reminder */}
-        <Link href=&quot;/&quot;
-          className=&quot;flex items-center gap-1.5 px-3 py-2 text-xs font-black
+        <Link href="/"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-black
             border-2 border-ori-ink rounded-xl bg-white
-            hover:bg-gray-50 transition-all shadow-paper-sm&quot;>
+            hover:bg-gray-50 transition-all shadow-paper-sm">
           <Plus size={14} /> เพิ่มผ่าน Chatbot
         </Link>
       </div>
 
       {/* Chatbot hint */}
-      <div className=&quot;p-3 bg-purple-50 border-2 border-purple-200 rounded-2xl
-        flex items-center gap-3 mb-6&quot;>
-        <span className=&quot;text-lg&quot;>🤖</span>
-        <p className=&quot;text-xs font-bold text-purple-700&quot;>
-          พิมพ์ใน Chatbot ว่า &quot;เตือนฉีดวัคซีนน้องบัตเตอร์เดือนหน้า&quot;
-          ระบบจะเพิ่มแจ้งเตือนให้อัตโนมัติค่ะ
+      <div className="p-3 bg-purple-50 border-2 border-purple-200 rounded-2xl flex items-center gap-3 mb-6">
+        <span className="text-lg">🤖</span>
+        <p className="text-xs font-bold text-purple-700">
+          พิมพ์ใน Chatbot ว่า &quot;เตือนฉีดวัคซีนน้องบัตเตอร์เดือนหน้า&quot; ระบบจะเพิ่มแจ้งเตือนให้อัตโนมัติค่ะ
         </p>
       </div>
 
       {/* Tabs */}
-      <div className=&quot;flex gap-4 border-b-4 border-ori-ink pb-2 mb-6&quot;>
+      <div className="flex gap-4 border-b-4 border-ori-ink pb-2 mb-6">
         {[
           { key: 'upcoming', label: `รอดำเนินการ (${upcoming.length})` },
           { key: 'done',     label: `เสร็จแล้ว (${done.length})`       },
@@ -188,13 +185,12 @@ export default function RemindersPage() {
 
       {/* Empty state */}
       {shown.length === 0 && (
-        <div className=&quot;text-center py-20 bg-white border-4 border-dashed
-          border-gray-300 rounded-3xl&quot;>
-          <Bell size={48} className=&quot;text-gray-300 mx-auto mb-4&quot; />
-          <p className=&quot;font-black text-xl text-ori-ink-l mb-2&quot;>
+        <div className="text-center py-20 bg-white border-4 border-dashed border-gray-300 rounded-3xl">
+          <Bell size={48} className="text-gray-300 mx-auto mb-4" />
+          <p className="font-black text-xl text-ori-ink-l mb-2">
             {activeTab === 'upcoming' ? 'ยังไม่มีแจ้งเตือน' : 'ยังไม่มีที่เสร็จแล้ว'}
           </p>
-          <p className=&quot;text-sm font-bold text-gray-400&quot;>
+          <p className="text-sm font-bold text-gray-400">
             พิมพ์ขอให้ Chatbot ตั้งแจ้งเตือนได้เลยค่ะ
           </p>
         </div>
@@ -202,14 +198,14 @@ export default function RemindersPage() {
 
       {/* Upcoming — grouped */}
       {activeTab === 'upcoming' && upcoming.length > 0 && (
-        <div className=&quot;space-y-6&quot;>
+        <div className="space-y-6">
           {/* Overdue */}
           {overdue.length > 0 && (
             <div>
-              <p className=&quot;text-xs font-black text-red-600 uppercase tracking-wide mb-2&quot;>
+              <p className="text-xs font-black text-red-600 uppercase tracking-wide mb-2">
                 🚨 เลยกำหนดแล้ว
               </p>
-              <div className=&quot;space-y-3&quot;>
+              <div className="space-y-3">
                 {overdue.map(r => <ReminderCard key={r.id} reminder={r}
                   onDone={markDone} onDelete={deleteReminder}
                   completing={completing} deleting={deleting} />)}
@@ -219,10 +215,10 @@ export default function RemindersPage() {
           {/* Today */}
           {today.length > 0 && (
             <div>
-              <p className=&quot;text-xs font-black text-orange-600 uppercase tracking-wide mb-2&quot;>
+              <p className="text-xs font-black text-orange-600 uppercase tracking-wide mb-2">
                 🔔 วันนี้
               </p>
-              <div className=&quot;space-y-3&quot;>
+              <div className="space-y-3">
                 {today.map(r => <ReminderCard key={r.id} reminder={r}
                   onDone={markDone} onDelete={deleteReminder}
                   completing={completing} deleting={deleting} />)}
@@ -232,10 +228,10 @@ export default function RemindersPage() {
           {/* Soon (7 วัน) */}
           {soon.length > 0 && (
             <div>
-              <p className=&quot;text-xs font-black text-amber-600 uppercase tracking-wide mb-2&quot;>
+              <p className="text-xs font-black text-amber-600 uppercase tracking-wide mb-2">
                 📅 ใน 7 วัน
               </p>
-              <div className=&quot;space-y-3&quot;>
+              <div className="space-y-3">
                 {soon.map(r => <ReminderCard key={r.id} reminder={r}
                   onDone={markDone} onDelete={deleteReminder}
                   completing={completing} deleting={deleting} />)}
@@ -245,10 +241,10 @@ export default function RemindersPage() {
           {/* Later */}
           {later.length > 0 && (
             <div>
-              <p className=&quot;text-xs font-black text-gray-500 uppercase tracking-wide mb-2&quot;>
+              <p className="text-xs font-black text-gray-500 uppercase tracking-wide mb-2">
                 🗓 กำหนดในอนาคต
               </p>
-              <div className=&quot;space-y-3&quot;>
+              <div className="space-y-3">
                 {later.map(r => <ReminderCard key={r.id} reminder={r}
                   onDone={markDone} onDelete={deleteReminder}
                   completing={completing} deleting={deleting} />)}
@@ -260,7 +256,7 @@ export default function RemindersPage() {
 
       {/* Done list */}
       {activeTab === 'done' && done.length > 0 && (
-        <div className=&quot;space-y-3&quot;>
+        <div className="space-y-3">
           {done.map(r => <ReminderCard key={r.id} reminder={r}
             onDone={markDone} onDelete={deleteReminder}
             completing={completing} deleting={deleting} />)}
@@ -290,13 +286,13 @@ function ReminderCard({
           ? 'border-red-400'
           : 'border-ori-ink'
     }`}>
-      <div className=&quot;flex items-start justify-between gap-3&quot;>
-        <div className=&quot;flex-1 min-w-0&quot;>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
           {/* Pet tag */}
           {reminder.pet_name && (
-            <div className=&quot;flex items-center gap-1 mb-1&quot;>
-              <PawPrint size={12} className=&quot;text-ori-orange&quot; />
-              <span className=&quot;text-xs font-black text-ori-orange&quot;>{reminder.pet_name}</span>
+            <div className="flex items-center gap-1 mb-1">
+              <PawPrint size={12} className="text-ori-orange" />
+              <span className="text-xs font-black text-ori-orange">{reminder.pet_name}</span>
             </div>
           )}
 
@@ -307,17 +303,17 @@ function ReminderCard({
 
           {/* Body */}
           {reminder.body && (
-            <p className=&quot;text-xs font-bold text-ori-ink-l mt-0.5&quot;>{reminder.body}</p>
+            <p className="text-xs font-bold text-ori-ink-l mt-0.5">{reminder.body}</p>
           )}
 
           {/* Date & repeat */}
-          <div className=&quot;flex items-center gap-3 mt-2 flex-wrap&quot;>
-            <div className=&quot;flex items-center gap-1 text-xs font-bold text-ori-ink-l&quot;>
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <div className="flex items-center gap-1 text-xs font-bold text-ori-ink-l">
               <Clock size={11} />
               {thDate(reminder.next_remind_at || reminder.remind_at)}
             </div>
             {reminder.repeat_type !== 'none' && (
-              <span className=&quot;text-xs font-bold text-blue-600&quot;>
+              <span className="text-xs font-bold text-blue-600">
                 {REPEAT_LABEL[reminder.repeat_type]}
               </span>
             )}
@@ -327,28 +323,28 @@ function ReminderCard({
 
         {/* Actions */}
         {!reminder.is_done && (
-          <div className=&quot;flex gap-2 shrink-0&quot;>
+          <div className="flex gap-2 shrink-0">
             <button
               onClick={() => onDone(reminder.id)}
               disabled={completing === reminder.id}
-              title=&quot;ทำเสร็จแล้ว&quot;
-              className=&quot;w-8 h-8 rounded-lg bg-green-100 text-green-700
+              title="ทำเสร็จแล้ว"
+              className="w-8 h-8 rounded-lg bg-green-100 text-green-700
                 border border-green-300 flex items-center justify-center
-                hover:bg-green-200 transition-all disabled:opacity-50&quot;>
+                hover:bg-green-200 transition-all disabled:opacity-50">
               {completing === reminder.id
-                ? <Loader2 size={14} className=&quot;animate-spin&quot; />
+                ? <Loader2 size={14} className="animate-spin" />
                 : <CheckCircle2 size={14} />
               }
             </button>
             <button
               onClick={() => onDelete(reminder.id)}
               disabled={deleting === reminder.id}
-              title=&quot;ลบ&quot;
-              className=&quot;w-8 h-8 rounded-lg bg-red-50 text-red-500
+              title="ลบ"
+              className="w-8 h-8 rounded-lg bg-red-50 text-red-500
                 border border-red-200 flex items-center justify-center
-                hover:bg-red-100 transition-all disabled:opacity-50&quot;>
+                hover:bg-red-100 transition-all disabled:opacity-50">
               {deleting === reminder.id
-                ? <Loader2 size={14} className=&quot;animate-spin&quot; />
+                ? <Loader2 size={14} className="animate-spin" />
                 : <Trash2 size={14} />
               }
             </button>
@@ -360,11 +356,11 @@ function ReminderCard({
           <button
             onClick={() => onDelete(reminder.id)}
             disabled={deleting === reminder.id}
-            className=&quot;w-8 h-8 rounded-lg bg-gray-100 text-gray-400
+            className="w-8 h-8 rounded-lg bg-gray-100 text-gray-400
               border border-gray-200 flex items-center justify-center
-              hover:bg-gray-200 transition-all disabled:opacity-50 shrink-0&quot;>
+              hover:bg-gray-200 transition-all disabled:opacity-50 shrink-0">
             {deleting === reminder.id
-              ? <Loader2 size={14} className=&quot;animate-spin&quot; />
+              ? <Loader2 size={14} className="animate-spin" />
               : <Trash2 size={14} />
             }
           </button>
