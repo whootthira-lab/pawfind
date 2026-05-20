@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createBrowserClient }          from '@supabase/ssr'
 import Link                             from 'next/link'
+import { useSearchParams }              from 'next/navigation'
 import {
   Crown, PawPrint, Plus, AlertCircle,
   CheckCircle2, ChevronRight, Receipt,
@@ -40,15 +41,25 @@ function thDate(d: string | null) {
 
 // ══════════════════════════════════════════════════════════════
 export default function SubscriptionPage() {
-  const supabase = useMemo(() => createBrowserClient(
+  const supabase     = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), [])
+  const searchParams = useSearchParams()
 
-  const [sub,      setSub]      = useState<SubInfo | null>(null)
-  const [payments, setPayments] = useState<PaymentRecord[]>([])
-  const [petCount, setPetCount] = useState(0)
-  const [loading,  setLoading]  = useState(true)
+  const [sub,        setSub]        = useState<SubInfo | null>(null)
+  const [payments,   setPayments]   = useState<PaymentRecord[]>([])
+  const [petCount,   setPetCount]   = useState(0)
+  const [loading,    setLoading]    = useState(true)
+  const [addonToast, setAddonToast] = useState(false)
+
+  // แสดง toast เมื่อ redirect มาจากการซื้อ addon สำเร็จ
+  useEffect(() => {
+    if (searchParams.get('addon') === 'success') {
+      setAddonToast(true)
+      setTimeout(() => setAddonToast(false), 5000)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const load = async () => {
@@ -144,6 +155,26 @@ export default function SubscriptionPage() {
       <h1 className="text-3xl font-black flex items-center gap-2">
         <Crown size={28} className="text-amber-500" /> จัดการแพ็คเกจ
       </h1>
+
+      {/* ── Addon success toast ── */}
+      {addonToast && (
+        <div className="p-4 bg-green-50 border-2 border-green-400
+          rounded-2xl flex items-center gap-3 animate-bounce-once">
+          <CheckCircle2 size={20} className="text-green-600 shrink-0" />
+          <div>
+            <p className="font-black text-green-800">เพิ่ม Slot น้องสำเร็จแล้วค่ะ! 🐾</p>
+            <p className="text-xs font-bold text-green-600">
+              สร้างโปรไฟล์น้องเพิ่มได้เลย
+            </p>
+          </div>
+          <Link href="/pets/new"
+            className="ml-auto text-xs font-black text-green-700
+              bg-green-200 px-3 py-2 rounded-xl border border-green-400
+              hover:bg-green-300 transition-all shrink-0">
+            สร้างเลย →
+          </Link>
+        </div>
+      )}
 
       {/* ── Plan status card ── */}
       <div className={`border-4 rounded-3xl p-6 shadow-paper ${statusColor}`}>
