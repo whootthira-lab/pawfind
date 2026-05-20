@@ -405,14 +405,28 @@ export async function POST(req: Request) {
 
     const supabase = createClient()
     const { data: { session } } = await supabase.auth.getSession()
-    const userId = session?.user?.id ?? null
 
     const {
       message,
-      characterId = 'cat',
-      pageContext  = '/',
-      history      = [],
+      characterId  = 'cat',
+      pageContext   = '/',
+      history       = [],
+      line_user_id,          // ← รับจาก LINE webhook (bypass session)
     } = await req.json()
+
+    // ── Resolve userId ────────────────────────────────────────
+    // ถ้ามาจาก LINE webhook → ใช้ line_user_id หา userId จาก profiles
+    // ถ้ามาจากเว็บ → ใช้ session ปกติ
+    let userId: string | null = session?.user?.id ?? null
+
+    if (!userId && line_user_id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('line_user_id', line_user_id)
+        .single()
+      userId = profile?.id ?? null
+    }
 
     const sentiment = detectSentiment(message)
 

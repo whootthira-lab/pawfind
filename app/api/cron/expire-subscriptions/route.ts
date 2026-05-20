@@ -2,8 +2,9 @@
 // ── รันทุกวัน ตี 1 ────────────────────────────────────────────
 export const dynamic = 'force-dynamic'
 
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextResponse }         from 'next/server'
+import { createClient }         from '@/lib/supabase/server'
+import { checkRenewalAlert }    from '@/lib/subscription'
 
 export async function GET(req: Request) {
   // ── Verify cron secret ────────────────────────────────────
@@ -14,7 +15,8 @@ export async function GET(req: Request) {
 
   const supabase = createClient()
   const now      = new Date()
-  const   results  = {
+  let   results  = {
+    renewal_alerted: 0,   // ← Day -30 / Day -7
     notified_day1:  0,
     notified_day15: 0,
     notified_day25: 0,
@@ -22,6 +24,28 @@ export async function GET(req: Request) {
     archived:       0,
     warned_delete:  0,
     deleted:        0,
+  }
+
+  // ════════════════════════════════════════════════════════
+  // 0. แจ้งเตือนต่ออายุล่วงหน้า (Day -30 และ Day -7)
+  // ════════════════════════════════════════════════════════
+  // ดึง Member ทุกคนที่ยังไม่หมดอายุ แล้วเช็คว่าใครต้องแจ้งเตือน
+  const { data: activeMembers } = await supabase
+    .from('subscriptions')
+    .select('user_id, expires_at')
+    .eq('plan', 'member')
+    .eq('is_active', true)
+    .gt('expires_at', now.toISOString())
+
+  for (const member of activeMembers || []) {
+    const expiresAt = new Date(member.expires_at)
+    const daysLeft  = Math.ceil((expiresAt.getTime() - now.getTime()) / 86400000)
+
+    // เรียก checkRenewalAlert เฉพาะ Day -30 และ Day -7
+    if (daysLeft === 30 || daysLeft === 7) {
+      await checkRenewalAlert(member.user_id)
+      results.renewal_alerted++
+    }
   }
 
   // ════════════════════════════════════════════════════════

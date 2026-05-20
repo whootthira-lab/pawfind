@@ -2,24 +2,38 @@
 // app/(main)/payment/slip/page.tsx
 
 import { useState, useRef, useMemo } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
-import { useRouter } from 'next/navigation'
-import Image from 'next/image'
+import { createBrowserClient }        from '@supabase/ssr'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Image                          from 'next/image'
 import {
   Upload, CheckCircle2, AlertCircle, Loader2,
   Copy, QrCode, ChevronRight, Shield, Clock
 } from 'lucide-react'
 
-const AMOUNT       = 399
 const PROMPTPAY_ID = process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0000000000'
 const BANK_NAME    = 'กสิกรไทย'
 const BANK_ACC     = '000-0-00000-0'
 const BANK_NAME_TH = 'บริษัท พบเพ็ต จำกัด'
 
+// ── Slip type config ─────────────────────────────────────────
+const SLIP_CONFIG: Record<string, { label: string; amount: number }> = {
+  member:  { label: '⭐ Member 1 ปี',   amount: 399 },
+  addon_1: { label: '➕ Add-on +1 ตัว', amount: 79  },
+  addon_3: { label: '➕ Add-on +3 ตัว', amount: 199 },
+}
+
 type VerifyStatus = 'idle' | 'uploading' | 'verifying' | 'approved' | 'pending' | 'rejected'
 
 export default function PaymentSlipPage() {
-  const router  = useRouter()
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+
+  // ── อ่าน type และ amount จาก URL ───────────────────────────
+  // /payment/slip?type=addon_1&amount=79
+  const slipType = searchParams.get('type') || 'member'
+  const slipInfo = SLIP_CONFIG[slipType] || SLIP_CONFIG.member
+  const AMOUNT   = Number(searchParams.get('amount')) || slipInfo.amount
+
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -70,9 +84,10 @@ export default function PaymentSlipPage() {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageBase64:    base64,
-          userId:         session.user.id,
-          expectedAmount: AMOUNT,
+          imageBase64: base64,
+          userId:      session.user.id,
+          slip_type:   slipType,   // ← ส่ง type ไปด้วย (member/addon_1/addon_3)
+          // expectedAmount ไม่ต้องส่ง API คำนวณจาก slip_type เองได้
         }),
       })
 
@@ -81,7 +96,11 @@ export default function PaymentSlipPage() {
       if (data.success) {
         setStatus('approved')
         setMessage('สลิปผ่านการตรวจสอบแล้วค่ะ 🎉')
-        setTimeout(() => router.push('/payment/success'), 1800)
+        // addon → กลับหน้า subscription, member → หน้า success
+        const redirectUrl = slipType.startsWith('addon_')
+          ? '/account/subscription?addon=success'
+          : '/payment/success'
+        setTimeout(() => router.push(redirectUrl), 1800)
         return
       }
 
@@ -119,8 +138,9 @@ export default function PaymentSlipPage() {
 
       {/* ── Header ── */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-black mb-2">ชำระเงิน Member 🐾</h1>
-        <p className="text-ori-ink-l font-bold">โอน ฿{AMOUNT} แล้วส่งสลิปได้เลยค่ะ</p>
+        <h1 className="text-3xl font-black mb-2">ชำระเงิน 🐾</h1>
+        <p className="font-bold text-ori-ink-l">{slipInfo.label}</p>
+        <p className="text-ori-ink-l font-bold">โอน <strong>฿{AMOUNT}</strong> แล้วส่งสลิปได้เลยค่ะ</p>
       </div>
 
       {/* ── Payment info ── */}
