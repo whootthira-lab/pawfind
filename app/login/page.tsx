@@ -92,10 +92,28 @@ export default function LoginPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // 💡 ฟังก์ชัน LINE Login
-  const handleLineLogin = () => {
+  // 💡 ฟังก์ชัน LINE Login — ใช้ Supabase OAuth Custom Provider
+  const handleLineLogin = async () => {
     setLineLoading(true)
-    window.location.href = '/api/auth/line'
+    setMessage(null)
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'custom:line' as any,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: 'profile openid email',
+        },
+      })
+      if (error) {
+        console.error('LINE Login error:', error)
+        setMessage({ type: 'error', text: `LINE Login ไม่สำเร็จ: ${error.message}` })
+        setLineLoading(false)
+      }
+      // ถ้าสำเร็จ → Supabase จะ redirect ไป LINE และกลับมาที่ /auth/callback
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'เกิดข้อผิดพลาด กรุณาลองใหม่' })
+      setLineLoading(false)
+    }
   }
 
   // ── ฟังก์ชันทำงานเดิมทั้งหมด ──
