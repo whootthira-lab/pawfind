@@ -1,7 +1,7 @@
 'use client'
 // app/(main)/payment/slip/page.tsx
 
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, Suspense } from 'react'
 import { createBrowserClient }        from '@supabase/ssr'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -27,6 +27,18 @@ const QR_IMAGE_URL = '/images/qr-pobpet.jpg'
 type VerifyStatus = 'idle' | 'uploading' | 'verifying' | 'approved' | 'pending' | 'rejected'
 
 export default function PaymentSlipPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 size={48} className="animate-spin text-ori-orange" />
+      </div>
+    }>
+      <SlipContent />
+    </Suspense>
+  )
+}
+
+function SlipContent() {
   const router       = useRouter()
   const searchParams = useSearchParams()
 
