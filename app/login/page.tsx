@@ -46,6 +46,7 @@ const occupationOptions = [
 
 // ── 4. ความสนใจ (Interests) — เลือกได้หลายข้อ ──
 const interestOptions = [
+  // สัตว์เลี้ยง
   { value: 'dog',         label: '🐕 สุนัข' },
   { value: 'cat',         label: '🐈 แมว' },
   { value: 'bird',        label: '🦜 นกสวยงาม / นกเสียง' },
@@ -58,6 +59,25 @@ const interestOptions = [
   { value: 'contest',     label: '🏆 การประกวดสัตว์' },
   { value: 'community',   label: '🤝 ชุมชนและอาสาสมัคร' },
   { value: 'memorial',    label: '🕯 ของที่ระลึกสัตว์เลี้ยง' },
+  // ไลฟ์สไตล์และสุขภาพ
+  { value: 'astrology',   label: '🔮 ดูดวง / โหราศาสตร์' },
+  { value: 'psychology',  label: '🧠 จิตวิทยา' },
+  { value: 'selfdev',     label: '📈 พัฒนาตนเอง' },
+  { value: 'sport_football',  label: '⚽ กีฬา — ฟุตบอล' },
+  { value: 'sport_badminton', label: '🏸 กีฬา — แบดมินตัน' },
+  { value: 'sport_golf',      label: '⛳ กีฬา — กอล์ฟ' },
+  { value: 'sport_muay',      label: '🥊 กีฬา — มวย / ศิลปะการต่อสู้' },
+  { value: 'sport_other',     label: '🏅 กีฬา — ประเภทอื่นๆ' },
+  { value: 'fitness',     label: '💪 ออกกำลังกาย / Fitness' },
+  { value: 'fashion',     label: '👗 แฟชั่น / สไตล์' },
+  { value: 'herbs',       label: '🌿 สมุนไพร / ธรรมชาติบำบัด' },
+  { value: 'cooking',     label: '🍳 ทำอาหาร / อาหารเพื่อสุขภาพ' },
+  { value: 'travel',      label: '✈️ ท่องเที่ยว' },
+  { value: 'tech',        label: '💻 เทคโนโลยี / AI' },
+  { value: 'art',         label: '🎨 ศิลปะ / งานฝีมือ' },
+  { value: 'music',       label: '🎵 ดนตรี' },
+  { value: 'reading',     label: '📚 อ่านหนังสือ' },
+  { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' },
 ]
 
 export default function LoginPage() {
