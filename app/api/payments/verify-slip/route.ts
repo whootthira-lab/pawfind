@@ -1,4 +1,3 @@
-```typescript
 // app/api/payments/verify-slip/route.ts
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +63,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // ── ตรวจสอบโครงสร้างคีย์ ──
     const apiKey   = process.env.SLIPOK_API_KEY
     const branchId = process.env.SLIPOK_BRANCH_ID
     
@@ -75,7 +73,6 @@ export async function POST(req: Request) {
       })
     }
 
-    // 🟢 [แก้ไขจุดพังเรื่องข้อความ Base64] คลีนสายอักขระรูปภาพป้องกันการติดแท็กซ้ำซ้อน
     const cleanBase64 = imageBase64.includes('base64,') 
       ? imageBase64.split('base64,')[1] 
       : imageBase64
@@ -87,7 +84,7 @@ export async function POST(req: Request) {
         'x-lib-api-key': apiKey
       },
       body: JSON.stringify({
-        image: `data:image/jpeg;base64,${cleanBase64}`,
+        image: data:image/jpeg;base64,${cleanBase64},
         branch_id: branchId,
         log: true
       })
@@ -95,11 +92,10 @@ export async function POST(req: Request) {
 
     const slipOkResult = await response.json()
 
-    // ดึงค่าข้อผิดพลาดตรงจากสเปก SlipOK มาพ่นออกหน้าจอ ไม่ให้ติดหล่มที่คำว่า Not Found ลอยๆ
     if (!response.ok || !slipOkResult.success) {
       return NextResponse.json({
         success: false,
-        reason: slipOkResult.message || `SlipOK ตอบกลับสถานะปฏิเสธ: ${response.status}`
+        reason: slipOkResult.message || SlipOK ตอบกลับสถานะปฏิเสธ: ${response.status}
       })
     }
 
@@ -121,13 +117,13 @@ export async function POST(req: Request) {
     if (amountTransferred < expectedAmount) {
       return NextResponse.json({
         success: false,
-        reason: `ยอดเงินโอนไม่ถูกต้อง โอนมา ฿${amountTransferred} แต่แพ็คเกจนี้ราคา ฿${expectedAmount} ค่ะ`
+        reason: ยอดเงินโอนไม่ถูกต้อง โอนมา ฿${amountTransferred} แต่แพ็คเกจนี้ราคา ฿${expectedAmount} ค่ะ
       })
     }
 
     await supabase.from('payment_slips').insert({
       user_id:       userId,
-      reference_no:  reference_no || `SLIPOK-${Date.now()}`,
+      reference_no:  reference_no || SLIPOK-${Date.now()},
       amount:        amountTransferred,
       transfer_date: slipData.transDate || null,
       confidence:    100, 
@@ -160,8 +156,8 @@ export async function POST(req: Request) {
       await supabase.from('notifications').insert({
         user_id: userId,
         type:    'addon_activated',
-        title:   `เพิ่ม slot น้องอีก ${addSlots} ตัวแล้วค่ะ! 🐾`,
-        body:    `ตอนนี้มีพื้นที่เก็บโปรไฟล์น้องทั้งหมด ${3 + currentAddon + addSlots} ตัวแล้วค่ะ`,
+        title:   เพิ่ม slot น้องอีก ${addSlots} ตัวแล้วค่ะ! 🐾,
+        body:    ตอนนี้มีพื้นที่เก็บโปรไฟล์น้องทั้งหมด ${3 + currentAddon + addSlots} ตัวแล้วค่ะ,
         link:    '/dashboard/pets',
         is_read: false,
       })
@@ -194,6 +190,6 @@ export async function POST(req: Request) {
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown'
-    return NextResponse.json({ success: false, reason: `ระบบขัดข้องชั่วคราวค่ะ: ${msg}` }, { status: 500 })
+    return NextResponse.json({ success: false, reason: ระบบขัดข้องชั่วคราวค่ะ: ${msg} }, { status: 500 })
   }
 }
