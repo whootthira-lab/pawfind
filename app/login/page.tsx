@@ -8,11 +8,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   LogIn, Mail, Loader2, CheckCircle2, AlertCircle, 
   UserPlus, MapPin, Phone, Camera, Cake, UserCircle,
-  Briefcase, Heart, Sparkles, Smile, ChevronRight, ArrowLeft
+  Briefcase, Heart, Sparkles, Smile, ChevronRight, ArrowLeft,
+  Home, MessageSquare
 } from 'lucide-react'
 
 // ── 1. ตัวเลือกบทบาทเครือข่ายสัตว์เลี้ยง ──
 const expertiseOptions = [
+  { value: 'adopt',       label: 'แ หาบ้านใหม่ / รับเลี้ยง' },
+  { value: 'rescue',      label: '🆘 ตามหาสัตว์หาย/ช่วยเหลือสัตว์จร' },
+  { value: 'mating',      label: '❤️ หาคู่ให้สัตว์เลี้ยง' },
+  { value: 'showcase',    label: '📸 ประกวด / อวดความน่ารัก' },
+  { value: 'knowledge',   label: '📚 ศึกษาความรู้การเลี้ยง' },
   { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
   { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
   { value: 'petscout', label: 'PetScout (รับจ้างตามหาสัตว์หาย)' },
@@ -23,7 +29,7 @@ const expertiseOptions = [
   { value: 'other', label: 'อื่นๆ (โปรดระบุ)' },
 ]
 
-// ── 2. ตัวเลือกอาชีพหลัก (ตรงตามโครงสร้างตาราง profiles) ──
+// ── 2. ตัวเลือกอาชีพหลัก ──
 const occupationOptions = [
   { value: 'student', label: '🎓 นักเรียน / นักศึกษา' },
   { value: 'employee', label: '💼 พนักงานบริษัท / ลูกจ้าง' },
@@ -38,7 +44,7 @@ const occupationOptions = [
   { value: 'other', label: '✏️ อื่นๆ' },
 ]
 
-// ── 3. ตัวเลือกวัตถุประสงค์และความสนใจครบทุกมิติ ──
+// ── 3. ตัวเลือกวัตถุประสงค์และความสนใจ (Interests) ──
 const interestOptions = [
   { value: 'dog',         label: '🐕 สุนัข' },
   { value: 'cat',         label: '🐈 แมว' },
@@ -46,11 +52,6 @@ const interestOptions = [
   { value: 'fish',        label: '🐟 ปลาสวยงาม' },
   { value: 'exotic',      label: '🦎 สัตว์ Exotic' },
   { value: 'rabbit',      label: '🐰 กระต่าย / สัตว์เล็ก' },
-  { value: 'adopt',       label: '🐶 หาบ้านใหม่ / รับเลี้ยง' },
-  { value: 'rescue',      label: '🆘 ช่วยเหลือสัตว์จร' },
-  { value: 'mating',      label: '❤️ หาคู่ให้สัตว์เลี้ยง' },
-  { value: 'showcase',    label: '📸 ประกวด / อวดความน่ารัก' },
-  { value: 'knowledge',   label: '📚 ศึกษาความรู้การเลี้ยง' },
   { value: 'health',      label: '🏥 สุขภาพสัตว์เลี้ยง' },
   { value: 'prosthetics', label: '🦿 นวัตกรรมขาเทียม / DIY' },
   { value: 'community',   label: '🤝 ชุมชนอาสาสมัคร' },
@@ -60,7 +61,7 @@ const interestOptions = [
   { value: 'selfdev',     label: '📈 พัฒนาตนเอง' },
   { value: 'sport_football',  label: '⚽ ฟุตบอล' },
   { value: 'sport_badminton', label: '🏸 แบดมินตัน / เทนนิส' },
-  { value: 'sport_golf',      label: '⛳ กอล์ฟ' },
+  { value: 'sport_golf',      label: '⛳ กольф' },
   { value: 'sport_muay',      label: '🥊 ศิลปะการต่อสู้' },
   { value: 'sport_other',     label: '🏅 กีฬาประเภทอื่นๆ' },
   { value: 'fitness',     label: '💪 ฟิตเนส / ออกกำลังกาย' },
@@ -75,7 +76,18 @@ const interestOptions = [
   { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' },
 ]
 
-// ── 4. ตัวเลือกสถานะภาพ ──
+// ── 4. ตัวเลือกแท็กความเชี่ยวชาญเพิ่มเติม (Expertise Tags) ──
+const expertiseTagOptions = [
+  { value: 'rescue_expert',     label: '🆘 ยานพาหนะช่วยชีวิตสัตว์/จับสัตว์' },
+  { value: 'medical_care',      label: '💊 ปฐมพยาบาล/ให้ยาสัตว์เบื้องต้น' },
+  { value: 'foster_home',       label: '🏡 มีพื้นที่กักตัว/พักฟื้นสัตว์ชั่วคราว' },
+  { value: 'pet_photography',   label: '📸 ถ่ายภาพสัตว์เลี้ยงโปรโมทหาบ้าน' },
+  { value: 'craftsman_diy',     label: '🛠️ ช่างฝีมือ/ออกแบบวีลแชร์สัตว์พิการ' },
+  { value: 'donation_co',       label: '📦 ประสานงานกองทุนและสิ่งของบริจาค' },
+  { value: 'digital_creator',   label: '💻 ช่วยทำสื่อดิจิทัล/กราฟิกคอมมูนิตี้' },
+]
+
+// ── 5. ตัวเลือกสถานะภาพ ──
 const maritalStatusOptions = [
   { value: 'single', label: 'โสด' },
   { value: 'married', label: 'แต่งงานแล้ว' },
@@ -99,6 +111,7 @@ export default function LoginPage() {
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // ── เพิ่มโครงสร้างตัวแปรของคอลลั่มใหม่ลงใน State ──
   const [formData, setFormData] = useState({
     display_name: '',
     first_name: '',
@@ -106,12 +119,17 @@ export default function LoginPage() {
     birth_date: '',
     phone_number: '',
     province: 'นครราชสีมา',
+    district: '',       // 🆕 เพิ่มอำเภอ
+    subdistrict: '',    // 🆕 เพิ่มตำบล
+    address: '',        // 🆕 เพิ่มบ้านเลขที่/ถนน/หมู่บ้าน
+    line_id: '',        // 🆕 เพิ่มไอดีไลน์ทั่วไป
     gender: 'unknown',
     avatar_url: '',
     occupation: 'employee',
     community_role: 'general',
-    community_role_custom: '',
+    community_role_custom: '', // 🆕 คอลัมน์ Custom Role
     interests: [] as string[],
+    expertise_tags: [] as string[], // 🆕 เพิ่มแท็กความเชี่ยวชาญ
     marital_status: 'single'
   })
 
@@ -194,6 +212,17 @@ export default function LoginPage() {
     })
   }
 
+  const handleExpertiseTagChange = (value: string) => {
+    setFormData(prev => {
+      const current = [...prev.expertise_tags]
+      if (current.includes(value)) {
+        return { ...prev, expertise_tags: current.filter(t => t !== value) }
+      } else {
+        return { ...prev, expertise_tags: [...current, value] }
+      }
+    })
+  }
+
   const handleNextSubStep = (e: React.MouseEvent) => {
     e.preventDefault()
     if (!formData.display_name.trim() || !formData.phone_number.trim() || !formData.first_name.trim() || !formData.last_name.trim()) {
@@ -213,24 +242,38 @@ export default function LoginPage() {
       const cleanEmail = email.trim().toLowerCase()
       const finalCommunityRole = formData.community_role === 'other' ? formData.community_role_custom.trim() : formData.community_role
 
+      const profileData = {
+        display_name: formData.display_name.trim(),
+        first_name: formData.first_name.trim(),
+        last_name: formData.last_name.trim(),
+        birth_date: formData.birth_date || null,
+        phone_number: formData.phone_number.trim(),
+        province: formData.province,
+        district: formData.district.trim() || null,          // 🆕 บันทึกลงตัวแปร
+        subdistrict: formData.subdistrict.trim() || null,    // 🆕 บันทึกลงตัวแปร
+        address: formData.address.trim() || null,            // 🆕 บันทึกลงตัวแปร
+        line_id: formData.line_id.trim() || null,            // 🆕 บันทึกลงตัวแปร
+        gender: formData.gender,
+        avatar_url: formData.avatar_url || null,
+        occupation: formData.occupation,
+        community_role: finalCommunityRole,
+        community_role_custom: finalCommunityRole,            // 🆕 ซิงค์ชื่อคอลัมน์โดยตรง
+        interests: formData.interests,
+        expertise_tags: formData.expertise_tags,             // 🆕 บันทึกลงตัวแปร
+        marital_status: formData.marital_status,
+        line_user_id: null,                                   // 🆕 คอลัมน์ระบบเริ่มจาก Null
+        current_cooldown_until: null                          // 🆕 คอลัมน์ระบบเริ่มจาก Null
+      }
+
+      localStorage.setItem('pobpet_pending_registration', JSON.stringify(profileData))
+
       const { error: authErr } = await supabase.auth.signInWithOtp({
         email: cleanEmail,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             pobpet_custom_registration: true,
-            display_name: formData.display_name.trim(),
-            first_name: formData.first_name.trim(),
-            last_name: formData.last_name.trim(),
-            birth_date: formData.birth_date || null,
-            phone_number: formData.phone_number.trim(),
-            province: formData.province,
-            gender: formData.gender,
-            avatar_url: formData.avatar_url || null,
-            occupation: formData.occupation,
-            community_role: finalCommunityRole,
-            interests: formData.interests,
-            marital_status: formData.marital_status
+            ...profileData
           }
         }
       })
@@ -274,8 +317,8 @@ export default function LoginPage() {
             {step === 'email' 
               ? 'ร่วมเป็นส่วนหนึ่งของเครือข่ายตามหาสัตว์เลี้ยงและดูแลช่วยเหลือสัตว์ในชุมชน'
               : profileSubStep === 1 
-                ? 'ขั้นตอนที่ 1/2: ข้อมูลส่วนตัวหลัก อาชีพ และบทบาทชุมชน'
-                : 'ขั้นตอนที่ 2/2: เลือกสิ่งที่สนใจและวัตถุประสงค์ในระบบ'}
+                ? 'ขั้นตอนที่ 1/2: ข้อมูลส่วนตัวหลัก ที่อยู่และช่องทางติดต่อ'
+                : 'ขั้นตอนที่ 2/2: เลือกสิ่งที่สนใจและแท็กความเชี่ยวชาญประจำตัว'}
           </p>
         </div>
 
@@ -318,7 +361,7 @@ export default function LoginPage() {
             >
               <form onSubmit={handleRegisterAndLogin} className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left">
                 
-                {/* ── SUB-STEP 1: ข้อมูลประวัติ อาชีพ บทบาทชุมชน ── */}
+                {/* ── SUB-STEP 1: ข้อมูลประวัติ ที่อยู่ อาชีพ บทบาทชุมชน ── */}
                 {profileSubStep === 1 && (
                   <>
                     <div className="md:col-span-2 flex flex-col items-center justify-center pb-2">
@@ -373,6 +416,20 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-1">
+                      <label className="font-black text-xs text-black">สถานภาพ</label>
+                      <select value={formData.marital_status} onChange={e => setFormData({...formData, marital_status: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
+                        {maritalStatusOptions.map(status => (<option key={status.value} value={status.value}>{status.label}</option>))}
+                      </select>
+                    </div>
+
+                    {/* 🆕 ช่องกรอก LINE ID ดึงเข้าคอลัมน์ line_id */}
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black flex items-center gap-1"><MessageSquare size={14}/> LINE ID (ผู้ใช้)</label>
+                      <input type="text" value={formData.line_id} onChange={e => setFormData({...formData, line_id: e.target.value})} placeholder="ใส่ไอดีไลน์เพื่อรับงาน" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
+                    </div>
+
+                    {/* 🏠 เลเยอร์ข้อมูลที่ตั้งและที่อยู่เชิงลึก (address, subdistrict, district, province) */}
+                    <div className="space-y-1">
                       <label className="font-black text-xs text-black">จังหวัดประจำการหลัก</label>
                       <select value={formData.province} onChange={e => setFormData({...formData, province: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
                         {thailandProvinces.map(prov => (<option key={prov} value={prov}>{prov}</option>))}
@@ -380,13 +437,21 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="font-black text-xs text-black">สถานภาพ</label>
-                      <select value={formData.marital_status} onChange={e => setFormData({...formData, marital_status: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
-                        {maritalStatusOptions.map(status => (<option key={status.value} value={status.value}>{status.label}</option>))}
-                      </select>
+                      <label className="font-black text-xs text-black">อำเภอ / เขต</label>
+                      <input type="text" value={formData.district} onChange={e => setFormData({...formData, district: e.target.value})} placeholder="เช่น ด่านขุนทด" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
                     </div>
 
-                    {/* 🏛️ ฟิลด์เลือกอาชีพหลัก (Occupation - ดึงโครงสร้างมาจากหน้าบัญชีหลักสอดคล้องกัน) */}
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black">ตำบล / แขวง</label>
+                      <input type="text" value={formData.subdistrict} onChange={e => setFormData({...formData, subdistrict: e.target.value})} placeholder="เช่น ด่านขุนทด" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black flex items-center gap-1"><Home size={14}/> ที่อยู่ / บ้านเลขที่ / ถนน / หมู่บ้าน</label>
+                      <input type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="เช่น 444 หมู่ 1" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
+                    </div>
+
+                    {/* อาชีพหลักและบทบาท */}
                     <div className="space-y-1">
                       <label className="font-black text-xs text-black flex items-center gap-1"><Briefcase size={14}/> อาชีพหลักของคุณ</label>
                       <select value={formData.occupation} onChange={e => setFormData({...formData, occupation: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
@@ -394,7 +459,6 @@ export default function LoginPage() {
                       </select>
                     </div>
 
-                    {/* 🐾 ฟิลด์เลือกบทบาทในเครือข่ายสัตว์เลี้ยง */}
                     <div className="space-y-1">
                       <label className="font-black text-xs text-black flex items-center gap-1"><Sparkles size={14}/> บทบาทในเครือข่ายชุมชน</label>
                       <select value={formData.community_role} onChange={e => setFormData({...formData, community_role: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
@@ -404,26 +468,40 @@ export default function LoginPage() {
 
                     {formData.community_role === 'other' && (
                       <div className="md:col-span-2 space-y-1">
-                        <label className="font-black text-xs text-black">โปรดระบุบทบาทอาชีพเพิ่มเติม</label>
-                        <input type="text" value={formData.community_role_custom} onChange={e => setFormData({...formData, community_role_custom: e.target.value})} placeholder="เช่น ช่างภาพช่วยถ่ายรูปสัตว์พิการ" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
+                        <label className="font-black text-xs text-black">โปรดระบุบทบาทอาชีพเพิ่มเติม (community_role_custom)</label>
+                        <input type="text" value={formData.community_role_custom} onChange={e => setFormData({...formData, community_role_custom: e.target.value})} placeholder="เช่น ประธานวิสาหกิจชุมชนนวัตกรรม" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
                       </div>
                     )}
 
                     <Button type="button" onClick={handleNextSubStep} className="md:col-span-2 mt-4 bg-black text-white py-6 text-lg font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper transition-all flex items-center justify-center gap-2">
-                      เลือกความสนใจและวัตถุประสงค์ต่อ ➔
+                      เลือกความสนใจและแท็กความเชี่ยวชาญต่อ ➔
                     </Button>
                   </>
                 )}
 
-                {/* ── SUB-STEP 2: วัตถุประสงค์ / ความสนใจหลัก (แยกมาไว้หน้านี้อย่างสะอาดตา) ── */}
+                {/* ── SUB-STEP 2: ความสนใจ (Interests) & แท็กความเชี่ยวชาญ (Expertise Tags) ── */}
                 {profileSubStep === 2 && (
                   <>
+                    {/* ส่วนเลือกวัตถุประสงค์หลัก (Interests) */}
                     <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-wagashi-matcha/10 shadow-paper-sm">
-                      <label className="font-black text-base text-black flex items-center gap-1.5"><Heart size={16} className="fill-black"/> สิ่งที่คุณสนใจและวัตถุประสงค์หลัก (เลือกได้หลายข้อ)</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[350px] overflow-y-auto pr-1">
+                      <label className="font-black text-base text-black flex items-center gap-1.5"><Heart size={16} className="fill-black"/> สิ่งที่คุณสนใจและวัตถุประสงค์หลัก (Interests - เลือกได้หลายข้อ)</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
                         {interestOptions.map(opt => (
                           <label key={opt.value} className="flex items-center gap-2.5 bg-white border border-black p-2.5 rounded-xl cursor-pointer select-none font-bold text-xs hover:bg-gray-50 shadow-paper-sm">
                             <input type="checkbox" checked={formData.interests.includes(opt.value)} onChange={() => handleInterestChange(opt.value)} className="w-4 h-4 accent-black rounded border-black" />
+                            {opt.label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 🆕 ส่วนเลือกแท็กความเชี่ยวชาญเพิ่มเติม (expertise_tags) */}
+                    <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-wagashi-sakura/10 shadow-paper-sm">
+                      <label className="font-black text-base text-black flex items-center gap-1.5"><Sparkles size={16} className="fill-black"/> แท็กความเชี่ยวชาญเพื่อช่วยเหลือสัตว์เลี้ยง (Expertise Tags - เลือกได้หลายข้อ)</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
+                        {expertiseTagOptions.map(opt => (
+                          <label key={opt.value} className="flex items-center gap-2.5 bg-white border border-black p-2.5 rounded-xl cursor-pointer select-none font-bold text-xs hover:bg-gray-50 shadow-paper-sm">
+                            <input type="checkbox" checked={formData.expertise_tags.includes(opt.value)} onChange={() => handleExpertiseTagChange(opt.value)} className="w-4 h-4 accent-black rounded border-black" />
                             {opt.label}
                           </label>
                         ))}
