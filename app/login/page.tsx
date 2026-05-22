@@ -25,7 +25,7 @@ const expertiseOptions = [
 
 // ── ตัวเลือกความสนใจ (Interests) ──
 const interestOptions = [
-{ value: 'dog',         label: '🐕 สุนัข' },
+  { value: 'dog',         label: '🐕 สุนัข' },
   { value: 'cat',         label: '🐈 แมว' },
   { value: 'bird',        label: '🦜 นกสวยงาม / นกเสียง' },
   { value: 'fish',        label: '🐟 ปลาสวยงาม' },
@@ -143,7 +143,7 @@ export default function LoginPage() {
     }
   }
 
-  // ── 2. แก้ไข Bug: เปลี่ยนชื่อ Bucket จากเดิม 'pobpet-media' เป็น 'pobpet-bucket' ตามไฟล์แนบ ──
+  // ── 2. อัปโหลดรูปภาพประจำตัวไปยัง Bucket ──
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return
     setUploading(true)
@@ -152,10 +152,9 @@ export default function LoginPage() {
     try {
       const file = e.target.files[0]
       const fileExt = file.name.split('.').pop()
-      const fileName = `${Math.random()}.${fileExt}`
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
       const filePath = `avatars/${fileName}`
 
-      // ✅ ใช้ชื่อ Bucket 'pobpet-bucket' เพื่อป้องกันปัญหา Bucket not found
       const { error: uploadErr } = await supabase.storage
         .from('pobpet-bucket')
         .upload(filePath, file)
@@ -187,7 +186,7 @@ export default function LoginPage() {
     })
   }
 
-  // ── 3. บันทึกข้อมูลทะเบียนประวัติพร้อมตัวเลือกทั้งหมดลงฐานข้อมูล ──
+  // ── 3. บันทึกข้อมูลทะเบียนประวัติลงตาราง profiles ──
   const handleRegisterAndLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -219,8 +218,8 @@ export default function LoginPage() {
           avatar_url: formData.avatar_url || null,
           community_role: formData.community_role,
           community_role_custom: formData.community_role === 'other' ? formData.community_role_custom.trim() : null,
-          interests: formData.interests,             // ✅ ตัวเลือกความสนใจบันทึกลง Base เป็น Array text
-          marital_status: formData.marital_status     // ✅ บันทึกค่าสถานะภาพ โสด/แต่งงาน
+          interests: formData.interests,
+          marital_status: formData.marital_status
         })
 
       if (insertErr) throw insertErr
@@ -270,7 +269,7 @@ export default function LoginPage() {
                 <label className="block font-black text-lg text-black flex items-center gap-2">
                   <Mail size={18} /> อีเมลของคุณ
                 </label>
-                <input \
+                <input 
                   type="email" required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -299,7 +298,7 @@ export default function LoginPage() {
             >
               <form onSubmit={handleRegisterAndLogin} className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 
-                {/* จัดการ Avatar อัปโหลดผ่าน Bucket: pobpet-bucket */}
+                {/* จัดการ Avatar */}
                 <div className="md:col-span-2 flex flex-col items-center justify-center pb-4">
                   <div className="relative w-28 h-28 border-4 border-black rounded-full overflow-hidden bg-gray-100 shadow-paper-sm">
                     {formData.avatar_url ? (
@@ -401,7 +400,7 @@ export default function LoginPage() {
                   </select>
                 </div>
 
-                {/* ✅ เพิ่มตัวเลือกสถานะตามความต้องการ */}
+                {/* ตัวเลือกสถานะภาพ */}
                 <div className="space-y-1.5">
                   <label className="font-black text-sm text-black flex items-center gap-1"><Smile size={16}/> สถานะภาพ</label>
                   <select 
@@ -415,7 +414,7 @@ export default function LoginPage() {
                   </select>
                 </div>
 
-                {/* ✅ เพิ่มกลุ่ม อาชีพ / บทบาทชุมชน */}
+                {/* ตัวเลือกอาชีพ / บทบาทในเครือข่าย */}
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="font-black text-sm text-black flex items-center gap-1"><Briefcase size={16}/> บทบาทในเครือข่ายสัตว์เลี้ยง (อาชีพ)</label>
                   <select 
@@ -447,7 +446,7 @@ export default function LoginPage() {
                   </motion.div>
                 )}
 
-                {/* ✅ เพิ่มกลุ่ม ความสนใจ (Interests Options - Checkbox UI) */}
+                {/* ตัวเลือกวัตถุประสงค์ / ความสนใจหลัก */}
                 <div className="space-y-2 md:col-span-2 border-2 border-dashed border-black/30 p-4 rounded-2xl bg-wagashi-matcha/10">
                   <label className="font-black text-sm text-black flex items-center gap-1 mb-1">
                     <Sparkles size={16} className="text-amber-500 fill-amber-500"/> วัตถุประสงค์ / ความสนใจหลัก (เลือกได้มากกว่า 1 ข้อ)
