@@ -15,7 +15,7 @@ import {
 // ── 1. ตัวเลือกบทบาทเครือข่ายสัตว์เลี้ยง ──
 const expertiseOptions = [
   { value: 'adopt',       label: '🐶 หาบ้านใหม่ / รับเลี้ยง' },
-  { value: 'rescue',      label: '🆘 ช่วยเหลือสัตว์จร' },
+  { value: 'rescue',      label: '🆘 ค้นหาสัตว์หาย/ช่วยเหลือสัตว์จร' },
   { value: 'mating',      label: '❤️ หาคู่ให้สัตว์เลี้ยง' },
   { value: 'showcase',    label: '📸 ประกวด / อวดความน่ารัก' },
   { value: 'knowledge',   label: '📚 ศึกษาความรู้การเลี้ยง' },
@@ -61,7 +61,7 @@ const interestOptions = [
   { value: 'selfdev',     label: '📈 พัฒนาตนเอง' },
   { value: 'sport_football',  label: '⚽ ฟุตบอล' },
   { value: 'sport_badminton', label: '🏸 แบดมินตัน / เทนนิส' },
-  { value: 'sport_golf',      label: '⛳ กольф' },
+  { value: 'sport_golf',      label: '⛳ กอล์ฟ' },
   { value: 'sport_muay',      label: '🥊 ศิลปะการต่อสู้' },
   { value: 'sport_other',     label: '🏅 กีฬาประเภทอื่นๆ' },
   { value: 'fitness',     label: '💪 ฟิตเนส / ออกกำลังกาย' },
@@ -85,13 +85,15 @@ const expertiseTagOptions = [
   { value: 'craftsman_diy',     label: '🛠️ ช่างฝีมือ/ออกแบบวีลแชร์สัตว์พิการ' },
   { value: 'donation_co',       label: '📦 ประสานงานกองทุนและสิ่งของบริจาค' },
   { value: 'digital_creator',   label: '💻 ช่วยทำสื่อดิจิทัล/กราฟิกคอมมูนิตี้' },
+  { value: 'none',   label: 'ไม่มี/ไม่สะดวก' },
+  { value: 'other',   label: '✏️ อื่นๆ' },
 ]
 
 // ── 5. ตัวเลือกสถานะภาพ ──
 const maritalStatusOptions = [
   { value: 'single', label: 'โสด' },
   { value: 'married', label: 'แต่งงานแล้ว' },
-  { value: 'complicated', label: 'ไม่เปิดเผย / คลุมเครือ' },
+  { value: 'complicated', label: 'ไม่เปิดเผย / ค่อนข้างอธิบายยาก' },
 ]
 
 const thailandProvinces = [

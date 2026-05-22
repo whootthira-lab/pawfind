@@ -5,13 +5,14 @@ import { useState, useEffect, useMemo, Suspense } from 'react'
 import { createBrowserClient }                    from '@supabase/ssr'
 import { useRouter, useSearchParams }             from 'next/navigation'
 import Link                                       from 'next/link'
-import Image                                      from 'next/image' // 🟢 เพิ่มบรรทัดนี้เข้าไปครับ
+import Image                                      from 'next/image' 
 import { Button }                                 from '@/components/ui/button'
 import {
   Crown, PawPrint, Plus, AlertCircle,
   CheckCircle2, ChevronRight, Receipt,
   Bell, Shield, Loader2, User, Phone, MapPin, 
-  Briefcase, Heart, Camera, Sparkles, Settings
+  Briefcase, Heart, Camera, Sparkles, Settings,
+  Home, MessageSquare
 } from 'lucide-react'
 
 interface SubInfo {
@@ -35,6 +36,14 @@ interface PaymentRecord {
 }
 
 const expertiseOptions = [
+  { value: 'adopt',       label: '🐶 หาบ้านใหม่/รับเลี้ยงสัตว์' },
+  { value: 'rescue',      label: '🆘 ช่วยเหลือสัตว์เจ็บป่วย/สัตว์จร' },
+  { value: 'mating',      label: '❤️ หาคู่ให้น้องๆ' },
+  { value: 'showcase',    label: '📸 อวดความน่ารัก/ประกวดสัตว์เลี้ยง' },
+  { value: 'knowledge',   label: '📚 ศึกษาความรู้และการเลี้ยงดู' },
+  { value: 'health',      label: '🏥 สุขภาพและการดูแลสัตว์' },
+  { value: 'prosthetics', label: '🦿 นวัตกรรม,DIY' },
+  { value: 'adoption',    label: '💖 การรับเลี้ยงและหาบ้าน' },
   { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
   { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
   { value: 'petscout', label: 'PetScout (รับจ้างตามหาสัตว์หาย)' },
@@ -71,14 +80,6 @@ const interestOptions = [
   { value: 'fish',        label: '🐟 ปลาสวยงาม' },
   { value: 'exotic',      label: '🦎 สัตว์ Exotic' },
   { value: 'rabbit',      label: '🐰 กระต่าย / สัตว์ขนาดเล็ก' },
-  { value: 'adopt', label: '🐶 หาบ้านใหม่/รับเลี้ยงสัตว์' },
-  { value: 'rescue', label: '🆘 ช่วยเหลือสัตว์เจ็บป่วย/สัตว์จร' },
-  { value: 'mating', label: '❤️ หาคู่ผสมพันธุ์ให้น้องๆ' },
-  { value: 'showcase', label: '📸 อวดความน่ารัก/ประกวดสัตว์เลี้ยง' },
-  { value: 'knowledge', label: '📚 ศึกษาความรู้และการเลี้ยงดู' },
-  { value: 'health',      label: '🏥 สุขภาพและการดูแลสัตว์' },
-  { value: 'prosthetics', label: '🦿 นวัตกรรม,DIY' },
-  { value: 'adoption',    label: '💖 การรับเลี้ยงและหาบ้าน' },
   { value: 'contest',     label: '🏆 การประกวดสัตว์' },
   { value: 'community',   label: '🤝 ชุมชนและอาสาสมัคร' },
   { value: 'memorial',    label: '🕯 ของที่ระลึกสัตว์เลี้ยง' },
@@ -100,6 +101,25 @@ const interestOptions = [
   { value: 'music',       label: '🎵 ดนตรี' },
   { value: 'reading',     label: '📚 อ่านหนังสือ' },
   { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' },
+]
+
+// ── 🆕 แท็กความเชี่ยวชาญอ้างอิงจากหน้าลงทะเบียนลงประวัติหลัก ──
+const expertiseTagOptions = [
+  { value: 'rescue_expert',     label: '🆘 ยานพาหนะช่วยชีวิตสัตว์/จับสัตว์' },
+  { value: 'medical_care',      label: '💊 ปฐมพยาบาล/ให้ยาสัตว์เบื้องต้น' },
+  { value: 'foster_home',       label: '🏡 มีพื้นที่กักตัว/พักฟื้นสัตว์ชั่วคราว' },
+  { value: 'pet_photography',   label: '📸 ถ่ายภาพสัตว์เลี้ยงโปรโมทหาบ้าน' },
+  { value: 'craftsman_diy',     label: '🛠️ ช่างฝีมือ/ออกแบบวีลแชร์สัตว์พิการ' },
+  { value: 'donation_co',       label: '📦 ประสานงานกองทุนและสิ่งของบริจาค' },
+  { value: 'digital_creator',   label: '💻 ช่วยทำสื่อดิจิทัล/กราฟิกคอมมูนิตี้' },
+  { value: 'none',   label: 'ไม่มี/ไม่สะดวก' },
+  { value: 'other', label: '✏️ อื่นๆ' },
+]
+
+const maritalStatusOptions = [
+  { value: 'single', label: 'โสด' },
+  { value: 'married', label: 'แต่งงานแล้ว' },
+  { value: 'complicated', label: 'ไม่เปิดเผย / คลุมเครือ' },
 ]
 
 function thDate(d: string | null) {
@@ -130,20 +150,17 @@ function SubscriptionContent() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), [])
 
-  // ── เมนูย่อยในหน้าบัญชีบุคคล ──
   const [activeTab, setActiveTab] = useState<'package' | 'settings'>('package')
-
-  // ── States ข้อมูล Subscription & Payments ──
   const [sub,        setSub]        = useState<SubInfo | null>(null)
   const [payments,   setPayments]   = useState<PaymentRecord[]>([])
   const [petCount,   setPetCount]   = useState(0)
   const [loading,    setLoading]    = useState(true)
   const [addonToast, setAddonToast] = useState(false)
 
-  // ── States ข้อมูลโปรไฟล์ส่วนบุคคล (Profiles) ──
   const [savingProfile, setSavingProfile] = useState(false)
   const [uploading, setUploading]         = useState(false)
   const [profileMsg, setProfileMsg]       = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  
   const [formData, setFormData] = useState({
     display_name: '', 
     first_name: '',
@@ -161,7 +178,9 @@ function SubscriptionContent() {
     community_role: 'general',
     community_role_custom: '',
     occupation: '',
-    interests: [] as string[]
+    interests: [] as string[],
+    expertise_tags: [] as string[], // 🆕 ตรวจรับแท็กความเชี่ยวชาญลงสเตตแก้ไข
+    marital_status: 'single'        // 🆕 เพิ่มสเตตสถานภาพ
   })
 
   useEffect(() => {
@@ -179,7 +198,6 @@ function SubscriptionContent() {
       const userId = session.user.id
       const now    = new Date()
 
-      // 1. Subscription Fetching
       const { data: s } = await supabase
         .from('subscriptions')
         .select('plan, expires_at, grace_until, is_active, pet_slots_addon')
@@ -212,7 +230,6 @@ function SubscriptionContent() {
         })
       }
 
-      // 2. Pet count
       const { count } = await supabase
         .from('pets')
         .select('id', { count: 'exact', head: true })
@@ -220,7 +237,6 @@ function SubscriptionContent() {
         .eq('status', 'active')
       setPetCount(count || 0)
 
-      // 3. Payment slips
       const { data: pData } = await supabase
         .from('payment_slips')
         .select('id, amount, status, slip_type, created_at')
@@ -229,7 +245,6 @@ function SubscriptionContent() {
         .limit(10)
       setPayments(pData || [])
 
-      // 4. Profiles Fetching (ซิงค์ลงฟอร์ม)
       const { data: prof } = await supabase
         .from('profiles')
         .select('*')
@@ -243,7 +258,8 @@ function SubscriptionContent() {
           first_name:     prof.first_name || '',
           last_name:      prof.last_name || '',
           birth_date:     prof.birth_date || '',
-          phone_number:   prof.tel || prof.phone_number || '', 
+          // 🟢 ซิงค์ดึงรหัสโทรศัพท์ให้ปลอดภัยไม่หลุดว่างเปล่า
+          phone_number:   prof.phone_number || prof.tel || '', 
           gender:         prof.gender || '',
           line_id:        prof.line_id || '',
           avatar_url:     prof.avatar_url || '',
@@ -255,7 +271,9 @@ function SubscriptionContent() {
           community_role: isStandardRole ? (prof.community_role || 'general') : 'other',
           community_role_custom: isStandardRole ? '' : (prof.community_role || ''),
           occupation:     prof.occupation || '',
-          interests:      Array.isArray(prof.interests) ? prof.interests : []
+          interests:      Array.isArray(prof.interests) ? prof.interests : [],
+          expertise_tags: Array.isArray(prof.expertise_tags) ? prof.expertise_tags : [], // 🆕 ซิงค์โหลดแท็กที่มีอยู่เดิม
+          marital_status: prof.marital_status || 'single' // 🆕 ซิงค์สถานภาพ
         })
       }
 
@@ -264,7 +282,6 @@ function SubscriptionContent() {
     loadAllData()
   }, [supabase, router])
 
-  // ── อัปโหลดรูปภาพจากแท็บแก้ไขโปรไฟล์ ──
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = e.target.files?.[0]
@@ -297,7 +314,6 @@ function SubscriptionContent() {
     }
   }
 
-  // ── บันทึกโปรไฟล์จากแท็บแก้ไขโปรไฟล์ ──
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.display_name.trim()) {
@@ -325,7 +341,8 @@ function SubscriptionContent() {
           first_name:     formData.first_name.trim(),
           last_name:      formData.last_name.trim(),
           birth_date:     formData.birth_date || null,
-          tel:            formData.phone_number.trim(), 
+          phone_number:   formData.phone_number.trim(), // 🟢 บันทึกลงตัวคีย์กลางผูกขาดร่วมกัน
+          tel:            formData.phone_number.trim(), // อัปเดตคีย์เก่าเผื่อไว้คู่ขนาน
           gender:         formData.gender,
           line_id:        formData.line_id.trim() || null,
           avatar_url:     formData.avatar_url || null,
@@ -335,12 +352,37 @@ function SubscriptionContent() {
           subdistrict:    formData.subdistrict.trim() || null,
           contact_link:   formData.contact_link.trim() || null,
           community_role: roleFinal,
+          community_role_custom: roleFinal, // 🆕 บันทึกลงช่อง custom สอดรับฟอร์มลงทะเบียน
           occupation:     formData.occupation || null,
-          interests:      formData.interests 
+          interests:      formData.interests,
+          expertise_tags: formData.expertise_tags, // 🆕 อัปเดตแท็กความเชี่ยวชาญลงฐานข้อมูลจริง
+          marital_status: formData.marital_status  // 🆕 อัปเดตสถานภาพ
         })
         .eq('id', session.user.id)
 
       if (updateErr) throw updateErr
+
+      // ── ซิงค์ข้อมูลขึ้นเลเยอร์ Metadata ของฝั่งเซสชันล็อกอินด้วย ──
+      await supabase.auth.updateUser({
+        data: {
+          display_name:   formData.display_name.trim(),
+          first_name:     formData.first_name.trim(),
+          last_name:      formData.last_name.trim(),
+          phone_number:   formData.phone_number.trim(),
+          province:       formData.province,
+          district:       formData.district.trim(),
+          subdistrict:    formData.subdistrict.trim(),
+          address:        formData.address.trim(),
+          line_id:        formData.line_id.trim(),
+          avatar_url:     formData.avatar_url,
+          occupation:     formData.occupation,
+          community_role: roleFinal,
+          interests:      formData.interests,
+          expertise_tags: formData.expertise_tags,
+          marital_status: formData.marital_status
+        }
+      })
+
       setProfileMsg({ type: 'success', text: '🎉 บันทึกการแก้ไขข้อมูลโปรไฟล์เรียบร้อยแล้วค่ะ!' })
     } catch (err: any) {
       setProfileMsg({ type: 'error', text: 'บันทึกไม่สำเร็จ: ' + err.message })
@@ -377,7 +419,6 @@ function SubscriptionContent() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 mb-20 space-y-6">
 
-      {/* ── ส่วนสลับแท็บระหว่าง จัดการแพ็คเกจ และ ตั้งค่าโปรไฟล์ ── */}
       <div className="flex gap-2 border-b-4 border-black pb-2">
         <button
           onClick={() => setActiveTab('package')}
@@ -401,9 +442,6 @@ function SubscriptionContent() {
         </button>
       </div>
 
-      {/* ════════════════════════════════════════════════════════
-          TAB: จัดการแพ็คเกจ (Package Management)
-         ════════════════════════════════════════════════════════ */}
       {activeTab === 'package' && (
         <div className="space-y-6 animate-in fade-in duration-300">
           {addonToast && (
@@ -537,9 +575,6 @@ function SubscriptionContent() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════
-          TAB: ⚙️ ตั้งค่าโปรไฟล์ (Profile Settings Form)
-         ════════════════════════════════════════════════════════ */}
       {activeTab === 'settings' && (
         <div className="bg-white border-4 border-black rounded-3xl p-6 shadow-paper animate-in slide-in-from-bottom duration-300">
           <div className="flex items-center gap-3 mb-6 border-b-4 border-black pb-4 text-left">
@@ -551,7 +586,6 @@ function SubscriptionContent() {
 
           <form onSubmit={handleUpdateProfile} className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left">
             
-            {/* อัปโหลดอวตารภาพโปรไฟล์ */}
             <div className="md:col-span-2 bg-gray-50 p-6 border-4 border-black rounded-2xl flex flex-col items-center gap-4 shadow-inner">
               <div className="w-24 h-24 bg-white rounded-full border-4 border-black flex items-center justify-center overflow-hidden shadow-paper-sm relative group">
                 {formData.avatar_url ? (
@@ -565,13 +599,12 @@ function SubscriptionContent() {
                   </div>
                 )}
               </div>
-              <label className="cursor-pointer bg-wagashi-kinako border-2 border-black px-5 py-2 rounded-xl text-xs font-black hover:shadow-paper-sm transition-all active:translate-y-0.5">
+              <label className="cursor-pointer bg-wagashi-kinako border-2 border-black px-5 py-2 rounded-xl text-xs font-black hover:shadow-paper-sm transition-all">
                 {uploading ? 'กำลังประมวลผลไฟล์...' : 'เปลี่ยนรูปโปรไฟล์'}
                 <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={uploading || savingProfile} />
               </label>
             </div>
 
-            {/* Display Name */}
             <div className="md:col-span-2 space-y-1">
               <label className="font-black text-sm ml-1 flex items-center gap-1 uppercase text-ori-orange-d">
                 ชื่อโปรไฟล์ที่ใช้แสดง (Display Name) *
@@ -585,42 +618,46 @@ function SubscriptionContent() {
               />
             </div>
 
-            {/* ชื่อจริง */}
             <div className="space-y-1">
-              <label className="font-black text-sm ml-1 text-gray-500 uppercase">ชื่อจริง</label>
-              <input type="text" value={formData.first_name} className="w-full border-2 border-black rounded-lg p-3 font-bold focus:bg-gray-50" onChange={e => setFormData({...formData, first_name: e.target.value})} />
+              <label className="font-black text-sm ml-1 text-gray-500 uppercase">ชื่อจริง *</label>
+              <input required type="text" value={formData.first_name} className="w-full border-2 border-black rounded-lg p-3 font-bold focus:bg-gray-50" onChange={e => setFormData({...formData, first_name: e.target.value})} />
             </div>
 
-            {/* นามสกุล */}
             <div className="space-y-1">
-              <label className="font-black text-sm ml-1 text-gray-500 uppercase">นามสกุล</label>
-              <input type="text" value={formData.last_name} className="w-full border-2 border-black rounded-lg p-3 font-bold focus:bg-gray-50" onChange={e => setFormData({...formData, last_name: e.target.value})} />
+              <label className="font-black text-sm ml-1 text-gray-500 uppercase">นามสกุล *</label>
+              <input required type="text" value={formData.last_name} className="w-full border-2 border-black rounded-lg p-3 font-bold focus:bg-gray-50" onChange={e => setFormData({...formData, last_name: e.target.value})} />
             </div>
 
-            {/* เพศ (Gender Dropdown) */}
             <div className="space-y-1">
               <label className="font-black text-sm ml-1 text-gray-500 uppercase">เพศของคุณ *</label>
               <select required value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} className="w-full border-2 border-black rounded-lg p-3 font-bold bg-white cursor-pointer">
                 <option value="">-- เลือกเพศ --</option>
-                <option value="male">♂ ชาย / เพศผู้</option>
-                <option value="female">♀ หญิง / เพศเมีย</option>
-                <option value="other">🌈 LGBTQ+ / ไม่ระบุ</option>
+                <option value="male">ชาย</option>
+                <option value="female">หญิง</option>
+                <option value="other">อื่นๆ / ไม่ระบุ</option>
               </select>
             </div>
 
-            {/* วันเกิด */}
             <div className="space-y-1">
               <label className="font-black text-sm ml-1 text-gray-500 uppercase">วันเกิด</label>
               <input type="date" value={formData.birth_date} className="w-full border-2 border-black rounded-lg p-3 font-bold" onChange={e => setFormData({...formData, birth_date: e.target.value})} />
             </div>
 
-            {/* เบอร์โทรศัพท์ */}
             <div className="space-y-1">
               <label className="font-black text-sm ml-1 text-gray-500 uppercase">เบอร์โทรศัพท์ *</label>
               <input type="tel" required value={formData.phone_number} className="w-full border-2 border-black rounded-lg p-3 font-bold" onChange={e => setFormData({...formData, phone_number: e.target.value})} />
             </div>
 
-            {/* จังหวัด */}
+            {/* 🆕 เพิ่มกล่องอินพุตเลือกสถานภาพ (สอดรับฟอร์มลงทะเบียนล่าสุด) */}
+            <div className="space-y-1">
+              <label className="font-black text-sm ml-1 text-gray-500 uppercase">สถานภาพ</label>
+              <select value={formData.marital_status} onChange={e => setFormData({...formData, marital_status: e.target.value})} className="w-full border-2 border-black rounded-lg p-3 font-bold bg-white cursor-pointer">
+                {maritalStatusOptions.map(status => (
+                  <option key={status.value} value={status.value}>{status.label}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="space-y-1">
               <label className="font-black text-sm ml-1 text-gray-500 uppercase">จังหวัด</label>
               <select required value={formData.province} onChange={e => setFormData({...formData, province: e.target.value})} className="w-full border-2 border-black rounded-lg p-3 font-bold bg-white cursor-pointer">
@@ -630,39 +667,36 @@ function SubscriptionContent() {
               </select>
             </div>
 
-            {/* อำเภอ */}
+            {/* 🆕 เพิ่มฟิลด์ อำเภอ / เขต */}
             <div className="space-y-1">
               <label className="font-black text-sm ml-1 text-gray-500 uppercase">อำเภอ / เขต</label>
               <input type="text" value={formData.district} placeholder="เช่น ด่านขุนทด" className="w-full border-2 border-black rounded-lg p-3 font-bold" onChange={e => setFormData({...formData, district: e.target.value})} />
             </div>
 
-            {/* ตำบล */}
+            {/* 🆕 เพิ่มฟิลด์ ตำบล / แขวง */}
             <div className="space-y-1">
               <label className="font-black text-sm ml-1 text-gray-500 uppercase">ตำบล / แขวง</label>
               <input type="text" value={formData.subdistrict} placeholder="เช่น ห้วยบง" className="w-full border-2 border-black rounded-lg p-3 font-bold" onChange={e => setFormData({...formData, subdistrict: e.target.value})} />
             </div>
 
-            {/* ที่อยู่ละเอียด */}
+            {/* 🆕 เพิ่มฟิลด์ LINE ID เพื่อรองรับการเก็บลงคอลัมน์ line_id */}
+            <div className="space-y-1">
+              <label className="font-black text-sm ml-1 text-gray-600 flex items-center gap-1"><MessageSquare size={14}/> LINE ID (ผู้ใช้)</label>
+              <input type="text" value={formData.line_id} placeholder="ใส่ไอดีไลน์เพื่อรับงาน" className="w-full border-2 border-black rounded-lg p-3 font-bold bg-green-50/10" onChange={e => setFormData({...formData, line_id: e.target.value})} />
+            </div>
+
             <div className="md:col-span-2 space-y-1">
-              <label className="font-black text-sm ml-1 uppercase text-gray-500">ที่อยู่โดยละเอียด</label>
+              <label className="font-black text-sm ml-1 uppercase text-gray-500 flex items-center gap-1"><Home size={14}/> ที่อยู่โดยละเอียด</label>
               <textarea rows={2} value={formData.address} placeholder="บ้านเลขที่, หมู่บ้าน, ซอย..." className="w-full border-2 border-black rounded-lg p-3 font-bold resize-none" onChange={e => setFormData({...formData, address: e.target.value})} />
             </div>
 
-            {/* Line ID */}
-            <div className="md:col-span-1 space-y-1">
-              <label className="font-black text-sm ml-1 text-gray-600">Line ID</label>
-              <input type="text" value={formData.line_id} className="w-full border-2 border-black rounded-lg p-3 font-bold bg-green-50/20" onChange={e => setFormData({...formData, line_id: e.target.value})} />
-            </div>
-
-            {/* ช่องทางติดต่ออื่น */}
-            <div className="md:col-span-1 space-y-1">
-              <label className="font-black text-sm ml-1 text-gray-600">ช่องทางติดต่ออื่น</label>
+            <div className="md:col-span-2 space-y-1">
+              <label className="font-black text-sm ml-1 text-gray-600">ช่องทางติดต่ออื่น (ลิงก์โซเชียล)</label>
               <input type="text" value={formData.contact_link} placeholder="ลิงก์ Facebook / IG" className="w-full border-2 border-black rounded-lg p-3 font-bold" onChange={e => setFormData({...formData, contact_link: e.target.value})} />
             </div>
 
-            {/* อาชีพ */}
             <div className="space-y-1 md:col-span-2">
-              <label className="font-black text-sm ml-1 text-gray-500 uppercase">อาชีพ</label>
+              <label className="font-black text-sm ml-1 text-gray-500 uppercase">อาชีพหลักของคุณ</label>
               <select value={formData.occupation} onChange={e => setFormData({...formData, occupation: e.target.value})} className="w-full border-2 border-black rounded-lg p-3 font-bold bg-white cursor-pointer">
                 {occupationOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -670,12 +704,12 @@ function SubscriptionContent() {
               </select>
             </div>
 
-            {/* ความสนใจ (Interests Sync Array) */}
+            {/* ความสนใจ */}
             <div className="md:col-span-2 space-y-2">
               <label className="font-black text-sm ml-1 flex items-center gap-2 uppercase text-gray-500">
-                <Heart size={14}/> ความสนใจเกี่ยวกับสัตว์เลี้ยงและไลฟ์สไตล์ (เลือกได้หลายข้อ)
+                <Heart size={14}/> วัตถุประสงค์ / ความสนใจหลัก (เลือกได้หลายข้อ)
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[250px] overflow-y-auto border-2 border-black p-3 rounded-xl bg-gray-50/30">
                 {interestOptions.map(opt => {
                   const isSelected = formData.interests.includes(opt.value)
                   return (
@@ -688,7 +722,7 @@ function SubscriptionContent() {
                           : [...formData.interests, opt.value]
                         setFormData({...formData, interests: next})
                       }}
-                      className={`px-3 py-2.5 rounded-xl border-2 font-bold text-sm text-left transition-all ${
+                      className={`px-3 py-2.5 rounded-xl border-2 font-bold text-xs text-left transition-all ${
                         isSelected
                           ? 'border-black bg-wagashi-kinako shadow-paper-sm'
                           : 'border-black/30 bg-white hover:border-black'
@@ -702,10 +736,42 @@ function SubscriptionContent() {
               </div>
             </div>
 
-            {/* บทบาทชุมชน */}
+            {/* 🆕 เพิ่มแถบตาราง Checkbox สำหรับแท็กความเชี่ยวชาญ (expertise_tags - ตามแบบหน้าสมัครเป๊ะๆ) */}
+            <div className="md:col-span-2 space-y-2">
+              <label className="font-black text-sm ml-1 flex items-center gap-2 uppercase text-gray-500">
+                <Sparkles size={14} className="text-amber-500 fill-amber-500"/> แท็กความเชี่ยวชาญช่วยเหลือสัตว์เลี้ยง (Expertise Tags - เลือกได้หลายข้อ)
+              </label>
+              <div className="grid grid-cols-1 gap-2 border-2 border-black p-3 rounded-xl bg-wagashi-sakura/5">
+                {expertiseTagOptions.map(opt => {
+                  const isTagSelected = formData.expertise_tags.includes(opt.value)
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        const nextTags = isTagSelected
+                          ? formData.expertise_tags.filter(t => t !== opt.value)
+                          : [...formData.expertise_tags, opt.value]
+                        setFormData({...formData, expertise_tags: nextTags})
+                      }}
+                      className={`px-4 py-3 rounded-xl border-2 font-bold text-xs text-left transition-all flex items-center justify-between ${
+                        isTagSelected
+                          ? 'border-black bg-wagashi-sakura/30 shadow-paper-sm'
+                          : 'border-black/20 bg-white hover:border-black'
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {isTagSelected && <span className="text-green-600 font-black">✓ เลือกแล้ว</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* บทบาทเครือข่ายความช่วยเหลือ */}
             <div className="md:col-span-2 mt-2 bg-wagashi-kinako/20 p-5 rounded-2xl border-4 border-black/10 shadow-inner">
               <label className="font-black text-sm ml-1 flex items-center gap-2 text-ori-ink mb-3">
-                🐾 คุณต้องการช่วยเหลือหรือให้บริการเกี่ยวกับสัตว์ด้านไหนได้บ้าง?
+                🐾 คุณต้องการช่วยเหลือหรือให้บริการเกี่ยวกับสัตว์ด้านไหนได้บ้าง? (บทบาทเครือข่าย)
               </label>
               <select value={formData.community_role} onChange={(e) => setFormData({...formData, community_role: e.target.value})} className="w-full border-2 border-black rounded-xl p-3 font-bold bg-white cursor-pointer">
                 {expertiseOptions.map(opt => (
@@ -716,12 +782,11 @@ function SubscriptionContent() {
 
             {formData.community_role === 'other' && (
               <div className="md:col-span-2 space-y-1 animate-in fade-in">
-                <label className="font-black text-sm ml-1 text-gray-600">ระบุบทบาทภารกิจเพิ่มเติมของคุณ</label>
+                <label className="font-black text-sm ml-1 text-gray-600">ระบุบทบาทภารกิจเพิ่มเติมของคุณ (community_role_custom)</label>
                 <input type="text" value={formData.community_role_custom} onChange={e => setFormData({...formData, community_role_custom: e.target.value})} placeholder="เช่น ช่างภาพจิตอาสาช่วยเหลือศูนย์จร" className="w-full border-2 border-black rounded-xl p-3.5 font-bold" />
               </div>
             )}
 
-            {/* แถบแจ้งเตือน Profile Validation Feedback */}
             {profileMsg && (
               <div className={`md:col-span-2 p-4 rounded-xl border-2 border-black flex items-center gap-2 text-left font-bold ${
                 profileMsg.type === 'error' ? 'bg-red-50 text-red-900' : 'bg-green-50 text-green-900'
@@ -731,7 +796,6 @@ function SubscriptionContent() {
               </div>
             )}
 
-            {/* ✅ เรียกใช้คอมโพเนนต์ Button ที่ได้รับการแก้ไข Import ป้องกันการพังตอน Compile */}
             <Button type="submit" disabled={savingProfile || uploading} className="md:col-span-2 mt-2 bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50">
               {savingProfile ? (
                 <><Loader2 className="animate-spin" /> กำลังบันทึกข้อมูล...</>
