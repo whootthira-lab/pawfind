@@ -11,7 +11,7 @@ import {
   Briefcase, Heart, Sparkles, Smile
 } from 'lucide-react'
 
-// ── ตัวเลือกบทบาทชุมชน ──
+// ── ตัวเลือกบทบาทชุมชน / อาชีพ ──
 const expertiseOptions = [
   { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
   { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
@@ -25,11 +25,41 @@ const expertiseOptions = [
 
 // ── ตัวเลือกความสนใจ (Interests) ──
 const interestOptions = [
+{ value: 'dog',         label: '🐕 สุนัข' },
+  { value: 'cat',         label: '🐈 แมว' },
+  { value: 'bird',        label: '🦜 นกสวยงาม / นกเสียง' },
+  { value: 'fish',        label: '🐟 ปลาสวยงาม' },
+  { value: 'exotic',      label: '🦎 สัตว์ Exotic' },
+  { value: 'rabbit',      label: '🐰 กระต่าย / สัตว์ขนาดเล็ก' },
   { value: 'adopt', label: '🐶 หาบ้านใหม่/รับเลี้ยงสัตว์' },
   { value: 'rescue', label: '🆘 ช่วยเหลือสัตว์เจ็บป่วย/สัตว์จร' },
   { value: 'mating', label: '❤️ หาคู่ผสมพันธุ์ให้น้องๆ' },
   { value: 'showcase', label: '📸 อวดความน่ารัก/ประกวดสัตว์เลี้ยง' },
   { value: 'knowledge', label: '📚 ศึกษาความรู้และการเลี้ยงดู' },
+  { value: 'health',      label: '🏥 สุขภาพและการดูแลสัตว์' },
+  { value: 'prosthetics', label: '🦿 นวัตกรรม,DIY' },
+  { value: 'adoption',    label: '💖 การรับเลี้ยงและหาบ้าน' },
+  { value: 'contest',     label: '🏆 การประกวดสัตว์' },
+  { value: 'community',   label: '🤝 ชุมชนและอาสาสมัคร' },
+  { value: 'memorial',    label: '🕯 ของที่ระลึกสัตว์เลี้ยง' },
+  { value: 'astrology',   label: '🔮 ดูดวง / โหราศาสตร์' },
+  { value: 'psychology',  label: '🧠 จิตวิทยา' },
+  { value: 'selfdev',     label: '📈 พัฒนาตนเอง' },
+  { value: 'sport_football',  label: '⚽ ฟุตบอล' },
+  { value: 'sport_badminton', label: '🏸 แบดมินตัน,เทนนิส' },
+  { value: 'sport_golf',      label: '⛳ กอล์ฟ' },
+  { value: 'sport_muay',      label: '🥊 กีฬาต่อสู้ / ศิลปะการต่อสู้' },
+  { value: 'sport_other',     label: '🏅 กีฬา — ประเภทอื่นๆ' },
+  { value: 'fitness',     label: '💪 ออกกำลังกาย / Fitness' },
+  { value: 'fashion',     label: '👗 แฟชั่น / สไตล์' },
+  { value: 'herbs',       label: '🌿 สมุนไพร / ธรรมชาติบำบัด' },
+  { value: 'cooking',     label: '🍳 ทำอาหาร / อาหารเพื่อสุขภาพ' },
+  { value: 'travel',      label: '✈️ ท่องเที่ยว' },
+  { value: 'tech',        label: '💻 เทคโนโลยี / AI' },
+  { value: 'art',         label: '🎨 ศิลปะ / งานฝีมือ' },
+  { value: 'music',       label: '🎵 ดนตรี' },
+  { value: 'reading',     label: '📚 อ่านหนังสือ' },
+  { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' },
 ]
 
 // ── ตัวเลือกสถานะ (Marital Status) ──
@@ -55,7 +85,7 @@ export default function LoginPage() {
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  // ── Form Data State (เพิ่มฟิลด์ที่ขาดหาย) ──
+  // ── Form Data State ──
   const [formData, setFormData] = useState({
     display_name: '',
     first_name: '',
@@ -67,11 +97,11 @@ export default function LoginPage() {
     avatar_url: '',
     community_role: 'general',
     community_role_custom: '',
-    interests: [] as string[], // เก็บเป็น Array สำหรับ Checkbox หลายตัวเลือก
-    marital_status: 'single'   // ค่าเริ่มต้นสถานะ
+    interests: [] as string[],
+    marital_status: 'single'
   })
 
-  // ── 1. ตรวจสอบ Email และเช็คประวัติบัญชี ──
+  // ── 1. ตรวจสอบ Email และสลับขั้นตอน ──
   const handleCheckEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
@@ -90,7 +120,6 @@ export default function LoginPage() {
       if (error) throw error
 
       if (profile) {
-        // บัญชีมีอยู่แล้ว -> ยิง Magic Link ล็อกอินตรงๆ
         const { error: signInErr } = await supabase.auth.signInWithOtp({
           email: cleanEmail,
           options: {
@@ -102,10 +131,9 @@ export default function LoginPage() {
 
         setMessage({
           type: 'success',
-          text: 'พบข้อมูลโปรไฟล์ของคุณแล้ว! ระบบได้จัดส่ง Magic Link สำหรับล็อกอินเข้าใช้งานไปยังอีเมลเรียบร้อยแล้วครับ'
+          text: 'พบข้อมูลโปรไฟล์ของคุณแล้ว! ระบบได้ส่ง Magic Link สำหรับเข้าสู่ระบบไปยังอีเมลของคุณเรียบร้อยแล้วค่ะ'
         })
       } else {
-        // ไม่มีบัญชี -> ย้ายไปกรอกข้อมูลส่วนตัวใน Step ถัดไป
         setStep('profile')
       }
     } catch (err: any) {
@@ -115,7 +143,7 @@ export default function LoginPage() {
     }
   }
 
-  // ── 2. อัปโหลดรูปภาพ Avatar ไปยัง Storage ──
+  // ── 2. แก้ไข Bug: เปลี่ยนชื่อ Bucket จากเดิม 'pobpet-media' เป็น 'pobpet-bucket' ตามไฟล์แนบ ──
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return
     setUploading(true)
@@ -127,18 +155,19 @@ export default function LoginPage() {
       const fileName = `${Math.random()}.${fileExt}`
       const filePath = `avatars/${fileName}`
 
+      // ✅ ใช้ชื่อ Bucket 'pobpet-bucket' เพื่อป้องกันปัญหา Bucket not found
       const { error: uploadErr } = await supabase.storage
-        .from('pobpet-media')
+        .from('pobpet-bucket')
         .upload(filePath, file)
 
       if (uploadErr) throw uploadErr
 
       const { data: { publicUrl } } = supabase.storage
-        .from('pobpet-media')
+        .from('pobpet-bucket')
         .getPublicUrl(filePath)
 
       setFormData(prev => ({ ...prev, avatar_url: publicUrl }))
-      setMessage({ type: 'success', text: 'อัปโหลดรูปภาพประจำตัวสำเร็จแล้วครับ' })
+      setMessage({ type: 'success', text: 'อัปโหลดรูปภาพประจำตัวสำเร็จแล้วค่ะ' })
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'อัปโหลดรูปภาพไม่สำเร็จ' })
     } finally {
@@ -146,7 +175,7 @@ export default function LoginPage() {
     }
   }
 
-  // ── จัดการ Checkbox ความสนใจ ──
+  // ── จัดการ Checkbox กลุ่มความสนใจ ──
   const handleInterestChange = (value: string) => {
     setFormData(prev => {
       const current = [...prev.interests]
@@ -158,7 +187,7 @@ export default function LoginPage() {
     })
   }
 
-  // ── 3. บันทึกข้อมูลลงฐานข้อมูลและสั่งส่ง Magic Link ──
+  // ── 3. บันทึกข้อมูลทะเบียนประวัติพร้อมตัวเลือกทั้งหมดลงฐานข้อมูล ──
   const handleRegisterAndLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -167,7 +196,6 @@ export default function LoginPage() {
     try {
       const cleanEmail = email.trim().toLowerCase()
 
-      // สั่งให้ระบบเตรียมสิทธิ์ล็อกอินผ่าน OTP/Magic Link
       const { error: authErr } = await supabase.auth.signInWithOtp({
         email: cleanEmail,
         options: {
@@ -177,7 +205,6 @@ export default function LoginPage() {
 
       if (authErr) throw authErr
 
-      // บันทึกข้อมูลลงตาราง profiles พร้อมจับคู่คีย์ฟิลด์ที่ถูกต้องตามเงื่อนไขตาราง
       const { error: insertErr } = await supabase
         .from('profiles')
         .insert({
@@ -186,21 +213,21 @@ export default function LoginPage() {
           first_name: formData.first_name.trim(),
           last_name: formData.last_name.trim(),
           birth_date: formData.birth_date || null,
-          phone_number: formData.phone_number.trim(), // ✅ แก้ไขแมปให้เข้ากับคอลัมน์จริงใน Supabase
+          phone_number: formData.phone_number.trim(),
           province: formData.province,
           gender: formData.gender,
           avatar_url: formData.avatar_url || null,
           community_role: formData.community_role,
           community_role_custom: formData.community_role === 'other' ? formData.community_role_custom.trim() : null,
-          interests: formData.interests,             // ✨ เพิ่มคอลัมน์เก็บความสนใจลงฐานข้อมูล
-          marital_status: formData.marital_status     // ✨ เพิ่มคอลัมน์เก็บสถานะโสด/แต่งงานลงฐานข้อมูล
+          interests: formData.interests,             // ✅ ตัวเลือกความสนใจบันทึกลง Base เป็น Array text
+          marital_status: formData.marital_status     // ✅ บันทึกค่าสถานะภาพ โสด/แต่งงาน
         })
 
       if (insertErr) throw insertErr
 
       setMessage({
         type: 'success',
-        text: 'ลงทะเบียนบัญชีใหม่เสร็จสิ้น! เราได้ส่ง Magic Link ไปที่อีเมลของคุณแล้ว กรุณากดลิงก์เพื่อเข้าใช้งานระบบครับ'
+        text: 'ลงทะเบียนโปรไฟล์เสร็จสิ้น! เราได้ส่ง Magic Link ไปที่อีเมลของคุณแล้ว กรุณาเปิดกล่องจดหมายเพื่อกดยืนยันการเข้าใช้งานค่ะ'
       })
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลโปรไฟล์' })
@@ -215,7 +242,6 @@ export default function LoginPage() {
         
         <div className="absolute top-0 left-0 w-full h-3 bg-black" />
         
-        {/* ส่วนหัวแสดงสถานะขั้นตอน */}
         <div className="text-center mb-8">
           <div className="inline-flex p-4 bg-wagashi-sakura/40 border-2 border-black rounded-2xl mb-4 shadow-paper-sm">
             <Heart className="w-10 h-10 text-black fill-wagashi-sakura animate-pulse" />
@@ -232,7 +258,6 @@ export default function LoginPage() {
 
         <AnimatePresence mode="wait">
           {step === 'email' ? (
-            /* STEP 1: กรอก Email เพื่อคัดกรอง */
             <motion.form 
               key="email-step"
               initial={{ opacity: 0, y: 10 }}
@@ -245,9 +270,8 @@ export default function LoginPage() {
                 <label className="block font-black text-lg text-black flex items-center gap-2">
                   <Mail size={18} /> อีเมลของคุณ
                 </label>
-                <input 
-                  type="email"
-                  required
+                <input \
+                  type="email" required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="yourname@example.com"
@@ -267,7 +291,6 @@ export default function LoginPage() {
               </Button>
             </motion.form>
           ) : (
-            /* STEP 2: ฟอร์มกรอกประวัติใหม่ กรณีไม่มีข้อมูลเก่า */
             <motion.div
               key="profile-step"
               initial={{ opacity: 0, y: 10 }}
@@ -276,7 +299,7 @@ export default function LoginPage() {
             >
               <form onSubmit={handleRegisterAndLogin} className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 
-                {/* จัดการ Avatar */}
+                {/* จัดการ Avatar อัปโหลดผ่าน Bucket: pobpet-bucket */}
                 <div className="md:col-span-2 flex flex-col items-center justify-center pb-4">
                   <div className="relative w-28 h-28 border-4 border-black rounded-full overflow-hidden bg-gray-100 shadow-paper-sm">
                     {formData.avatar_url ? (
@@ -296,10 +319,9 @@ export default function LoginPage() {
                       <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
                     </label>
                   </div>
-                  <span className="text-xs font-bold text-gray-500 mt-2">รูปโปรไฟล์ (ไม่จำเป็นต้องใส่ตอนนี้ก็ได้ครับ)</span>
+                  <span className="text-xs font-bold text-gray-500 mt-2">รูปโปรไฟล์ (ไม่จำเป็นต้องใส่ตอนนี้ก็ได้ค่ะ)</span>
                 </div>
 
-                {/* ข้อมูลพื้นฐาน */}
                 <div className="space-y-1.5">
                   <label className="font-black text-sm text-black flex items-center gap-1"><UserPlus size={16}/> ชื่อเล่น / ชื่อในระบบ</label>
                   <input 
@@ -328,7 +350,7 @@ export default function LoginPage() {
                     type="text" required
                     value={formData.first_name}
                     onChange={e => setFormData({...formData, first_name: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
+                    className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
                   />
                 </div>
 
@@ -338,7 +360,7 @@ export default function LoginPage() {
                     type="text" required
                     value={formData.last_name}
                     onChange={e => setFormData({...formData, last_name: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
+                    className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
                   />
                 </div>
 
@@ -348,7 +370,7 @@ export default function LoginPage() {
                     type="date"
                     value={formData.birth_date}
                     onChange={e => setFormData({...formData, birth_date: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5 cursor-pointer"
+                    className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none cursor-pointer"
                   />
                 </div>
 
@@ -371,7 +393,7 @@ export default function LoginPage() {
                   <select 
                     value={formData.province}
                     onChange={e => setFormData({...formData, province: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none transition-colors cursor-pointer"
+                    className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
                   >
                     {thailandProvinces.map(prov => (
                       <option key={prov} value={prov}>{prov}</option>
@@ -379,13 +401,13 @@ export default function LoginPage() {
                   </select>
                 </div>
 
-                {/* ✨ เพิ่มกล่องข้อมูลสถานะการแต่งงาน */}
+                {/* ✅ เพิ่มตัวเลือกสถานะตามความต้องการ */}
                 <div className="space-y-1.5">
                   <label className="font-black text-sm text-black flex items-center gap-1"><Smile size={16}/> สถานะภาพ</label>
                   <select 
                     value={formData.marital_status}
                     onChange={e => setFormData({...formData, marital_status: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none transition-colors cursor-pointer"
+                    className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
                   >
                     {maritalStatusOptions.map(status => (
                       <option key={status.value} value={status.value}>{status.label}</option>
@@ -393,12 +415,13 @@ export default function LoginPage() {
                   </select>
                 </div>
 
+                {/* ✅ เพิ่มกลุ่ม อาชีพ / บทบาทชุมชน */}
                 <div className="space-y-1.5 md:col-span-2">
-                  <label className="font-black text-sm text-black flex items-center gap-1"><Briefcase size={16}/> บทบาทในเครือข่ายสัตว์เลี้ยง</label>
+                  <label className="font-black text-sm text-black flex items-center gap-1"><Briefcase size={16}/> บทบาทในเครือข่ายสัตว์เลี้ยง (อาชีพ)</label>
                   <select 
                     value={formData.community_role}
                     onChange={e => setFormData({...formData, community_role: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none transition-colors cursor-pointer"
+                    className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
                   >
                     {expertiseOptions.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -413,21 +436,21 @@ export default function LoginPage() {
                     exit={{ opacity: 0, height: 0 }}
                     className="md:col-span-2 space-y-1.5 overflow-hidden"
                   >
-                    <label className="font-black text-sm text-black">โปรดระบุบทบาทของคุณ</label>
+                    <label className="font-black text-sm text-black">โปรดระบุอาชีพหรือบทบาทของคุณ</label>
                     <input 
                       type="text"
                       value={formData.community_role_custom}
                       onChange={e => setFormData({...formData, community_role_custom: e.target.value})}
-                      placeholder="เช่น ช่างภาพจิตอาสาถ่ายรูปสุนัขจร"
-                      className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
+                      placeholder="เช่น ช่างภาพจิตอาสาช่วยเหลือศูนย์จร"
+                      className="w-full border-2 border-black p-3.5 rounded-xl font-bold"
                     />
                   </motion.div>
                 )}
 
-                {/* ✨ เพิ่มบล็อกเลือกความสนใจ (Interests Options - Checkbox หลายรายการ) */}
+                {/* ✅ เพิ่มกลุ่ม ความสนใจ (Interests Options - Checkbox UI) */}
                 <div className="space-y-2 md:col-span-2 border-2 border-dashed border-black/30 p-4 rounded-2xl bg-wagashi-matcha/10">
                   <label className="font-black text-sm text-black flex items-center gap-1 mb-1">
-                    <Sparkles size={16} className="text-amber-500 fill-amber-500"/> ความสนใจหรือวัตถุประสงค์ในระบบ (เลือกได้มากกว่า 1 ข้อ)
+                    <Sparkles size={16} className="text-amber-500 fill-amber-500"/> วัตถุประสงค์ / ความสนใจหลัก (เลือกได้มากกว่า 1 ข้อ)
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {interestOptions.map(opt => (
@@ -460,7 +483,6 @@ export default function LoginPage() {
           )}
         </AnimatePresence>
 
-        {/* ระบบแจ้งผลความคืบหน้าของธุรกรรม */}
         {message && (
           <div className={`mt-6 p-4 rounded-xl border-2 border-black font-bold flex items-center gap-2 text-left ${
             message.type === 'error' ? 'bg-red-50 border-red-400 text-red-900' : 'bg-green-50 border-green-400 text-green-900'
