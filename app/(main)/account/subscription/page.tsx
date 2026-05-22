@@ -8,14 +8,14 @@ import { useSearchParams }                        from 'next/navigation'
 import {
   Crown, PawPrint, Plus, AlertCircle,
   CheckCircle2, ChevronRight, Receipt,
-  Bell, Shield, Loader2
+  Bell, Shield, Loader2, User, Phone, MapPin, Briefcase, Users
 } from 'lucide-react'
 
 interface SubInfo {
   plan:            string
   expires_at:      string | null
   grace_until:     string | null
-  is_active:       boolean
+  is_active: boolean
   pet_slots_addon: number
   pet_limit:       number
   days_left:       number
@@ -31,7 +31,41 @@ interface PaymentRecord {
   created_at:    string
 }
 
-// ── Format date Thai ──────────────────────────────────────────
+interface ProfileInfo {
+  display_name:   string
+  tel:            string
+  province:       string
+  community_role: string
+  gender:         string
+}
+
+const STATUS_LABEL: Record<string, { label: string; color: string }> = {
+  approved: { label: '✅ สำเร็จ',     color: 'text-green-600' },
+  pending:  { label: '⏳ รอตรวจ',     color: 'text-amber-500' },
+  rejected: { label: '❌ ปฏิเสธ',     color: 'text-red-600' },
+}
+
+const SLIP_TYPE_LABEL: Record<string, string> = {
+  member:  '⭐ Member 1 ปี',
+  addon_1: '➕ เพิ่มช่องสัตว์เลี้ยง +1',
+  addon_3: '➕ เพิ่มช่องสัตว์เลี้ยง +3',
+}
+
+const EXPERTISE_OPTIONS = [
+  { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
+  { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
+  { value: 'petscout', label: 'PetScout (รับจ้างตามหาสัตว์หาย)' },
+  { value: 'vet', label: 'สัตวแพทย์ / คลินิกรักษาสัตว์' },
+  { value: 'groomer', label: 'บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
+  { value: 'petsitter', label: 'รับฝากหรือดูแลสัตว์ที่บ้าน' },
+  { value: 'retailer', label: 'ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
+  { value: 'other', label: 'อื่นๆ' },
+]
+
+const THAILAND_PROVINCES = [
+  "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำปูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+]
+
 function thDate(d: string | null) {
   if (!d) return '-'
   return new Date(d).toLocaleDateString('th-TH', {
@@ -44,7 +78,7 @@ export default function SubscriptionPage() {
   return (
     <Suspense fallback={
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 size={48} className="animate-spin text-ori-orange" />
+        <Loader2 size={48} className="animate-spin text-ori-ink" />
       </div>
     }>
       <SubscriptionContent />
@@ -53,279 +87,366 @@ export default function SubscriptionPage() {
 }
 
 function SubscriptionContent() {
-  const supabase     = useMemo(() => createBrowserClient(
+  const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), [])
+
   const searchParams = useSearchParams()
+  const statusParam  = searchParams.get('status') // 'success' จากการตรวจสลิปหน้าก่อน
 
-  const [sub,        setSub]        = useState<SubInfo | null>(null)
-  const [payments,   setPayments]   = useState<PaymentRecord[]>([])
-  const [petCount,   setPetCount]   = useState(0)
-  const [loading,    setLoading]    = useState(true)
-  const [addonToast, setAddonToast] = useState(false)
+  // ── States ──────────────────────────────────────────────────
+  const [sub, setSub]             = useState<SubInfo | null>(null)
+  const [payments, setPayments]   = useState<PaymentRecord[]>([])
+  const [loading, setLoading]     = useState(true)
 
-  // แสดง toast เมื่อ redirect มาจากการซื้อ addon สำเร็จ
+  // Profile States
+  const [profile, setProfile]     = useState<ProfileInfo>({
+    display_name: '',
+    tel: '',
+    province: '',
+    community_role: 'general',
+    gender: ''
+  })
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileError, setProfileError]   = useState<string | null>(null)
+  const [profileSuccess, setProfileSuccess] = useState(false)
+
+  // ── Fetch Data ──────────────────────────────────────────────
   useEffect(() => {
-    if (searchParams.get('addon') === 'success') {
-      setAddonToast(true)
-      setTimeout(() => setAddonToast(false), 5000)
-    }
-  }, [searchParams])
+    async function loadData() {
+      try {
+        setLoading(true)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
 
-  useEffect(() => {
-    const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+        // 1. ดึงข้อมูล Subscription
+        const { data: sData } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
 
-      const userId = session.user.id
-      const now    = new Date()
+        if (sData) {
+          setSub({
+            plan:            sData.plan || 'free',
+            expires_at:      sData.expires_at,
+            grace_until:     sData.grace_until,
+            is_active: sData.is_active ?? false,
+            pet_slots_addon: sData.pet_slots_addon || 0,
+            pet_limit:       sData.pet_limit || 2,
+            days_left:       sData.days_left || 0,
+            in_grace:        sData.in_grace || false,
+            is_expired:      sData.is_expired || false,
+          })
+        }
 
-      // ── Subscription ──────────────────────────────────────
-      const { data: s } = await supabase
-        .from('subscriptions')
-        .select('plan, expires_at, grace_until, is_active, pet_slots_addon')
-        .eq('user_id', userId)
-        .single()
+        // 2. ดึงข้อมูลการชำระเงิน (Payments)
+        const { data: pData } = await supabase
+          .from('payments')
+          .select('id, amount, status, slip_type, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
 
-      if (s) {
-        const expires   = s.expires_at  ? new Date(s.expires_at)  : null
-        const grace     = s.grace_until ? new Date(s.grace_until) : null
-        const isExpired = expires ? expires < now : false
-        const inGrace   = isExpired && grace ? grace > now : false
-        const daysLeft  = inGrace && grace
-          ? Math.ceil((grace.getTime() - now.getTime()) / 86400000)
-          : !isExpired && expires
-            ? Math.ceil((expires.getTime() - now.getTime()) / 86400000)
-            : 0
-        const addon    = s.pet_slots_addon || 0
-        const petLimit = s.plan === 'member' && !isExpired ? 3 + addon : 1
+        if (pData) setPayments(pData)
 
-        setSub({
-          plan:            s.plan,
-          expires_at:      s.expires_at,
-          grace_until:     s.grace_until,
-          is_active:       s.is_active,
-          pet_slots_addon: addon,
-          pet_limit:       petLimit,
-          days_left:       daysLeft,
-          in_grace:        inGrace,
-          is_expired:      isExpired,
-        })
+        // 3. ดึงข้อมูลโปรไฟล์ผู้ใช้ (Profiles)
+        const { data: profData } = await supabase
+          .from('profiles')
+          .select('display_name, tel, province, community_role, gender')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        if (profData) {
+          setProfile({
+            display_name:   profData.display_name || '',
+            tel:            profData.tel || '',
+            province:       profData.province || '',
+            community_role: profData.community_role || 'general',
+            gender:         profData.gender || ''
+          })
+        }
+
+      } catch (err) {
+        console.error('Error loading account data:', err)
+      } finally {
+        setLoading(false)
       }
-
-      // ── Pet count ─────────────────────────────────────────
-      const { count } = await supabase
-        .from('pets')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('status', 'active')
-      setPetCount(count || 0)
-
-      // ── Payment history ───────────────────────────────────
-      const { data: pData } = await supabase
-        .from('payment_slips')
-        .select('id, amount, status, slip_type, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(10)
-      setPayments(pData || [])
-
-      setLoading(false)
     }
-    load()
-  }, [])
+    loadData()
+  }, [supabase])
 
-  const isMember   = sub?.plan === 'member' && !sub?.is_expired
-  const statusColor = sub?.in_grace
-    ? 'bg-red-50 border-red-300'
-    : isMember
-      ? 'bg-amber-50 border-amber-300'
-      : 'bg-gray-50 border-gray-300'
+  // ── Handle Save Profile ─────────────────────────────────────
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingProfile(true)
+    setProfileError(null)
+    setProfileSuccess(false)
 
-  const SLIP_TYPE_LABEL: Record<string, string> = {
-    member:  '⭐ Member ฿399/ปี',
-    addon_1: '➕ Add-on +1 ตัว ฿79',
-    addon_3: '➕ Add-on +3 ตัว ฿199',
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('ไม่พบข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่อีกครั้ง')
+
+      if (!profile.display_name.trim()) throw new Error('กรุณากรอกชื่อที่ใช้แสดงผล')
+      if (!profile.tel.trim()) throw new Error('กรุณากรอกเบอร์โทรศัพท์สำหรับติดต่อ')
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          display_name:   profile.display_name.trim(),
+          tel:            profile.tel.trim(),
+          province:       profile.province,
+          community_role: profile.community_role,
+          gender:         profile.gender
+        })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      setProfileSuccess(true)
+      setTimeout(() => setProfileSuccess(false), 4000)
+    } catch (err: any) {
+      console.error(err)
+      setProfileError(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล')
+    } finally {
+      setSavingProfile(false)
+    }
   }
-  const STATUS_LABEL: Record<string, { label: string; color: string }> = {
-    auto_approved: { label: 'ผ่านแล้ว ✅',     color: 'text-green-600' },
-    approved:      { label: 'ผ่านแล้ว ✅',     color: 'text-green-600' },
-    pending:       { label: 'รอตรวจสอบ ⏳',   color: 'text-amber-600' },
-    rejected:      { label: 'ไม่ผ่าน ❌',      color: 'text-red-600'   },
-  }
 
-  if (loading) return (
-    <div className="min-h-[60vh] flex items-center justify-center">
-      <Loader2 size={48} className="animate-spin text-ori-orange" />
-    </div>
-  )
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-ori-ink" />
+      </div>
+    )
+  }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10 mb-20 space-y-6">
-
-      <h1 className="text-3xl font-black flex items-center gap-2">
-        <Crown size={28} className="text-amber-500" /> จัดการแพ็คเกจ
-      </h1>
-
-      {/* ── Addon success toast ── */}
-      {addonToast && (
-        <div className="p-4 bg-green-50 border-2 border-green-400
-          rounded-2xl flex items-center gap-3 animate-bounce-once">
-          <CheckCircle2 size={20} className="text-green-600 shrink-0" />
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      
+      {/* ── แจ้งเตือนสลิปผ่านการตรวจสอบสำเร็จ ── */}
+      {statusParam === 'success' && (
+        <div className="p-4 bg-green-50 border-4 border-black rounded-2xl shadow-paper-sm flex items-center gap-3 text-green-900">
+          <CheckCircle2 size={24} className="text-green-600 shrink-0" />
           <div>
-            <p className="font-black text-green-800">เพิ่ม Slot น้องสำเร็จแล้วค่ะ! 🐾</p>
-            <p className="text-xs font-bold text-green-600">
-              สร้างโปรไฟล์น้องเพิ่มได้เลย
-            </p>
+            <p className="font-black">ส่งหลักฐานเรียบร้อยแล้ว!</p>
+            <p className="text-sm font-bold text-green-700">ระบบ AI กำลังตรวจสอบสลิปของท่าน สถานะจะอัปเดตอัตโนมัติภายใน 30 วินาทีค่ะ</p>
           </div>
-          <Link href="/pets/new"
-            className="ml-auto text-xs font-black text-green-700
-              bg-green-200 px-3 py-2 rounded-xl border border-green-400
-              hover:bg-green-300 transition-all shrink-0">
-            สร้างเลย →
-          </Link>
         </div>
       )}
 
-      {/* ── Plan status card ── */}
-      <div className={`border-4 rounded-3xl p-6 shadow-paper ${statusColor}`}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-xs font-black uppercase text-gray-500 mb-1">แพ็คเกจปัจจุบัน</p>
-            <h2 className="text-2xl font-black">
-              {isMember ? '⭐ Member' : '🐾 Free'}
-            </h2>
-          </div>
-          {isMember && (
-            <div className="text-right">
-              <p className="text-xs font-bold text-gray-500">หมดอายุ</p>
-              <p className="font-black text-sm">{thDate(sub?.expires_at || null)}</p>
-              {(sub?.days_left || 0) <= 30 && (
-                <p className={`text-xs font-black mt-0.5 ${
-                  (sub?.days_left || 0) <= 7 ? 'text-red-600' : 'text-amber-600'
-                }`}>
-                  เหลือ {sub?.days_left} วัน
-                </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        {/* ════════════════════════════════════════════════════════
+            ฝั่งซ้าย & กลาง: ข้อมูลโปรไฟล์ผู้ใช้งาน (Profiles) 
+           ════════════════════════════════════════════════════════ */}
+        <div className="md:col-span-2 space-y-6">
+          <div className="bg-white border-4 border-black rounded-3xl p-6 shadow-paper">
+            <div className="flex items-center gap-3 mb-6 border-b-4 border-black pb-4">
+              <div className="p-2 bg-wagashi-matcha border-2 border-black rounded-xl">
+                <User size={24} className="text-black" />
+              </div>
+              <h2 className="font-display font-black text-2xl text-ori-ink">ข้อมูลโปรไฟล์ส่วนตัว</h2>
+            </div>
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                {/* ชื่อผู้ใช้งาน */}
+                <div className="space-y-1">
+                  <label className="font-black text-sm text-ori-ink flex items-center gap-1">ชื่อ-นามสกุล / ชื่อแสดงผล</label>
+                  <input 
+                    type="text"
+                    value={profile.display_name}
+                    onChange={e => setProfile({ ...profile, display_name: e.target.value })}
+                    placeholder="ป้อนชื่อของคุณ"
+                    className="w-full border-2 border-black rounded-xl p-3 font-bold bg-gray-50 focus:bg-white outline-none transition-colors"
+                  />
+                </div>
+
+                {/* เบอร์โทรศัพท์ */}
+                <div className="space-y-1">
+                  <label className="font-black text-sm text-ori-ink flex items-center gap-1">เบอร์โทรศัพท์ติดต่อ</label>
+                  <input 
+                    type="text"
+                    value={profile.tel}
+                    onChange={e => setProfile({ ...profile, tel: e.target.value })}
+                    placeholder="08x-xxx-xxxx"
+                    className="w-full border-2 border-black rounded-xl p-3 font-bold bg-gray-50 focus:bg-white outline-none transition-colors"
+                  />
+                </div>
+
+                {/* เพศ (Gender) - เพิ่มเติมตามที่ลืมไปในเวอร์ชันแรก */}
+                <div className="space-y-1">
+                  <label className="font-black text-sm text-ori-ink">เพศ</label>
+                  <select
+                    value={profile.gender}
+                    onChange={e => setProfile({ ...profile, gender: e.target.value })}
+                    className="w-full border-2 border-black rounded-xl p-3 font-bold bg-gray-50 focus:bg-white outline-none transition-colors cursor-pointer"
+                  >
+                    <option value="">-- เลือกเพศ --</option>
+                    <option value="male">♂ ชาย / เพศผู้</option>
+                    <option value="female">♀ หญิง / เพศเมีย</option>
+                    <option value="other">🌈 LGBTQ+ / ไม่ระบุ</option>
+                  </select>
+                </div>
+
+                {/* จังหวัด */}
+                <div className="space-y-1">
+                  <label className="font-black text-sm text-ori-ink">จังหวัดที่พำนัก</label>
+                  <select
+                    value={profile.province}
+                    onChange={e => setProfile({ ...profile, province: e.target.value })}
+                    className="w-full border-2 border-black rounded-xl p-3 font-bold bg-gray-50 focus:bg-white outline-none transition-colors cursor-pointer"
+                  >
+                    <option value="">-- เลือกจังหวัด --</option>
+                    {THAILAND_PROVINCES.map(prov => (
+                      <option key={prov} value={prov}>{prov}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* บทบาทในชุมชน */}
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="font-black text-sm text-ori-ink">บทบาทของคุณในเครือข่ายชุมชน</label>
+                  <select
+                    value={profile.community_role}
+                    onChange={e => setProfile({ ...profile, community_role: e.target.value })}
+                    className="w-full border-2 border-black rounded-xl p-3 font-bold bg-gray-50 focus:bg-white outline-none transition-colors cursor-pointer"
+                  >
+                    {EXPERTISE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+              </div>
+
+              {/* ข้อความแจ้งเตือนสถานะการบันทึก */}
+              {profileError && (
+                <div className="p-3 bg-red-50 border-2 border-red-500 rounded-xl flex items-center gap-2 text-red-900 font-bold text-sm">
+                  <AlertCircle size={16} className="text-red-500 shrink-0" />
+                  <span>{profileError}</span>
+                </div>
               )}
+
+              {profileSuccess && (
+                <div className="p-3 bg-green-50 border-2 border-green-500 rounded-xl flex items-center gap-2 text-green-900 font-bold text-sm">
+                  <CheckCircle2 size={16} className="text-green-500 shrink-0" />
+                  <span>บันทึกข้อมูลโปรไฟล์สำเร็จเรียบร้อยแล้วล่ะ! 🎉</span>
+                </div>
+              )}
+
+              {/* ปุ่มบันทึกแก้ไขข้อมูล */}
+              <button
+                type="submit"
+                disabled={savingProfile}
+                className="w-full py-4 bg-black text-white font-black rounded-xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {savingProfile ? (
+                  <><Loader2 size={18} className="animate-spin" /> กำลังบันทึกข้อมูล...</>
+                ) : (
+                  "💾 บันทึกการแก้ไขโปรไฟล์"
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* ════════════════════════════════════════════════════════
+            ฝั่งขวา: แสดงสถานะแพ็กเกจ (Subscriptions)
+           ════════════════════════════════════════════════════════ */}
+        <div className="space-y-6">
+          <div className="bg-white border-4 border-black rounded-3xl p-6 shadow-paper relative overflow-hidden">
+            {sub?.is_active && (
+              <div className="absolute top-0 right-0 bg-ori-yellow border-b-4 border-l-4 border-black px-4 py-1 text-xs font-black">
+                ACTIVE
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 mb-4">
+              <Crown size={20} className={sub?.is_active ? 'text-ori-yellow' : 'text-gray-400'} />
+              <h3 className="font-display font-black text-xl text-ori-ink">สถานะแพ็คเกจ</h3>
             </div>
-          )}
-        </div>
 
-        {/* Grace period warning */}
-        {sub?.in_grace && (
-          <div className="p-3 bg-red-100 border border-red-300 rounded-xl
-            flex items-start gap-2 mb-4">
-            <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-black text-sm text-red-800">อยู่ในช่วง Grace Period</p>
-              <p className="text-xs font-bold text-red-600">
-                ข้อมูลน้องจะถูกซ่อนใน {sub?.days_left} วัน ถ้าไม่ต่ออายุ
-              </p>
+            {/* รายละเอียดการเป็นสมาชิก */}
+            <div className="space-y-3 border-b-2 border-dashed border-gray-200 pb-4">
+              <div>
+                <p className="text-xs font-bold text-gray-400">ระดับสมาชิก</p>
+                <p className="font-black text-lg">
+                  {sub?.plan === 'member' ? '⭐ Premium Member' : '🐾 ผู้ใช้ทั่วไป (Free)'}
+                </p>
+              </div>
+
+              {sub?.plan === 'member' && (
+                <div>
+                  <p className="text-xs font-bold text-gray-400">วันหมดอายุ</p>
+                  <p className="font-bold text-sm text-ori-ink-m">
+                    {thDate(sub.expires_at)}
+                    {sub.days_left > 0 && (
+                      <span className="ml-2 text-xs font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                        เหลือ {sub.days_left} วัน
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="p-2 bg-gray-50 border-2 border-black rounded-xl text-center">
+                  <p className="text-[10px] font-black text-gray-400">โควตาปกติ</p>
+                  <p className="font-black text-lg text-ori-ink">{sub?.pet_limit || 2} ตัว</p>
+                </div>
+                <div className="p-2 bg-blue-50 border-2 border-black rounded-xl text-center">
+                  <p className="text-[10px] font-black text-blue-400">สล็อต Add-on</p>
+                  <p className="font-black text-lg text-blue-600">+{sub?.pet_slots_addon || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* CTA ต่ออายุ/ซื้อสล็อตเพิ่ม */}
+            <div className="pt-4 space-y-2">
+              <Link href="/pricing"
+                className="w-full py-3 bg-ori-yellow text-black font-black text-sm rounded-xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-1">
+                <Crown size={16} />
+                {sub?.plan === 'member' ? 'ต่ออายุสมาชิกล่วงหน้า' : 'สมัครเป็น Premium Member'}
+              </Link>
+              <Link href="/pricing?tab=addon"
+                className="w-full py-3 bg-white text-black font-black text-sm rounded-xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-1">
+                <Plus size={16} />
+                ซื้อสล็อตสัตว์เลี้ยงเพิ่ม
+              </Link>
             </div>
           </div>
-        )}
-
-        {/* Pet slots */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="bg-white/70 rounded-xl p-3 text-center">
-            <p className="text-xs font-bold text-gray-500">โปรไฟล์น้อง</p>
-            <p className="font-black text-lg">{petCount}/{sub?.pet_limit || 1}</p>
-          </div>
-          <div className="bg-white/70 rounded-xl p-3 text-center">
-            <p className="text-xs font-bold text-gray-500">Base slots</p>
-            <p className="font-black text-lg">{isMember ? '3' : '1'}</p>
-          </div>
-          <div className="bg-white/70 rounded-xl p-3 text-center">
-            <p className="text-xs font-bold text-gray-500">Add-on slots</p>
-            <p className="font-black text-lg text-amber-600">+{sub?.pet_slots_addon || 0}</p>
-          </div>
         </div>
 
-        {/* Action buttons */}
-        <div className="flex flex-col gap-2">
-          {isMember ? (
-            <>
-              <Link href="/payment/slip?type=member"
-                className="flex items-center justify-center gap-2 py-3 px-6
-                  bg-ori-ink text-white font-black rounded-xl border-2 border-ori-ink
-                  shadow-paper-sm hover:shadow-paper hover:-translate-y-0.5 transition-all">
-                <Crown size={16} className="text-amber-400" />
-                ต่ออายุ Member ฿399/ปี
-              </Link>
-              <Link href="/pricing/addon"
-                className="flex items-center justify-center gap-2 py-3 px-6
-                  bg-white font-black rounded-xl border-2 border-ori-ink
-                  shadow-paper-sm hover:shadow-paper hover:-translate-y-0.5 transition-all">
-                <Plus size={16} /> ซื้อ slot น้องเพิ่ม
-              </Link>
-            </>
-          ) : (
-            <Link href="/pricing"
-              className="flex items-center justify-center gap-2 py-3 px-6
-                bg-ori-ink text-white font-black rounded-xl border-2 border-ori-ink
-                shadow-paper-sm hover:shadow-paper hover:-translate-y-0.5 transition-all">
-              <Crown size={16} className="text-amber-400" />
-              อัปเกรด Member ฿399/ปี
-              <ChevronRight size={16} />
-            </Link>
-          )}
-        </div>
       </div>
 
-      {/* ── Feature list ── */}
-      <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
-        <h2 className="font-black text-lg mb-4">สิทธิ์ที่มี</h2>
-        {[
-          { label: 'ประกาศหาย / แจ้งพบ',  free: true,           member: true          },
-          { label: 'AI Matching',          free: true,           member: true          },
-          { label: 'Chatbot',              free: '5 ครั้ง/วัน', member: 'ไม่จำกัด'    },
-          { label: 'Pet Profile',          free: '1 ตัว',        member: `${sub?.pet_limit || 3} ตัว` },
-          { label: 'สมุดสุขภาพ',          free: false,          member: true          },
-          { label: 'บันทึกผ่าน Chatbot',  free: false,          member: true          },
-          { label: 'QR Code ปลอกคอ',      free: false,          member: true          },
-          { label: 'LINE OA แจ้งเตือน',   free: false,          member: true          },
-          { label: 'ซื้อ slot เพิ่มได้',  free: false,          member: true          },
-        ].map((f, i) => (
-          <div key={i} className={`flex items-center justify-between py-2.5 ${
-            i > 0 ? 'border-t border-gray-100' : ''
-          }`}>
-            <span className="text-sm font-bold text-ori-ink">{f.label}</span>
-            <span className={`text-sm font-black ${
-              isMember
-                ? 'text-green-600'
-                : f.free === true ? 'text-green-600' : 'text-gray-300'
-            }`}>
-              {isMember
-                ? (f.member === true ? '✓' : f.member === false ? '—' : f.member)
-                : (f.free === true ? '✓' : f.free === false ? '—' : f.free)
-              }
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Payment history ── */}
+      {/* ════════════════════════════════════════════════════════
+          ส่วนประวัติการโอนเงินและบิลชำระเงิน (Payments)
+         ════════════════════════════════════════════════════════ */}
       {payments.length > 0 && (
-        <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
-          <h2 className="font-black text-lg mb-4 flex items-center gap-2">
-            <Receipt size={18} /> ประวัติการชำระ
-          </h2>
-          <div className="space-y-3">
+        <div className="bg-white border-4 border-black rounded-3xl p-6 shadow-paper">
+          <div className="flex items-center gap-2 mb-4 border-b-2 border-black pb-2">
+            <Receipt size={18} className="text-gray-500" />
+            <h3 className="font-display font-black text-lg text-ori-ink">ประวัติการสั่งซื้อและแจ้งโอน</h3>
+          </div>
+
+          <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto pr-2">
             {payments.map(p => {
               const s = STATUS_LABEL[p.status] || { label: p.status, color: 'text-gray-600' }
               return (
                 <div key={p.id}
-                  className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
                   <div>
-                    <p className="font-bold text-sm">{SLIP_TYPE_LABEL[p.slip_type] || p.slip_type}</p>
+                    <p className="font-black text-sm text-ori-ink">{SLIP_TYPE_LABEL[p.slip_type] || p.slip_type}</p>
                     <p className="text-xs font-bold text-gray-400">
-                      {new Date(p.created_at).toLocaleDateString('th-TH')}
+                      แจ้งโอนเมื่อ: {new Date(p.created_at).toLocaleDateString('th-TH')} {new Date(p.created_at).toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})} น.
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-black text-sm">฿{p.amount}</p>
-                    <p className={`text-xs font-bold ${s.color}`}>{s.label}</p>
+                    <p className="font-black text-sm text-black">฿{p.amount}</p>
+                    <p className={`text-xs font-black ${s.color}`}>{s.label}</p>
                   </div>
                 </div>
               )
@@ -334,16 +455,15 @@ function SubscriptionContent() {
         </div>
       )}
 
-      {/* ── Renewal info ── */}
-      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-2xl
-        flex items-start gap-3">
+      {/* ── ข้อมูลช่วยเหลือ/ความปลอดภัยเพิ่มเติม ── */}
+      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-2xl flex items-start gap-3">
         <Shield size={16} className="text-gray-400 shrink-0 mt-0.5" />
         <div className="text-xs font-bold text-gray-500 space-y-1">
-          <p>ชำระผ่าน PromptPay โอนแล้วส่งสลิป AI ตรวจอัตโนมัติ</p>
-          <p>Add-on slots ผูกกับ Member — ถ้า Member หมดอายุ slots จะหยุดใช้งานชั่วคราวด้วย</p>
-          <p>Grace Period 30 วัน — ข้อมูลยังอยู่ครบ ต่ออายุเมื่อไหรก็ได้</p>
+          <p>ชำระผ่าน PromptPay โอนแล้วส่งสลิป AI ตรวจสอบความถูกต้องและอนุมัติระดับสมาชิกทันทีภายใน 30 วินาที</p>
+          <p>หากพบปัญหาในการกรอกโปรไฟล์หรือยอดเงินสมาชิกไม่ปรับเปลี่ยน สามารถติดต่อทีมงาน PobPet ได้ตลอด 24 ชม.</p>
         </div>
       </div>
+
     </div>
   )
 }

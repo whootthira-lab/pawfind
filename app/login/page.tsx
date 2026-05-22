@@ -54,7 +54,7 @@ const interestOptions = [
   { value: 'contest',     label: '🏆 การประกวดสัตว์' },
   { value: 'community',   label: '🤝 ชุมชนและอาสาสมัคร' },
   { value: 'memorial',    label: '🕯 ของที่ระลึกสัตว์เลี้ยง' },
-// ไลฟ์สไตล์และสุขภาพ
+  // ไลฟ์สไตล์และสุขภาพ (กลับมาอยู่ครบแล้วครับพี่!)
   { value: 'astrology',   label: '🔮 ดูดวง / โหราศาสตร์' },
   { value: 'psychology',  label: '🧠 จิตวิทยา' },
   { value: 'selfdev',     label: '📈 พัฒนาตนเอง' },
@@ -88,6 +88,7 @@ export default function LoginPage() {
     last_name: '',
     birth_date: '',
     phone_number: '',
+    gender: '', // 🟢 เพิ่มฟิลด์เพศมารองรับ Database โครงสร้างใหม่แล้วครับ
     line_id: '',
     avatar_url: '',
     address: '',
@@ -190,6 +191,10 @@ export default function LoginPage() {
       setMessage({ type: 'error', text: 'กรุณากรอกชื่อโปรไฟล์ที่จะใช้แสดงผล' })
       return
     }
+    if (!formData.gender) {
+      setMessage({ type: 'error', text: 'กรุณาเลือกเพศของคุณเพื่อความสมบูรณ์ของโปรไฟล์ค่ะ' })
+      return
+    }
 
     setLoading(true)
     const metadata = {
@@ -287,7 +292,7 @@ export default function LoginPage() {
 
               <div className="md:col-span-2 space-y-1">
                 <label className="font-black text-sm ml-1 flex items-center gap-1 uppercase text-ori-orange-d">
-                  <UserCircle size={16}/> ชื่อโปรไฟล์ที่จะใช้แสดง (Display Name)
+                  <UserCircle size={16}/> ชื่อโปรไฟล์ที่จะใช้แสดง (Display Name) *
                 </label>
                 <input 
                   required 
@@ -307,6 +312,22 @@ export default function LoginPage() {
                 <label className="font-black text-sm ml-1 uppercase text-gray-500">นามสกุล</label>
                 <input required className="w-full border-2 border-black rounded-lg p-3 font-bold focus:bg-gray-50 outline-none transition-colors" 
                   onChange={e => setFormData({...formData, last_name: e.target.value})} />
+              </div>
+
+              {/* 🟢 เพิ่มช่องเลือกเพศสอดรับตามโครงงานจัดการฐานข้อมูลใหม่ */}
+              <div className="space-y-1">
+                <label className="font-black text-sm ml-1 text-gray-500 uppercase">เพศของคุณ *</label>
+                <select
+                  required
+                  value={formData.gender}
+                  onChange={e => setFormData({...formData, gender: e.target.value})}
+                  className="w-full border-2 border-black rounded-lg p-3 font-bold bg-white focus:bg-gray-50 outline-none transition-colors cursor-pointer"
+                >
+                  <option value="">-- เลือกเพศ --</option>
+                  <option value="male">♂ ชาย / เพศผู้</option>
+                  <option value="female">♀ หญิง / เพศเมีย</option>
+                  <option value="other">🌈 LGBTQ+ / ไม่ระบุ</option>
+                </select>
               </div>
 
               <div className="space-y-1">
@@ -420,7 +441,7 @@ export default function LoginPage() {
                 <select 
                   value={formData.community_role}
                   onChange={(e) => setFormData({...formData, community_role: e.target.value})}
-                  className="w-full border-2 border-black rounded-xl p-3 font-bold focus:bg-white outline-none transition-colors cursor-pointer"
+                  className="w-full border-2 border-black rounded-xl p-3 font-bold focus:bg-white outline-none transition-colors pointer-events-auto cursor-pointer"
                 >
                   {expertiseOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
