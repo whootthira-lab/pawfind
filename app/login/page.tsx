@@ -14,8 +14,8 @@ import {
 
 // ── 1. ตัวเลือกบทบาทเครือข่ายสัตว์เลี้ยง ──
 const expertiseOptions = [
-  { value: 'adopt',       label: 'แ หาบ้านใหม่ / รับเลี้ยง' },
-  { value: 'rescue',      label: '🆘 ตามหาสัตว์หาย/ช่วยเหลือสัตว์จร' },
+  { value: 'adopt',       label: '🐶 หาบ้านใหม่ / รับเลี้ยง' },
+  { value: 'rescue',      label: '🆘 ช่วยเหลือสัตว์จร' },
   { value: 'mating',      label: '❤️ หาคู่ให้สัตว์เลี้ยง' },
   { value: 'showcase',    label: '📸 ประกวด / อวดความน่ารัก' },
   { value: 'knowledge',   label: '📚 ศึกษาความรู้การเลี้ยง' },
@@ -44,7 +44,7 @@ const occupationOptions = [
   { value: 'other', label: '✏️ อื่นๆ' },
 ]
 
-// ── 3. ตัวเลือกวัตถุประสงค์และความสนใจ (Interests) ──
+// ── 3. ตัวเลือกวัตถุประสงค์และความสนใจครบทุกมิติ ──
 const interestOptions = [
   { value: 'dog',         label: '🐕 สุนัข' },
   { value: 'cat',         label: '🐈 แมว' },
@@ -76,7 +76,7 @@ const interestOptions = [
   { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' },
 ]
 
-// ── 4. ตัวเลือกแท็กความเชี่ยวชาญเพิ่มเติม (Expertise Tags) ──
+// ── 4. ตัวเลือกแท็กความเชี่ยวชาญเพิ่มเติม ──
 const expertiseTagOptions = [
   { value: 'rescue_expert',     label: '🆘 ยานพาหนะช่วยชีวิตสัตว์/จับสัตว์' },
   { value: 'medical_care',      label: '💊 ปฐมพยาบาล/ให้ยาสัตว์เบื้องต้น' },
@@ -111,7 +111,6 @@ export default function LoginPage() {
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  // ── เพิ่มโครงสร้างตัวแปรของคอลลั่มใหม่ลงใน State ──
   const [formData, setFormData] = useState({
     display_name: '',
     first_name: '',
@@ -119,17 +118,17 @@ export default function LoginPage() {
     birth_date: '',
     phone_number: '',
     province: 'นครราชสีมา',
-    district: '',       // 🆕 เพิ่มอำเภอ
-    subdistrict: '',    // 🆕 เพิ่มตำบล
-    address: '',        // 🆕 เพิ่มบ้านเลขที่/ถนน/หมู่บ้าน
-    line_id: '',        // 🆕 เพิ่มไอดีไลน์ทั่วไป
+    district: '',
+    subdistrict: '',
+    address: '',
+    line_id: '',
     gender: 'unknown',
     avatar_url: '',
     occupation: 'employee',
     community_role: 'general',
-    community_role_custom: '', // 🆕 คอลัมน์ Custom Role
+    community_role_custom: '',
     interests: [] as string[],
-    expertise_tags: [] as string[], // 🆕 เพิ่มแท็กความเชี่ยวชาญ
+    expertise_tags: [] as string[],
     marital_status: 'single'
   })
 
@@ -182,14 +181,15 @@ export default function LoginPage() {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
       const filePath = `avatars/${fileName}`
 
+      // 🟢 [แก้ไขจุดพังสำเร็จ] เปลี่ยนชื่อ Bucket จาก pobpet-bucket เป็น profile-images เพื่อให้ตรงฐานข้อมูลเซิร์ฟเวอร์จริง
       const { error: uploadErr } = await supabase.storage
-        .from('pobpet-bucket')
+        .from('profile-images')
         .upload(filePath, file)
 
       if (uploadErr) throw uploadErr
 
       const { data: { publicUrl } } = supabase.storage
-        .from('pobpet-bucket')
+        .from('profile-images')
         .getPublicUrl(filePath)
 
       setFormData(prev => ({ ...prev, avatar_url: publicUrl }))
@@ -249,20 +249,20 @@ export default function LoginPage() {
         birth_date: formData.birth_date || null,
         phone_number: formData.phone_number.trim(),
         province: formData.province,
-        district: formData.district.trim() || null,          // 🆕 บันทึกลงตัวแปร
-        subdistrict: formData.subdistrict.trim() || null,    // 🆕 บันทึกลงตัวแปร
-        address: formData.address.trim() || null,            // 🆕 บันทึกลงตัวแปร
-        line_id: formData.line_id.trim() || null,            // 🆕 บันทึกลงตัวแปร
+        district: formData.district.trim() || null,
+        subdistrict: formData.subdistrict.trim() || null,
+        address: formData.address.trim() || null,
+        line_id: formData.line_id.trim() || null,
         gender: formData.gender,
         avatar_url: formData.avatar_url || null,
         occupation: formData.occupation,
         community_role: finalCommunityRole,
-        community_role_custom: finalCommunityRole,            // 🆕 ซิงค์ชื่อคอลัมน์โดยตรง
+        community_role_custom: finalCommunityRole,
         interests: formData.interests,
-        expertise_tags: formData.expertise_tags,             // 🆕 บันทึกลงตัวแปร
+        expertise_tags: formData.expertise_tags,
         marital_status: formData.marital_status,
-        line_user_id: null,                                   // 🆕 คอลัมน์ระบบเริ่มจาก Null
-        current_cooldown_until: null                          // 🆕 คอลัมน์ระบบเริ่มจาก Null
+        line_user_id: null,
+        current_cooldown_until: null
       }
 
       localStorage.setItem('pobpet_pending_registration', JSON.stringify(profileData))
@@ -422,17 +422,17 @@ export default function LoginPage() {
                       </select>
                     </div>
 
-                    {/* 🆕 ช่องกรอก LINE ID ดึงเข้าคอลัมน์ line_id */}
                     <div className="space-y-1">
                       <label className="font-black text-xs text-black flex items-center gap-1"><MessageSquare size={14}/> LINE ID (ผู้ใช้)</label>
                       <input type="text" value={formData.line_id} onChange={e => setFormData({...formData, line_id: e.target.value})} placeholder="ใส่ไอดีไลน์เพื่อรับงาน" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
                     </div>
 
-                    {/* 🏠 เลเยอร์ข้อมูลที่ตั้งและที่อยู่เชิงลึก (address, subdistrict, district, province) */}
                     <div className="space-y-1">
                       <label className="font-black text-xs text-black">จังหวัดประจำการหลัก</label>
                       <select value={formData.province} onChange={e => setFormData({...formData, province: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
-                        {thailandProvinces.map(prov => (<option key={prov} value={prov}>{prov}</option>))}
+                        {thailandProvinces.map(prov => (
+                          <option key={prov} value={prov}>{prov}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -451,7 +451,6 @@ export default function LoginPage() {
                       <input type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="เช่น 444 หมู่ 1" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
                     </div>
 
-                    {/* อาชีพหลักและบทบาท */}
                     <div className="space-y-1">
                       <label className="font-black text-xs text-black flex items-center gap-1"><Briefcase size={14}/> อาชีพหลักของคุณ</label>
                       <select value={formData.occupation} onChange={e => setFormData({...formData, occupation: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
@@ -479,10 +478,9 @@ export default function LoginPage() {
                   </>
                 )}
 
-                {/* ── SUB-STEP 2: ความสนใจ (Interests) & แท็กความเชี่ยวชาญ (Expertise Tags) ── */}
+                {/* ── SUB-STEP 2: ความสนใจ & แท็กความเชี่ยวชาญ ── */}
                 {profileSubStep === 2 && (
                   <>
-                    {/* ส่วนเลือกวัตถุประสงค์หลัก (Interests) */}
                     <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-wagashi-matcha/10 shadow-paper-sm">
                       <label className="font-black text-base text-black flex items-center gap-1.5"><Heart size={16} className="fill-black"/> สิ่งที่คุณสนใจและวัตถุประสงค์หลัก (Interests - เลือกได้หลายข้อ)</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
@@ -495,7 +493,6 @@ export default function LoginPage() {
                       </div>
                     </div>
 
-                    {/* 🆕 ส่วนเลือกแท็กความเชี่ยวชาญเพิ่มเติม (expertise_tags) */}
                     <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-wagashi-sakura/10 shadow-paper-sm">
                       <label className="font-black text-base text-black flex items-center gap-1.5"><Sparkles size={16} className="fill-black"/> แท็กความเชี่ยวชาญเพื่อช่วยเหลือสัตว์เลี้ยง (Expertise Tags - เลือกได้หลายข้อ)</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
