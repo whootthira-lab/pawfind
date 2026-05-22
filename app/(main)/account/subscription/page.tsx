@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, Suspense } from 'react'
 import { createBrowserClient }                    from '@supabase/ssr'
 import { useRouter, useSearchParams }             from 'next/navigation'
 import Link                                       from 'next/link'
+import Image                                      from 'next/image' // 🟢 เพิ่มบรรทัดนี้เข้าไปครับ
 import { Button }                                 from '@/components/ui/button'
 import {
   Crown, PawPrint, Plus, AlertCircle,
