@@ -30,15 +30,47 @@ export async function GET(request: Request) {
             phone_number:   userMeta.phone_number || null,
             province:       userMeta.province || 'นครราชสีมา',
             gender:         userMeta.gender || 'unknown',
+            // 🎯 [จุดแก้ไขสำคัญ] เปลี่ยนจาก userMeta.avatarurl เป็น userMeta.avatar_url เพื่อดึงค่ารูปภาพให้ตรงกัน
             avatar_url:     userMeta.avatar_url || null,
             occupation:     userMeta.occupation || null,
             community_role: userMeta.community_role || 'general',
             interests:      Array.isArray(userMeta.interests) ? userMeta.interests : [],
-            marital_status: userMeta.marital_status || 'single'
+            marital_status: userMeta.marital_status || 'single',
+            
+            // 🆕 เพิ่มการซิงค์ข้อมูลเลเยอร์ใหม่ให้ลงตาราง Database ครบถ้วน ไร้ค่า Null
+            line_id:        userMeta.line_id || null,
+            address:        userMeta.address || null,
+            district:       userMeta.district || null,
+            subdistrict:    userMeta.subdistrict || null,
+            expertise_tags: Array.isArray(userMeta.expertise_tags) ? userMeta.expertise_tags : []
+          })
+
+          // ── ซิงค์กลับไปเขียนลงใน Authentication (auth.users) ด้วย ──────────────────
+          await supabase.auth.updateUser({
+            data: {
+              display_name:   userMeta.display_name,
+              first_name:     userMeta.first_name,
+              last_name:      userMeta.last_name,
+              birth_date:     userMeta.birth_date,
+              phone_number:   userMeta.phone_number,
+              province:       userMeta.province,
+              gender:         userMeta.gender,
+              avatar_url:     userMeta.avatar_url, // ซิงค์รูปภาพเข้า Auth metadata ด้วย
+              occupation:     userMeta.occupation,
+              community_role: userMeta.community_role,
+              interests:      userMeta.interests,
+              marital_status: userMeta.marital_status,
+              line_id:        userMeta.line_id,
+              address:        userMeta.address,
+              district:       userMeta.district,
+              subdistrict:    userMeta.subdistrict,
+              expertise_tags: userMeta.expertise_tags,
+              pobpet_custom_registration: true
+            }
           })
         }
 
-        // 🟢 2. ตรวจสอบสิทธิ์และสร้างสิทธิประโยชน์ Free Subscription (ใช้ maybeSingle แทน single ป้องกันบอร์ดพัง)
+        // ── 2. สร้าง Free Subscription ถ้ายังไม่มี ──────────
         const { data: existingSub } = await supabase
           .from('subscriptions')
           .select('id, plan')
@@ -53,7 +85,7 @@ export async function GET(request: Request) {
           })
         }
 
-        // 🟢 3. ตรวจสอบความครบถ้วนของข้อมูลโปรไฟล์ (ใช้ maybeSingle ป้องกัน Error ดักทาง)
+        // ── 3. เช็ค profile ครบไหม (สำหรับ LINE Login) ──────
         const { data: profile } = await supabase
           .from('profiles')
           .select('phone_number, occupation, interests')
