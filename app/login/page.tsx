@@ -54,7 +54,6 @@ const interestOptions = [
   { value: 'contest',     label: '🏆 การประกวดสัตว์' },
   { value: 'community',   label: '🤝 ชุมชนและอาสาสมัคร' },
   { value: 'memorial',    label: '🕯 ของที่ระลึกสัตว์เลี้ยง' },
-  // ไลฟ์สไตล์และสุขภาพ (กลับมาอยู่ครบแล้วครับพี่!)
   { value: 'astrology',   label: '🔮 ดูดวง / โหราศาสตร์' },
   { value: 'psychology',  label: '🧠 จิตวิทยา' },
   { value: 'selfdev',     label: '📈 พัฒนาตนเอง' },
@@ -88,7 +87,7 @@ export default function LoginPage() {
     last_name: '',
     birth_date: '',
     phone_number: '',
-    gender: '', // 🟢 เพิ่มฟิลด์เพศมารองรับ Database โครงสร้างใหม่แล้วครับ
+    gender: '', 
     line_id: '',
     avatar_url: '',
     address: '',
@@ -143,13 +142,16 @@ export default function LoginPage() {
 
   const handleCheckEmail = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!email.trim()) return
     setLoading(true)
     setMessage(null)
+
+    const cleanEmail = email.trim().toLowerCase()
 
     const { data, error } = await supabase
       .from('profiles')
       .select('email')
-      .eq('email', email)
+      .eq('email', cleanEmail)
       .maybeSingle()
 
     if (error) {
@@ -160,19 +162,21 @@ export default function LoginPage() {
     }
 
     if (data) {
-      await handleSendOTP(email)
+      // 🟢 บัญชีมีอยู่แล้ว ส่งลิงก์เข้าสู่ระบบได้เลย
+      await handleSendOTP(cleanEmail)
     } else {
+      // ผู้ใช้งานใหม่ ไปหน้ากรอกฟอร์มลงทะเบียน
       setStep('register')
       setLoading(false)
     }
   }
 
-  const handleSendOTP = async (targetEmail: string, metadata = {}) => {
+  const handleSendOTP = async (targetEmail: string, authMetadata = {}) => {
     const { error } = await supabase.auth.signInWithOtp({
       email: targetEmail,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: metadata 
+        data: authMetadata // แนบข้อมูลชั้นเดียวธรรมดาไปที่ Auth Meta
       },
     })
 
@@ -185,25 +189,66 @@ export default function LoginPage() {
     }
   }
 
+  // 🟢 ฟังก์ชันแก้ไขใหม่: บันทึกลงฐานข้อมูลตรงๆ ป้องกันข้อมูล Array ตกหล่นจากการส่งผ่านอีเมล
   const handleRegisterAndLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.display_name) {
+    if (!formData.display_name.trim()) {
       setMessage({ type: 'error', text: 'กรุณากรอกชื่อโปรไฟล์ที่จะใช้แสดงผล' })
       return
     }
     if (!formData.gender) {
-      setMessage({ type: 'error', text: 'กรุณาเลือกเพศของคุณเพื่อความสมบูรณ์ของโปรไฟล์ค่ะ' })
+      setMessage({ type: 'error', text: 'กรุณาเลือกเพศของคุณเพื่อความสมบูรณ์ของระบบค่ะ' })
       return
     }
 
     setLoading(true)
-    const metadata = {
-      ...formData,
-      email,
-      interests: formData.interests,
-      occupation: formData.occupation,
+    setMessage(null)
+
+    const cleanEmail = email.trim().toLowerCase()
+
+    try {
+      // 1. สั่งให้สุ่มสร้างรหัส ID ชั่วคราวก่อน (หรือใช้ระบบจอง ID ของคลาส Supabase)
+      // เพื่อความชัวร์ในขั้นตอนนี้ เราจะยิงบันทึกข้อมูลดิบลงตาราง profiles โดยระบุอีเมลเป็นตัวเชื่อมโยงหลัก
+      // ข้อมูลความสนใจประเภท Array (interests) จะถูกเซฟเข้าตารางเรียบร้อย ไม่หายแน่นอน!
+      
+      const roleFinal = formData.community_role === 'other' ? formData.community_role_custom : formData.community_role
+
+      // ลบข้อมูลขยะเก่าออก (ถ้าเคยลงทะเบียนค้างไว้แต่เมลไม่ผ่าน)
+      await supabase.from('profiles').delete().eq('email', cleanEmail)
+
+      // บันทึกฟอร์มลงตารางตรงๆ ชิ้นส่วน Array จะอยู่ครบ 100%
+      const { error: insertErr } = await supabase
+        .from('profiles')
+        .insert({
+          email:          cleanEmail,
+          display_name:   formData.display_name.trim(),
+          first_name:     formData.first_name.trim(),
+          last_name:      formData.last_name.trim(),
+          birth_date:     formData.birth_date || null,
+          tel:            formData.phone_number.trim(), // แมปตัวแปรให้ตรงกับตาราง profiles
+          gender:         formData.gender,
+          line_id:        formData.line_id.trim() || null,
+          avatar_url:     formData.avatar_url || null,
+          address:        formData.address.trim() || null,
+          province:       formData.province,
+          district:       formData.district.trim() || null,
+          subdistrict:    formData.subdistrict.trim() || null,
+          contact_link:   formData.contact_link.trim() || null,
+          community_role: roleFinal,
+          occupation:     formData.occupation || null,
+          interests:      formData.interests // Array อยู่ครบถ้วน!
+        })
+
+      if (insertErr) throw insertErr
+
+      // 2. ส่ง Magic Link ไปที่อีเมล โดยแนบชื่อไปใน Metadata ฝั่ง Auth เพื่อยืนยันสิทธิ์ลิงก์คู่ขนาน
+      await handleSendOTP(cleanEmail, { display_name: formData.display_name.trim() })
+
+    } catch (err: any) {
+      console.error('[Register Error]:', err)
+      setMessage({ type: 'error', text: 'บันทึกโปรไฟล์ไม่สำเร็จ: ' + (err.message || 'โครงสร้างข้อมูลไม่สอดคล้อง') })
+      setLoading(false)
     }
-    await handleSendOTP(email, metadata)
   }
 
   if (step === 'success') {
@@ -314,7 +359,6 @@ export default function LoginPage() {
                   onChange={e => setFormData({...formData, last_name: e.target.value})} />
               </div>
 
-              {/* 🟢 เพิ่มช่องเลือกเพศสอดรับตามโครงงานจัดการฐานข้อมูลใหม่ */}
               <div className="space-y-1">
                 <label className="font-black text-sm ml-1 text-gray-500 uppercase">เพศของคุณ *</label>
                 <select
@@ -338,7 +382,7 @@ export default function LoginPage() {
 
               <div className="space-y-1">
                 <label className="font-black text-sm ml-1 flex items-center gap-1 uppercase text-gray-500"><Phone size={14}/> เบอร์โทร</label>
-                <input required placeholder="08x-xxx-xxxx" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
+                <input type="tel" required placeholder="08x-xxx-xxxx" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
                   onChange={e => setFormData({...formData, phone_number: e.target.value})} />
               </div>
 
@@ -405,7 +449,7 @@ export default function LoginPage() {
 
               <div className="md:col-span-2 space-y-2">
                 <label className="font-black text-sm ml-1 flex items-center gap-2 uppercase text-gray-500">
-                  <Heart size={14}/> ความสนใจเกี่ยวกับสัตว์เลี้ยง (เลือกได้หลายข้อ)
+                  <Heart size={14}/> ความสนใจเกี่ยวกับสัตว์เลี้ยงและไลฟ์สไตล์ (เลือกได้หลายข้อ)
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {interestOptions.map(opt => {
@@ -441,13 +485,26 @@ export default function LoginPage() {
                 <select 
                   value={formData.community_role}
                   onChange={(e) => setFormData({...formData, community_role: e.target.value})}
-                  className="w-full border-2 border-black rounded-xl p-3 font-bold focus:bg-white outline-none transition-colors pointer-events-auto cursor-pointer"
+                  className="w-full border-2 border-black rounded-xl p-3 font-bold focus:bg-white outline-none transition-colors cursor-pointer"
                 >
                   {expertiseOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
               </div>
+
+              {formData.community_role === 'other' && (
+                <div className="md:col-span-2 space-y-1 animate-in fade-in">
+                  <label className="font-black text-sm ml-1 text-gray-600">ระบุบทบาทภารกิจเพิ่มเติมของคุณ</label>
+                  <input 
+                    type="text"
+                    value={formData.community_role_custom}
+                    onChange={e => setFormData({...formData, community_role_custom: e.target.value})}
+                    placeholder="เช่น ช่างภาพจิตอาสาถ่ายรูปสุนัขจร"
+                    className="w-full border-2 border-black rounded-xl p-3 font-bold"
+                  />
+                </div>
+              )}
 
               <Button disabled={loading || uploading} className="md:col-span-2 mt-6 bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50">
                 {loading || uploading ? <Loader2 className="animate-spin" /> : "บันทึกโปรไฟล์และรับ Magic Link เพื่อเข้าใช้งาน"}
