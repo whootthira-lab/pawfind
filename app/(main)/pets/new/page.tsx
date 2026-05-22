@@ -4,7 +4,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { createBrowserClient }       from '@supabase/ssr'
 import { useRouter }                 from 'next/navigation'
-import Image                         from 'next/image'
 import {
   Upload, Sparkles, Loader2, ChevronRight,
   PawPrint, Heart, Home, Trophy, Search,
@@ -82,13 +81,26 @@ export default function NewPetPage() {
   const [planInfo,       setPlanInfo]       = useState<{ plan: string; limit: number; current: number } | null>(null)
   const [planChecked,    setPlanChecked]    = useState(false)
 
-  // ── Check plan on mount (✅ แก้จาก useMemo เป็น useEffect) ──
+  // ── Check plan and profiles identity on mount ──
   useEffect(() => {
-    const checkPlan = async () => {
+    const checkPlanAndProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { 
         router.push('/login?next=/pets/new')
         return 
+      }
+      
+      // ตรวจสอบว่ามีแถวข้อมูลใน public.profiles รองรับ Foreign Key แล้วหรือยัง
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', session.user.id)
+        .single()
+
+      if (!profile) {
+        setError('ไม่พบข้อมูลโปรไฟล์ผู้ใช้งานในระบบตารางหลัก (public.profiles) กรุณาติดต่อผู้ดูแลระบบ หรือลองออกจากระบบแล้วเข้าใหม่ด้วย LINE อีกครั้งค่ะ')
+        setPlanChecked(true)
+        return
       }
       
       try {
@@ -103,8 +115,8 @@ export default function NewPetPage() {
         console.error('Failed to load plan info', err)
       }
     }
-    checkPlan()
-  }, [router, supabase.auth])
+    checkPlanAndProfile()
+  }, [router, supabase])
 
   // ── Image handlers ──────────────────────────────────────
   const maxPhotos = planInfo?.plan === 'member' ? 10 : 3
@@ -175,13 +187,25 @@ export default function NewPetPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/login'); return }
-      const userId = session.user.id
+      
+      // ✅ ดึงและตรวจสอบ ID จากตาราง public.profiles โดยตรง เพื่อป้องกันปัญหาสิทธิ์ Foreign Key บกพร่อง
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', session.user.id)
+        .single()
+
+      if (profileErr || !profile) {
+        throw new Error('ไม่สามารถบันทึกข้อมูลได้ เนื่องจากระบบตรวจไม่พบโปรไฟล์หลักของคุณในฐานข้อมูล (public.profiles) กรุณาลองล็อกเอาต์แล้วล็อกอินเข้าสู่ระบบใหม่อีกครั้งค่ะ')
+      }
+
+      const userId = profile.id
 
       // Insert pet
       const { data: pet, error: petErr } = await supabase
         .from('pets')
         .insert({
-          user_id:        userId,
+          user_id:        userId, // ปลอดภัย 100% เพราะยืนยันจาก profiles ชัดเจนแล้ว
           name:           form.name.trim(),
           species:        form.species,
           breed:          form.breed   || null,
@@ -243,22 +267,24 @@ export default function NewPetPage() {
         </p>
       </div>
 
-      {/* Limit warning */}
-      {planChecked && atLimit && (
+      {/* Limit or Foreign Key profile warning */}
+      {planChecked && (atLimit || error) && (
         <div className="mb-6 p-4 bg-red-50 border-2 border-red-400
           rounded-2xl flex items-start gap-3">
           <AlertCircle size={20} className="text-red-600 shrink-0 mt-0.5" />
           <div>
             <p className="font-black text-red-800">{error}</p>
-            <a href="/pricing"
-              className="text-xs font-black text-red-600 underline mt-1 inline-block">
-              อัปเกรด Member เพื่อเพิ่มได้ถึง 3 ตัว →
-            </a>
+            {atLimit && (
+              <a href="/pricing"
+                className="text-xs font-black text-red-600 underline mt-1 inline-block">
+                อัปเกรด Member เพื่อเพิ่มได้ถึง 3 ตัว →
+              </a>
+            )}
           </div>
         </div>
       )}
 
-      <div className={`space-y-6 ${atLimit ? 'opacity-50 pointer-events-none' : ''}`}>
+      <div className={`space-y-6 ${atLimit || (planChecked && error && !atLimit) ? 'opacity-50 pointer-events-none' : ''}`}>
 
         {/* ── รูปภาพ ── */}
         <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
@@ -534,7 +560,7 @@ export default function NewPetPage() {
         )}
 
         {/* ── Save ── */}
-        <button onClick={handleSave} disabled={saving || !!atLimit}
+        <button onClick={handleSave} disabled={saving || !!atLimit || (planChecked && error && !atLimit)}
           className="w-full py-5 bg-ori-ink text-white font-black text-lg
             rounded-2xl border-4 border-ori-ink shadow-paper
             hover:shadow-paper-lg hover:-translate-y-1 transition-all

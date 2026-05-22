@@ -54,7 +54,7 @@ const interestOptions = [
   { value: 'exotic',      label: '🦎 สัตว์ Exotic' },
   { value: 'rabbit',      label: '🐰 กระต่าย / สัตว์ขนาดเล็ก' },
   { value: 'health',      label: '🏥 สุขภาพและการดูแลสัตว์' },
-  { value: 'prosthetics', label: '🦿 ขาเทียมสัตว์ (นวัตกรรม)' },
+  { value: 'prosthetics', label: '🦿 นวัตกรรม,DIY' },
   { value: 'adoption',    label: '💖 การรับเลี้ยงและหาบ้าน' },
   { value: 'contest',     label: '🏆 การประกวดสัตว์' },
   { value: 'community',   label: '🤝 ชุมชนและอาสาสมัคร' },
@@ -63,10 +63,10 @@ const interestOptions = [
   { value: 'astrology',   label: '🔮 ดูดวง / โหราศาสตร์' },
   { value: 'psychology',  label: '🧠 จิตวิทยา' },
   { value: 'selfdev',     label: '📈 พัฒนาตนเอง' },
-  { value: 'sport_football',  label: '⚽ กีฬา — ฟุตบอล' },
-  { value: 'sport_badminton', label: '🏸 กีฬา — แบดมินตัน' },
-  { value: 'sport_golf',      label: '⛳ กีฬา — กอล์ฟ' },
-  { value: 'sport_muay',      label: '🥊 กีฬา — มวย / ศิลปะการต่อสู้' },
+  { value: 'sport_football',  label: '⚽ ฟุตบอล' },
+  { value: 'sport_badminton', label: '🏸 แบดมินตัน,เทนนิส' },
+  { value: 'sport_golf',      label: '⛳ กอล์ฟ' },
+  { value: 'sport_muay',      label: '🥊 กีฬาต่อสู้ / ศิลปะการต่อสู้' },
   { value: 'sport_other',     label: '🏅 กีฬา — ประเภทอื่นๆ' },
   { value: 'fitness',     label: '💪 ออกกำลังกาย / Fitness' },
   { value: 'fashion',     label: '👗 แฟชั่น / สไตล์' },
@@ -350,7 +350,7 @@ export default function LoginPage() {
                 </label>
                 <input 
                   required 
-                  placeholder="เช่น kruth_apex (ไม่ต้องแสดงชื่อจริง)" 
+                  placeholder="เช่น ลักกี้ (ไม่ต้องแสดงชื่อจริง)" 
                   className="w-full border-4 border-black rounded-xl p-4 font-bold text-lg focus:bg-orange-50 outline-none transition-colors shadow-paper-sm" 
                   onChange={e => setFormData({...formData, display_name: e.target.value})} 
                 />
@@ -405,7 +405,7 @@ export default function LoginPage() {
 
               <div className="space-y-1">
                 <label className="font-black text-sm ml-1 text-gray-500 uppercase">ตำบล / แขวง</label>
-                <input required placeholder="เช่น สระจระเข้" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
+                <input required placeholder="เช่น ห้วยบง" className="w-full border-2 border-black rounded-lg p-3 font-bold" 
                   onChange={e => setFormData({...formData, subdistrict: e.target.value})} />
               </div>
 
@@ -519,7 +519,7 @@ export default function LoginPage() {
               </div>
 
               <Button disabled={loading || uploading} className="md:col-span-2 mt-6 bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50">
-                {loading || uploading ? <Loader2 className="animate-spin" /> : "บันทึกโปรไฟล์และรับ Magic Link"}
+                {loading || uploading ? <Loader2 className="animate-spin" /> : "บันทึกโปรไฟล์และรับ Magic Link เพื่อเข้าใช้งาน"}
               </Button>
             </form>
             <Button onClick={() => setStep('email')} variant="ghost" className="mt-4 text-gray-500 font-bold hover:text-black hover:bg-gray-100 rounded-xl px-4 py-2">
