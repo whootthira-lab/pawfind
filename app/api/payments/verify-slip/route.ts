@@ -92,10 +92,11 @@ export async function POST(req: Request) {
 
     const slipOkResult = await response.json()
 
+    // 🟢 [แก้ไขสำเร็จ] ครอบเครื่องหมาย backtick สำหรับข้อความ String ฟอลแบ็คเรียบร้อยแล้วครับ
     if (!response.ok || !slipOkResult.success) {
       return NextResponse.json({
         success: false,
-        reason: slipOkResult.message || SlipOK ตอบกลับสถานะปฏิเสธ: ${response.status}
+        reason: slipOkResult.message || `SlipOK ตอบกลับสถานะปฏิเสธ: ${response.status}`
       })
     }
 
@@ -117,13 +118,13 @@ export async function POST(req: Request) {
     if (amountTransferred < expectedAmount) {
       return NextResponse.json({
         success: false,
-        reason: ยอดเงินโอนไม่ถูกต้อง โอนมา ฿${amountTransferred} แต่แพ็คเกจนี้ราคา ฿${expectedAmount} ค่ะ
+        reason: `ยอดเงินโอนไม่ถูกต้อง โอนมา ฿${amountTransferred} แต่แพ็คเกจนี้ราคา ฿${expectedAmount} ค่ะ`
       })
     }
 
     await supabase.from('payment_slips').insert({
       user_id:       userId,
-      reference_no:  reference_no || SLIPOK-${Date.now()},
+      reference_no:  reference_no || `SLIPOK-${Date.now()}`,
       amount:        amountTransferred,
       transfer_date: slipData.transDate || null,
       confidence:    100, 
@@ -156,8 +157,8 @@ export async function POST(req: Request) {
       await supabase.from('notifications').insert({
         user_id: userId,
         type:    'addon_activated',
-        title:   เพิ่ม slot น้องอีก ${addSlots} ตัวแล้วค่ะ! 🐾,
-        body:    ตอนนี้มีพื้นที่เก็บโปรไฟล์น้องทั้งหมด ${3 + currentAddon + addSlots} ตัวแล้วค่ะ,
+        title:   `เพิ่ม slot น้องอีก ${addSlots} ตัวแล้วค่ะ! 🐾`,
+        body:    `ตอนนี้มีพื้นที่เก็บโปรไฟล์น้องทั้งหมด ${3 + currentAddon + addSlots} ตัวแล้วค่ะ`,
         link:    '/dashboard/pets',
         is_read: false,
       })
@@ -190,6 +191,6 @@ export async function POST(req: Request) {
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown'
-    return NextResponse.json({ success: false, reason: ระบบขัดข้องชั่วคราวค่ะ: ${msg} }, { status: 500 })
+    return NextResponse.json({ success: false, reason: `ระบบขัดข้องชั่วคราวค่ะ: ${msg}` }, { status: 500 })
   }
 }
