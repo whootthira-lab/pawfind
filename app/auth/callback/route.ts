@@ -16,20 +16,19 @@ export async function GET(request: Request) {
 
       if (session?.user) {
         const userId = session.user.id
-        const userMeta = session.user.user_metadata // 🟢 ดึงกล่องข้อมูลฟอร์มที่กรอกมาจากหน้า Login
+        const userMeta = session.user.user_metadata
 
-        // ── 🌟 [เพิ่มฟังก์ชันที่มาที่ไป] ดึงข้อมูลจาก Metadata ลงตาราง profiles ทันที ──
-        if (userMeta?.pobpet_custom_registration) {
-          // ใช้ upsert เพื่อบันทึกข้อมูลทับหรือสร้างใหม่ตามไอดีผู้ใช้งาน ป้องกันข้อมูลว่างเปล่า (NULL)
+        // 🟢 1. ตรวจสอบและบันทึกข้อมูลเข้า Profiles ทันที (ดึงจาก Metadata ที่ติดมากับ Session)
+        if (userMeta?.pobpet_custom_registration || userMeta?.display_name) {
           await supabase.from('profiles').upsert({
             id:             userId,
             email:          session.user.email,
-            display_name:   userMeta.display_name || '',
+            display_name:   userMeta.display_name || 'ผู้ใช้ PobPet',
             first_name:     userMeta.first_name || null,
             last_name:      userMeta.last_name || null,
             birth_date:     userMeta.birth_date || null,
             phone_number:   userMeta.phone_number || null,
-            province:       userMeta.province || 'กรุงเทพมหานคร',
+            province:       userMeta.province || 'นครราชสีมา',
             gender:         userMeta.gender || 'unknown',
             avatar_url:     userMeta.avatar_url || null,
             occupation:     userMeta.occupation || null,
@@ -39,7 +38,7 @@ export async function GET(request: Request) {
           })
         }
 
-        // ── 1. สร้าง Free Subscription ถ้ายังไม่มี ──────────
+        // 🟢 2. ตรวจสอบสิทธิ์และสร้างสิทธิประโยชน์ Free Subscription (ใช้ maybeSingle แทน single ป้องกันบอร์ดพัง)
         const { data: existingSub } = await supabase
           .from('subscriptions')
           .select('id, plan')
@@ -54,7 +53,7 @@ export async function GET(request: Request) {
           })
         }
 
-        // ── 2. เช็ค profile ครบไหม (สำหรับ LINE Login) ──────
+        // 🟢 3. ตรวจสอบความครบถ้วนของข้อมูลโปรไฟล์ (ใช้ maybeSingle ป้องกัน Error ดักทาง)
         const { data: profile } = await supabase
           .from('profiles')
           .select('phone_number, occupation, interests')
@@ -62,15 +61,13 @@ export async function GET(request: Request) {
           .maybeSingle()
 
         const isLineUser   = session.user.app_metadata?.provider === 'line'
-        const isIncomplete = !profile?.phone_number
-          || !profile?.occupation
-          || !profile?.interests?.length
+        const isIncomplete = !profile?.phone_number || !profile?.occupation || !profile?.interests?.length
 
         if (isLineUser && isIncomplete) {
           return NextResponse.redirect(`${origin}/profile/complete`)
         }
 
-        // ── 3. เช็ค subscription หมดอายุ → grace period ─────
+        // 🟢 4. ตรวจสอบระบบสมาชิกหมดอายุ
         if (existingSub && existingSub.plan === 'member') {
           const { data: sub } = await supabase
             .from('subscriptions')
@@ -81,18 +78,14 @@ export async function GET(request: Request) {
           const now = new Date()
 
           if (sub?.expires_at && new Date(sub.expires_at) < now) {
-            const graceUntil = sub.grace_until
-              ? new Date(sub.grace_until)
-              : null
+            const graceUntil = sub.grace_until ? new Date(sub.grace_until) : null
 
-            // Grace period หมดแล้ว → downgrade
             if (!graceUntil || graceUntil < now) {
               await supabase
                 .from('subscriptions')
                 .update({ plan: 'free', is_active: false })
                 .eq('user_id', userId)
 
-              // แจ้งเตือนให้ต่ออายุ
               await supabase.from('notifications').insert({
                 user_id: userId,
                 type:    'subscription_expired',
@@ -106,7 +99,7 @@ export async function GET(request: Request) {
         }
       }
 
-      // ── 4. Redirect พร้อม welcome flag ─────────────────────
+      // ส่งกลับไปที่หน้าแรกหรือหน้าย่อยพร้อมสถานะบันทึกสำเร็จ
       const redirectUrl = new URL(next, origin)
       redirectUrl.searchParams.set('welcome', 'true')
       return NextResponse.redirect(redirectUrl.toString())
