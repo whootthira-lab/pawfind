@@ -1,5 +1,4 @@
 // app/api/payments/verify-slip/route.ts
-// ── เพิ่ม addon_1 / addon_3 support ──────────────────────────
 export const dynamic = 'force-dynamic'
 
 import { NextResponse }            from 'next/server'
@@ -9,7 +8,6 @@ import { GoogleGenerativeAI }      from '@google/generative-ai'
 const EXPECTED_RECEIVER_KEYWORDS = ['พบเพ็ต', 'pobpet', 'pob pet']
 const MAX_SLIP_AGE_HOURS         = 48
 
-// ── Slip types & amounts ──────────────────────────────────────
 const SLIP_AMOUNTS: Record<string, number> = {
   member:  399,
   addon_1:  79,
@@ -56,7 +54,8 @@ export async function POST(req: Request) {
     const userId = session.user.id
     const {
       imageBase64,
-      slip_type = 'member',  // 'member' | 'addon_1' | 'addon_3'
+      slip_type = 'member',  
+      line_id
     } = await req.json()
 
     const expectedAmount = SLIP_AMOUNTS[slip_type] ?? 399
@@ -66,7 +65,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'กรุณาแนบรูปสลิป', success: false }, { status: 400 })
     }
 
-    // ── เช็คว่าเป็น Member ก่อน (addon ต้องการ Member) ───────
     if (isAddon) {
       const { data: sub } = await supabase
         .from('subscriptions')
@@ -84,7 +82,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // ── เช็ค Member ที่ยังไม่หมดอายุ (สำหรับ slip_type=member) ─
     if (!isAddon) {
       const { data: existingSub } = await supabase
         .from('subscriptions')
@@ -128,9 +125,8 @@ export async function POST(req: Request) {
     }
 
     const { is_valid_slip, amount, transfer_date, transfer_time,
-            reference_no, confidence, is_suspicious, issues } = parsed
+            reference_no, confidence, is_suspicious } = parsed
 
-    // ── เช็คสลิปซ้ำ ───────────────────────────────────────────
     if (reference_no) {
       const { data: dup } = await supabase
         .from('payment_slips')
@@ -142,7 +138,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // ── เช็คอายุสลิป ─────────────────────────────────────────
     if (transfer_date) {
       const slipTime  = new Date(`${transfer_date}T${transfer_time || '00:00'}`)
       const diffHours = (Date.now() - slipTime.getTime()) / 3_600_000
@@ -154,7 +149,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // ── บันทึกสลิป ───────────────────────────────────────────
     const slipStatus = (!is_valid_slip || is_suspicious) ? 'rejected'
       : confidence >= 90 ? 'auto_approved'
       : confidence >= 60 ? 'pending'
@@ -172,11 +166,18 @@ export async function POST(req: Request) {
       raw_result:    parsed,
     })
 
-    // ── AUTO APPROVE ──────────────────────────────────────────
+    // ── APPROVED ──
     if (is_valid_slip && !is_suspicious && confidence >= 90 && amount >= expectedAmount) {
+      
+      // ✅ ซิงค์บันทึก LINE ID ลงในโปรไฟล์ของผู้ใช้งานทันทีในขั้นตอนนี้
+      if (line_id) {
+        await supabase
+          .from('profiles')
+          .update({ line_id: line_id })
+          .eq('id', userId)
+      }
 
       if (isAddon) {
-        // เพิ่ม addon slots
         const addSlots = ADDON_SLOTS[slip_type] || 1
         const { data: sub } = await supabase
           .from('subscriptions')
@@ -199,7 +200,6 @@ export async function POST(req: Request) {
         })
 
       } else {
-        // Member ปกติ
         const expiresAt = new Date()
         expiresAt.setFullYear(expiresAt.getFullYear() + 1)
 
@@ -217,7 +217,7 @@ export async function POST(req: Request) {
           user_id: userId,
           type:    'subscription_activated',
           title:   'ยินดีต้อนรับสู่ Member! 🎉',
-          body:    'แพ็คเกจของคุณเปิดใช้งานแล้วค่ะ',
+          body:    'แพ็คเกจของคุณเปิดใช้งานแล้วค่ะ สามารถสแกนเข้าใช้ระบบแชทบน LINE OA ได้ทันทีค่ะ',
           link:    '/account/subscription',
           is_read: false,
         })
@@ -226,7 +226,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, auto_activated: true, slip_type })
     }
 
-    // ── PENDING ───────────────────────────────────────────────
     if (is_valid_slip && !is_suspicious && confidence >= 60) {
       return NextResponse.json({
         success: false, pending: true,
@@ -234,7 +233,6 @@ export async function POST(req: Request) {
       })
     }
 
-    // ── REJECTED ──────────────────────────────────────────────
     const rejectReason = is_suspicious
       ? parsed.suspicious_reason || 'พบสิ่งผิดปกติในสลิป'
       : !is_valid_slip ? 'ไม่ใช่สลิปการโอนเงิน'

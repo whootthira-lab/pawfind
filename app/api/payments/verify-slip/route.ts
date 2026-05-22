@@ -99,12 +99,14 @@ export async function POST(req: Request) {
       }
     }
 
-    // ── Gemini Vision ─────────────────────────────────────────
+    // ── Gemini Vision Configuration ───────────────────────────
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) throw new Error('Missing GEMINI_API_KEY')
 
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    
+    // 🟢 [แก้ไขสำเร็จเรียบร้อย] ปรับชื่อ Engine Model เป็นเวอร์ชัน gemini-2.5-flash เพื่อปลดล็อกพอร์ต v1 อย่างเป็นทางการ
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
     const result = await model.generateContent([
       buildPrompt(expectedAmount),
@@ -169,7 +171,6 @@ export async function POST(req: Request) {
     // ── APPROVED ──
     if (is_valid_slip && !is_suspicious && confidence >= 90 && amount >= expectedAmount) {
       
-      // ✅ ซิงค์บันทึก LINE ID ลงในโปรไฟล์ของผู้ใช้งานทันทีในขั้นตอนนี้
       if (line_id) {
         await supabase
           .from('profiles')
