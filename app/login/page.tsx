@@ -101,7 +101,7 @@ export default function LoginPage() {
     marital_status: 'single'
   })
 
-  // ── 1. ตรวจสอบ Email และสลับขั้นตอน ──
+  // ── 1. ตรวจสอบ Email และส่ง Magic Link หรือสลับขั้นตอนสร้างโปรไฟล์ ──
   const handleCheckEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
@@ -143,7 +143,7 @@ export default function LoginPage() {
     }
   }
 
-  // ── 2. อัปโหลดรูปภาพประจำตัวไปยัง Bucket ──
+  // ── 2. อัปโหลดรูปภาพไปยัง Bucket (pobpet-bucket) ──
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return
     setUploading(true)
@@ -174,7 +174,7 @@ export default function LoginPage() {
     }
   }
 
-  // ── จัดการ Checkbox กลุ่มความสนใจ ──
+  // ── จัดการ Checkbox กลุ่มความสนใจ (Interests) ──
   const handleInterestChange = (value: string) => {
     setFormData(prev => {
       const current = [...prev.interests]
@@ -186,7 +186,7 @@ export default function LoginPage() {
     })
   }
 
-  // ── 3. บันทึกข้อมูลทะเบียนประวัติลงตาราง profiles ──
+  // ── 3. บันทึกข้อมูลและรับสิทธิ์ล็อกอินเข้าใช้งาน ──
   const handleRegisterAndLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -298,7 +298,7 @@ export default function LoginPage() {
             >
               <form onSubmit={handleRegisterAndLogin} className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 
-                {/* จัดการ Avatar */}
+                {/* ส่วนอัปโหลด รูปโปรไฟล์ */}
                 <div className="md:col-span-2 flex flex-col items-center justify-center pb-4">
                   <div className="relative w-28 h-28 border-4 border-black rounded-full overflow-hidden bg-gray-100 shadow-paper-sm">
                     {formData.avatar_url ? (
@@ -321,6 +321,7 @@ export default function LoginPage() {
                   <span className="text-xs font-bold text-gray-500 mt-2">รูปโปรไฟล์ (ไม่จำเป็นต้องใส่ตอนนี้ก็ได้ค่ะ)</span>
                 </div>
 
+                {/* ชื่อเล่น */}
                 <div className="space-y-1.5">
                   <label className="font-black text-sm text-black flex items-center gap-1"><UserPlus size={16}/> ชื่อเล่น / ชื่อในระบบ</label>
                   <input 
@@ -332,6 +333,7 @@ export default function LoginPage() {
                   />
                 </div>
 
+                {/* เบอร์โทร */}
                 <div className="space-y-1.5">
                   <label className="font-black text-sm text-black flex items-center gap-1"><Phone size={16}/> เบอร์โทรศัพท์ติดต่อ</label>
                   <input 
@@ -343,6 +345,7 @@ export default function LoginPage() {
                   />
                 </div>
 
+                {/* ชื่อจริง */}
                 <div className="space-y-1.5">
                   <label className="font-black text-sm text-black">ชื่อจริง (ภาษาไทย)</label>
                   <input 
@@ -353,6 +356,7 @@ export default function LoginPage() {
                   />
                 </div>
 
+                {/* นามสกุล */}
                 <div className="space-y-1.5">
                   <label className="font-black text-sm text-black">นามสกุล (ภาษาไทย)</label>
                   <input 
@@ -363,6 +367,7 @@ export default function LoginPage() {
                   />
                 </div>
 
+                {/* วันเกิด */}
                 <div className="space-y-1.5">
                   <label className="font-black text-sm text-black flex items-center gap-1"><Cake size={16}/> วันเกิด</label>
                   <input 
@@ -373,6 +378,7 @@ export default function LoginPage() {
                   />
                 </div>
 
+                {/* เพศ */}
                 <div className="space-y-1.5">
                   <label className="font-black text-sm text-black">เพศ</label>
                   <select 
@@ -387,6 +393,7 @@ export default function LoginPage() {
                   </select>
                 </div>
 
+                {/* จังหวัด */}
                 <div className="space-y-1.5">
                   <label className="font-black text-sm text-black flex items-center gap-1"><MapPin size={16}/> จังหวัดประจำการหลัก</label>
                   <select 
@@ -400,7 +407,7 @@ export default function LoginPage() {
                   </select>
                 </div>
 
-                {/* ตัวเลือกสถานะภาพ */}
+                {/* สถานะภาพ */}
                 <div className="space-y-1.5">
                   <label className="font-black text-sm text-black flex items-center gap-1"><Smile size={16}/> สถานะภาพ</label>
                   <select 
@@ -414,13 +421,15 @@ export default function LoginPage() {
                   </select>
                 </div>
 
-                {/* ตัวเลือกอาชีพ / บทบาทในเครือข่าย */}
+                {/* 🟢 อาชีพ / บทบาทชุมชน (แก้ไขจุดที่ตกหล่นและผูก State ครบถ้วน) */}
                 <div className="space-y-1.5 md:col-span-2">
-                  <label className="font-black text-sm text-black flex items-center gap-1"><Briefcase size={16}/> บทบาทในเครือข่ายสัตว์เลี้ยง (อาชีพ)</label>
+                  <label className="font-black text-sm text-black flex items-center gap-1">
+                    <Briefcase size={16} /> บทบาทในเครือข่ายสัตว์เลี้ยง (อาชีพ)
+                  </label>
                   <select 
                     value={formData.community_role}
                     onChange={e => setFormData({...formData, community_role: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
+                    className="w-full border-2 border-black rounded-xl p-3 font-bold focus:bg-white outline-none transition-colors cursor-pointer"
                   >
                     {expertiseOptions.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -428,6 +437,7 @@ export default function LoginPage() {
                   </select>
                 </div>
 
+                {/* ฟิลด์ระบุเพิ่มเติมเมื่อเลือก "อื่นๆ" */}
                 {formData.community_role === 'other' && (
                   <motion.div 
                     initial={{ opacity: 0, height: 0 }}
@@ -441,12 +451,12 @@ export default function LoginPage() {
                       value={formData.community_role_custom}
                       onChange={e => setFormData({...formData, community_role_custom: e.target.value})}
                       placeholder="เช่น ช่างภาพจิตอาสาช่วยเหลือศูนย์จร"
-                      className="w-full border-2 border-black p-3.5 rounded-xl font-bold"
+                      className="w-full border-2 border-black p-3.5 rounded-xl font-bold outline-none"
                     />
                   </motion.div>
                 )}
 
-                {/* ตัวเลือกวัตถุประสงค์ / ความสนใจหลัก */}
+                {/* วัตถุประสงค์ / ความสนใจหลัก */}
                 <div className="space-y-2 md:col-span-2 border-2 border-dashed border-black/30 p-4 rounded-2xl bg-wagashi-matcha/10">
                   <label className="font-black text-sm text-black flex items-center gap-1 mb-1">
                     <Sparkles size={16} className="text-amber-500 fill-amber-500"/> วัตถุประสงค์ / ความสนใจหลัก (เลือกได้มากกว่า 1 ข้อ)
