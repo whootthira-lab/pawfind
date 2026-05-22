@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   LogIn, Mail, Loader2, CheckCircle2, AlertCircle, 
   UserPlus, MapPin, Phone, Camera, Cake, UserCircle,
-  Briefcase, Heart, Sparkles, Smile
+  Briefcase, Heart, Sparkles, Smile, ChevronRight, ArrowLeft
 } from 'lucide-react'
 
 // ── ตัวเลือกบทบาทชุมชน / อาชีพ ──
@@ -61,7 +61,6 @@ const interestOptions = [
   { value: 'reading',     label: '📚 อ่านหนังสือ' },
   { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' },
 ]
-
 // ── ตัวเลือกสถานะ (Marital Status) ──
 const maritalStatusOptions = [
   { value: 'single', label: 'โสด' },
@@ -80,6 +79,7 @@ export default function LoginPage() {
   )
 
   const [step, setStep] = useState<'email' | 'profile'>('email')
+  const [profileSubStep, setProfileSubStep] = useState<1 | 2>(1) // จัดการหน้าย่อยของโปรไฟล์
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -101,7 +101,7 @@ export default function LoginPage() {
     marital_status: 'single'
   })
 
-  // ── 1. ตรวจสอบ Email และส่ง Magic Link หรือสลับขั้นตอนสร้างโปรไฟล์ ──
+  // ── 1. ตรวจสอบ Email ──
   const handleCheckEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
@@ -135,6 +135,7 @@ export default function LoginPage() {
         })
       } else {
         setStep('profile')
+        setProfileSubStep(1)
       }
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'เกิดข้อผิดพลาดในการตรวจสอบอีเมล' })
@@ -143,7 +144,7 @@ export default function LoginPage() {
     }
   }
 
-  // ── 2. อัปโหลดรูปภาพไปยัง Bucket (pobpet-bucket) ──
+  // ── 2. อัปโหลดรูปภาพประจำตัว ──
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return
     setUploading(true)
@@ -174,7 +175,7 @@ export default function LoginPage() {
     }
   }
 
-  // ── จัดการ Checkbox กลุ่มความสนใจ (Interests) ──
+  // ── จัดการเลือกความสนใจ ──
   const handleInterestChange = (value: string) => {
     setFormData(prev => {
       const current = [...prev.interests]
@@ -186,7 +187,18 @@ export default function LoginPage() {
     })
   }
 
-  // ── 3. บันทึกข้อมูลและรับสิทธิ์ล็อกอินเข้าใช้งาน ──
+  // ── Validation หน้าที่ 1 ก่อนไปหน้าที่ 2 ──
+  const handleNextSubStep = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!formData.display_name.trim() || !formData.phone_number.trim() || !formData.first_name.trim() || !formData.last_name.trim()) {
+      setMessage({ type: 'error', text: 'กรุณากรอกข้อมูลที่จำเป็น (ชื่อเล่น, เบอร์โทร, ชื่อ-นามสกุลจริง) ให้ครบถ้วนก่อนไปหน้าถัดไปค่ะ' })
+      return
+    }
+    setMessage(null)
+    setProfileSubStep(2)
+  }
+
+  // ── 3. บันทึกข้อมูลและลงทะเบียน ──
   const handleRegisterAndLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -251,7 +263,9 @@ export default function LoginPage() {
           <p className="text-gray-600 font-bold text-sm md:text-base">
             {step === 'email' 
               ? 'ร่วมเป็นส่วนหนึ่งของเครือข่ายตามหาสัตว์เลี้ยงและดูแลช่วยเหลือสัตว์ในชุมชน'
-              : 'กรอกข้อมูลส่วนตัวเพื่อเริ่มต้นสร้างเครือข่ายความปลอดภัยให้น้องๆ'}
+              : profileSubStep === 1 
+                ? 'ขั้นตอนที่ 1/2: กรอกข้อมูลส่วนตัวและบทบาทอาชีพของคุณ'
+                : 'ขั้นตอนที่ 2/2: เลือกวัตถุประสงค์และสิ่งที่คุณสนใจ'}
           </p>
         </div>
 
@@ -291,202 +305,242 @@ export default function LoginPage() {
             </motion.form>
           ) : (
             <motion.div
-              key="profile-step"
+              key={`profile-step-sub-${profileSubStep}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
               <form onSubmit={handleRegisterAndLogin} className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 
-                {/* ส่วนอัปโหลด รูปโปรไฟล์ */}
-                <div className="md:col-span-2 flex flex-col items-center justify-center pb-4">
-                  <div className="relative w-28 h-28 border-4 border-black rounded-full overflow-hidden bg-gray-100 shadow-paper-sm">
-                    {formData.avatar_url ? (
-                      <Image 
-                        src={formData.avatar_url} 
-                        alt="Avatar" 
-                        fill 
-                        className="object-cover"
+                {/* ── PROFILE SUB-STEP 1: ข้อมูลทั่วไป + อาชีพ ── */}
+                {profileSubStep === 1 && (
+                  <>
+                    {/* อัปโหลดรูปภาพ */}
+                    <div className="md:col-span-2 flex flex-col items-center justify-center pb-4">
+                      <div className="relative w-28 h-28 border-4 border-black rounded-full overflow-hidden bg-gray-100 shadow-paper-sm">
+                        {formData.avatar_url ? (
+                          <Image 
+                            src={formData.avatar_url} 
+                            alt="Avatar" 
+                            fill 
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <UserCircle size={64} className="stroke-[1]" />
+                          </div>
+                        )}
+                        <label className="absolute bottom-0 right-0 left-0 bg-black/70 text-white p-1 text-center cursor-pointer transition-colors hover:bg-black">
+                          <Camera size={14} className="mx-auto" />
+                          <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                        </label>
+                      </div>
+                      <span className="text-xs font-bold text-gray-500 mt-2">รูปโปรไฟล์ (ไม่จำเป็นต้องใส่ตอนนี้ก็ได้ค่ะ)</span>
+                    </div>
+
+                    {/* ชื่อเล่น */}
+                    <div className="space-y-1.5">
+                      <label className="font-black text-sm text-black flex items-center gap-1"><UserPlus size={16}/> ชื่อเล่น / ชื่อในระบบ <span className="text-red-500">*</span></label>
+                      <input 
+                        type="text" required
+                        value={formData.display_name}
+                        onChange={e => setFormData({...formData, display_name: e.target.value})}
+                        placeholder="เช่น พี่สมชาย, มะนาว"
+                        className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        <UserCircle size={64} className="stroke-[1]" />
+                    </div>
+
+                    {/* เบอร์โทร */}
+                    <div className="space-y-1.5">
+                      <label className="font-black text-sm text-black flex items-center gap-1"><Phone size={16}/> เบอร์โทรศัพท์ติดต่อ <span className="text-red-500">*</span></label>
+                      <input 
+                        type="tel" required
+                        value={formData.phone_number}
+                        onChange={e => setFormData({...formData, phone_number: e.target.value})}
+                        placeholder="09x-xxx-xxxx"
+                        className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
+                      />
+                    </div>
+
+                    {/* ชื่อจริง */}
+                    <div className="space-y-1.5">
+                      <label className="font-black text-sm text-black">ชื่อจริง (ภาษาไทย) <span className="text-red-500">*</span></label>
+                      <input 
+                        type="text" required
+                        value={formData.first_name}
+                        onChange={e => setFormData({...formData, first_name: e.target.value})}
+                        className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
+                      />
+                    </div>
+
+                    {/* นามสกุล */}
+                    <div className="space-y-1.5">
+                      <label className="font-black text-sm text-black">นามสกุล (ภาษาไทย) <span className="text-red-500">*</span></label>
+                      <input 
+                        type="text" required
+                        value={formData.last_name}
+                        onChange={e => setFormData({...formData, last_name: e.target.value})}
+                        className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
+                      />
+                    </div>
+
+                    {/* วันเกิด */}
+                    <div className="space-y-1.5">
+                      <label className="font-black text-sm text-black flex items-center gap-1"><Cake size={16}/> วันเกิด</label>
+                      <input 
+                        type="date"
+                        value={formData.birth_date}
+                        onChange={e => setFormData({...formData, birth_date: e.target.value})}
+                        className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none cursor-pointer"
+                      />
+                    </div>
+
+                    {/* เพศ */}
+                    <div className="space-y-1.5">
+                      <label className="font-black text-sm text-black">เพศ</label>
+                      <select 
+                        value={formData.gender}
+                        onChange={e => setFormData({...formData, gender: e.target.value})}
+                        className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
+                      >
+                        <option value="unknown">ไม่ระบุ</option>
+                        <option value="male">ชาย</option>
+                        <option value="female">หญิง</option>
+                        <option value="other">อื่นๆ</option>
+                      </select>
+                    </div>
+
+                    {/* จังหวัด */}
+                    <div className="space-y-1.5">
+                      <label className="font-black text-sm text-black flex items-center gap-1"><MapPin size={16}/> จังหวัดประจำการหลัก</label>
+                      <select 
+                        value={formData.province}
+                        onChange={e => setFormData({...formData, province: e.target.value})}
+                        className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
+                      >
+                        {thailandProvinces.map(prov => (
+                          <option key={prov} value={prov}>{prov}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* สถานะภาพ */}
+                    <div className="space-y-1.5">
+                      <label className="font-black text-sm text-black flex items-center gap-1"><Smile size={16}/> สถานะภาพ</label>
+                      <select 
+                        value={formData.marital_status}
+                        onChange={e => setFormData({...formData, marital_status: e.target.value})}
+                        className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
+                      >
+                        {maritalStatusOptions.map(status => (
+                          <option key={status.value} value={status.value}>{status.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* ช่องกรอกเลือกอาชีพ (จัดวางในกล่องเด่นชัด ไม่หายแน่นอน) */}
+                    <div className="space-y-1.5 md:col-span-2 border-2 border-black p-4 rounded-2xl bg-gray-50/50 mt-2">
+                      <label className="font-black text-sm text-black flex items-center gap-1">
+                        <Briefcase size={16} /> บทบาทในเครือข่ายสัตว์เลี้ยง (อาชีพ)
+                      </label>
+                      <select 
+                        value={formData.community_role}
+                        onChange={e => setFormData({...formData, community_role: e.target.value})}
+                        className="w-full border-2 border-black rounded-xl p-3 font-bold bg-white focus:bg-white outline-none transition-colors cursor-pointer"
+                      >
+                        {expertiseOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* ฟิลด์ระบุเพิ่มเติมเมื่อเลือก "อื่นๆ" */}
+                    {formData.community_role === 'other' && (
+                      <div className="md:col-span-2 space-y-1.5">
+                        <label className="font-black text-sm text-black">โปรดระบุอาชีพหรือบทบาทของคุณ</label>
+                        <input 
+                          type="text"
+                          value={formData.community_role_custom}
+                          onChange={e => setFormData({...formData, community_role_custom: e.target.value})}
+                          placeholder="เช่น ช่างภาพจิตอาสาช่วยเหลือศูนย์จร"
+                          className="w-full border-2 border-black p-3.5 rounded-xl font-bold outline-none"
+                        />
                       </div>
                     )}
-                    <label className="absolute bottom-0 right-0 left-0 bg-black/70 text-white p-1 text-center cursor-pointer transition-colors hover:bg-black">
-                      <Camera size={14} className="mx-auto" />
-                      <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
-                    </label>
-                  </div>
-                  <span className="text-xs font-bold text-gray-500 mt-2">รูปโปรไฟล์ (ไม่จำเป็นต้องใส่ตอนนี้ก็ได้ค่ะ)</span>
-                </div>
 
-                {/* ชื่อเล่น */}
-                <div className="space-y-1.5">
-                  <label className="font-black text-sm text-black flex items-center gap-1"><UserPlus size={16}/> ชื่อเล่น / ชื่อในระบบ</label>
-                  <input 
-                    type="text" required
-                    value={formData.display_name}
-                    onChange={e => setFormData({...formData, display_name: e.target.value})}
-                    placeholder="เช่น พี่สมชาย, มะนาว"
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
-                  />
-                </div>
-
-                {/* เบอร์โทร */}
-                <div className="space-y-1.5">
-                  <label className="font-black text-sm text-black flex items-center gap-1"><Phone size={16}/> เบอร์โทรศัพท์ติดต่อ</label>
-                  <input 
-                    type="tel" required
-                    value={formData.phone_number}
-                    onChange={e => setFormData({...formData, phone_number: e.target.value})}
-                    placeholder="09x-xxx-xxxx"
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
-                  />
-                </div>
-
-                {/* ชื่อจริง */}
-                <div className="space-y-1.5">
-                  <label className="font-black text-sm text-black">ชื่อจริง (ภาษาไทย)</label>
-                  <input 
-                    type="text" required
-                    value={formData.first_name}
-                    onChange={e => setFormData({...formData, first_name: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
-                  />
-                </div>
-
-                {/* นามสกุล */}
-                <div className="space-y-1.5">
-                  <label className="font-black text-sm text-black">นามสกุล (ภาษาไทย)</label>
-                  <input 
-                    type="text" required
-                    value={formData.last_name}
-                    onChange={e => setFormData({...formData, last_name: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
-                  />
-                </div>
-
-                {/* วันเกิด */}
-                <div className="space-y-1.5">
-                  <label className="font-black text-sm text-black flex items-center gap-1"><Cake size={16}/> วันเกิด</label>
-                  <input 
-                    type="date"
-                    value={formData.birth_date}
-                    onChange={e => setFormData({...formData, birth_date: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none cursor-pointer"
-                  />
-                </div>
-
-                {/* เพศ */}
-                <div className="space-y-1.5">
-                  <label className="font-black text-sm text-black">เพศ</label>
-                  <select 
-                    value={formData.gender}
-                    onChange={e => setFormData({...formData, gender: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
-                  >
-                    <option value="unknown">ไม่ระบุ</option>
-                    <option value="male">ชาย</option>
-                    <option value="female">หญิง</option>
-                    <option value="other">อื่นๆ</option>
-                  </select>
-                </div>
-
-                {/* จังหวัด */}
-                <div className="space-y-1.5">
-                  <label className="font-black text-sm text-black flex items-center gap-1"><MapPin size={16}/> จังหวัดประจำการหลัก</label>
-                  <select 
-                    value={formData.province}
-                    onChange={e => setFormData({...formData, province: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
-                  >
-                    {thailandProvinces.map(prov => (
-                      <option key={prov} value={prov}>{prov}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* สถานะภาพ */}
-                <div className="space-y-1.5">
-                  <label className="font-black text-sm text-black flex items-center gap-1"><Smile size={16}/> สถานะภาพ</label>
-                  <select 
-                    value={formData.marital_status}
-                    onChange={e => setFormData({...formData, marital_status: e.target.value})}
-                    className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
-                  >
-                    {maritalStatusOptions.map(status => (
-                      <option key={status.value} value={status.value}>{status.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 🟢 อาชีพ / บทบาทชุมชน (แก้ไขจุดที่ตกหล่นและผูก State ครบถ้วน) */}
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="font-black text-sm text-black flex items-center gap-1">
-                    <Briefcase size={16} /> บทบาทในเครือข่ายสัตว์เลี้ยง (อาชีพ)
-                  </label>
-                  <select 
-                    value={formData.community_role}
-                    onChange={e => setFormData({...formData, community_role: e.target.value})}
-                    className="w-full border-2 border-black rounded-xl p-3 font-bold focus:bg-white outline-none transition-colors cursor-pointer"
-                  >
-                    {expertiseOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* ฟิลด์ระบุเพิ่มเติมเมื่อเลือก "อื่นๆ" */}
-                {formData.community_role === 'other' && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="md:col-span-2 space-y-1.5 overflow-hidden"
-                  >
-                    <label className="font-black text-sm text-black">โปรดระบุอาชีพหรือบทบาทของคุณ</label>
-                    <input 
-                      type="text"
-                      value={formData.community_role_custom}
-                      onChange={e => setFormData({...formData, community_role_custom: e.target.value})}
-                      placeholder="เช่น ช่างภาพจิตอาสาช่วยเหลือศูนย์จร"
-                      className="w-full border-2 border-black p-3.5 rounded-xl font-bold outline-none"
-                    />
-                  </motion.div>
+                    {/* ปุ่มไปหน้าถัดไป */}
+                    <Button 
+                      type="button"
+                      onClick={handleNextSubStep}
+                      className="md:col-span-2 mt-4 bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-2"
+                    >
+                      เลือกความสนใจต่อ <ChevronRight size={20} />
+                    </Button>
+                  </>
                 )}
 
-                {/* วัตถุประสงค์ / ความสนใจหลัก */}
-                <div className="space-y-2 md:col-span-2 border-2 border-dashed border-black/30 p-4 rounded-2xl bg-wagashi-matcha/10">
-                  <label className="font-black text-sm text-black flex items-center gap-1 mb-1">
-                    <Sparkles size={16} className="text-amber-500 fill-amber-500"/> วัตถุประสงค์ / ความสนใจหลัก (เลือกได้มากกว่า 1 ข้อ)
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {interestOptions.map(opt => (
-                      <label key={opt.value} className="flex items-center gap-3 bg-white border border-black p-3 rounded-xl cursor-pointer select-none font-bold text-xs hover:bg-gray-50 transition-all">
-                        <input 
-                          type="checkbox"
-                          checked={formData.interests.includes(opt.value)}
-                          onChange={() => handleInterestChange(opt.value)}
-                          className="w-4 h-4 accent-black rounded border-black focus:ring-0"
-                        />
-                        {opt.label}
+                {/* ── PROFILE SUB-STEP 2: วัตถุประสงค์ / ความสนใจหลัก ── */}
+                {profileSubStep === 2 && (
+                  <>
+                    <div className="space-y-3 md:col-span-2 border-4 border-black p-6 rounded-2xl bg-wagashi-matcha/10 shadow-paper-sm">
+                      <label className="font-black text-lg text-black flex items-center gap-1.5 mb-1">
+                        <Sparkles size={20} className="text-amber-500 fill-amber-500"/> วัตถุประสงค์ / ความสนใจหลัก (เลือกได้มากกว่า 1 ข้อ)
                       </label>
-                    ))}
-                  </div>
-                </div>
-                
-                <p className="text-[10px] font-bold text-gray-500 mt-1 italic md:col-span-2 ml-1">
-                  * ข้อมูลนี้จะช่วยให้เราสร้างเครือข่ายความช่วยเหลือในชุมชนได้แข็งแกร่งขึ้น
-                </p>
+                      <p className="text-xs font-bold text-gray-600 mb-2">
+                        เลือกสิ่งที่คุณต้องการทำบนระบบ PobPet เพื่อให้ระบบช่วยจับคู่ส่งสตรีมข่าวสารและกลุ่มช่วยเหลือรอบตัวคุณได้ตรงจุด
+                      </p>
+                      <div className="grid grid-cols-1 gap-3">
+                        {interestOptions.map(opt => (
+                          <label key={opt.value} className="flex items-center gap-4 bg-white border-2 border-black p-4 rounded-xl cursor-pointer select-none font-bold text-sm md:text-base hover:bg-gray-50 transition-all shadow-paper-sm">
+                            <input 
+                              type="checkbox"
+                              checked={formData.interests.includes(opt.value)}
+                              onChange={() => handleInterestChange(opt.value)}
+                              className="w-5 h-5 accent-black rounded border-black focus:ring-0 cursor-pointer"
+                            />
+                            {opt.label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <p className="text-[11px] font-bold text-gray-500 mt-1 italic md:col-span-2 ml-1">
+                      * ข้อมูลความสนใจนี้จะช่วยให้เราสร้างเครือข่ายความช่วยเหลือในชุมชนได้ปลอดภัยและแข็งแกร่งขึ้น
+                    </p>
 
-                <Button disabled={loading || uploading} className="md:col-span-2 mt-4 bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50">
-                  {loading || uploading ? <Loader2 className="animate-spin" /> : "บันทึกโปรไฟล์และรับ Magic Link เพื่อเข้าใช้งาน"}
-                </Button>
+                    {/* แผงควบคุมปุ่มกดย้อนกลับและตกลงลงทะเบียน */}
+                    <div className="md:col-span-2 grid grid-cols-3 gap-3 mt-4">
+                      <Button 
+                        type="button"
+                        onClick={() => setProfileSubStep(1)}
+                        variant="outline"
+                        className="col-span-1 border-2 border-black py-8 font-black rounded-2xl bg-white hover:bg-gray-100 transition-all flex items-center justify-center gap-1.5 text-black"
+                      >
+                        <ArrowLeft size={18} /> ย้อนกลับ
+                      </Button>
+                      
+                      <Button 
+                        type="submit"
+                        disabled={loading || uploading} 
+                        className="col-span-2 bg-black text-white py-8 text-lg md:text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50"
+                      >
+                        {loading || uploading ? <Loader2 className="animate-spin mx-auto" /> : "บันทึกข้อมูลสำเร็จ & รับ Magic Link"}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </form>
               
-              <Button onClick={() => setStep('email')} variant="ghost" className="mt-4 text-gray-500 font-bold hover:text-black hover:bg-gray-100 rounded-xl px-4 py-2">
-                ← กลับไปหน้าแรก
+              {/* ปุ่มกลับไปหน้ากรอกอีเมลแรกสุด */}
+              <Button 
+                onClick={() => {
+                  setStep('email');
+                  setProfileSubStep(1);
+                }} 
+                variant="ghost" 
+                className="mt-6 text-gray-500 font-bold hover:text-black hover:bg-gray-100 rounded-xl px-4 py-2"
+              >
+                ← ยกเลิกและกลับไปหน้าแรก
               </Button>
             </motion.div>
           )}
