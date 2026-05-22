@@ -1,11 +1,11 @@
+```typescript
 // app/api/payments/verify-slip/route.ts
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-// กำหนดเงื่อนไขตรวจสอบเลขอ้างอิงบัญชีผู้รับเงินของระบบ PobPet (เลือกใส่ เลขบัญชี หรือ เลขพร้อมเพย์ ของคุณวุฒิ์)
-const EXPECTED_RECEIVING_ACCOUNT = ['010753700088205', 'MH116010MG0160333S'] 
+const EXPECTED_RECEIVING_ACCOUNT = ['010753700088205', 'MH116010MG0160333S']
 
 const SLIP_AMOUNTS: Record<string, number> = {
   member:  399,
@@ -37,7 +37,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'กรุณาแนบรูปสลิป', success: false }, { status: 400 })
     }
 
-    // ── ตรวจสอบสิทธิ์แพ็คเกจซ้อนกันตามเงื่อนไขเดิม ──
     if (isAddon) {
       const { data: sub } = await supabase
         .from('subscriptions')
@@ -65,12 +64,22 @@ export async function POST(req: Request) {
       }
     }
 
-    // ── 🚀 เริ่มต้นสตรีมการยิงตรวจสอบผ่าน SlipOK API ──
+    // ── ตรวจสอบโครงสร้างคีย์ ──
     const apiKey   = process.env.SLIPOK_API_KEY
     const branchId = process.env.SLIPOK_BRANCH_ID
-    if (!apiKey || !branchId) throw new Error('Missing SlipOK Configuration in Environment Variables')
+    
+    if (!apiKey || !branchId) {
+      return NextResponse.json({ 
+        success: false, 
+        reason: 'ระบบตรวจสอบสลิปยังตั้งค่า Key บน Vercel ไม่สำเร็จ หรือเซิร์ฟเวอร์ยังบิวด์ไม่เสร็จสมบูรณ์ค่ะ' 
+      })
+    }
 
-    // ยิง API ไปที่เซิร์ฟเวอร์ SlipOK รองรับการถอดรหัส Mini-QR ทันที
+    // 🟢 [แก้ไขจุดพังเรื่องข้อความ Base64] คลีนสายอักขระรูปภาพป้องกันการติดแท็กซ้ำซ้อน
+    const cleanBase64 = imageBase64.includes('base64,') 
+      ? imageBase64.split('base64,')[1] 
+      : imageBase64
+
     const response = await fetch('https://api.slipok.com/api/v1/verify', {
       method: 'POST',
       headers: {
@@ -78,7 +87,7 @@ export async function POST(req: Request) {
         'x-lib-api-key': apiKey
       },
       body: JSON.stringify({
-        image: `data:image/jpeg;base64,${imageBase64}`,
+        image: `data:image/jpeg;base64,${cleanBase64}`,
         branch_id: branchId,
         log: true
       })
@@ -86,11 +95,11 @@ export async function POST(req: Request) {
 
     const slipOkResult = await response.json()
 
-    // กรณีที่ SlipOK ตรวจสอบแล้วพบว่าภาพไม่ใช่สลิป หรือไม่มีคิวอาร์โค้ดธนาคาร
+    // ดึงค่าข้อผิดพลาดตรงจากสเปก SlipOK มาพ่นออกหน้าจอ ไม่ให้ติดหล่มที่คำว่า Not Found ลอยๆ
     if (!response.ok || !slipOkResult.success) {
       return NextResponse.json({
         success: false,
-        reason: slipOkResult.message || 'ไม่สามารถอ่านรหัสคิวอาร์โค้ดบนสลิปได้ กรุณาใช้สลิปที่มีคิวอาร์ชัดเจนค่ะ'
+        reason: slipOkResult.message || `SlipOK ตอบกลับสถานะปฏิเสธ: ${response.status}`
       })
     }
 
@@ -98,7 +107,6 @@ export async function POST(req: Request) {
     const reference_no = slipData.transRef || slipData.sendingBank
     const amountTransferred = slipData.amount
 
-    // 1. ตรวจสอบการใช้สลิปซ้ำ (ป้องกันการโกงสิทธิ์)
     if (reference_no) {
       const { data: dup } = await supabase
         .from('payment_slips')
@@ -110,7 +118,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // 2. ตรวจสอบความถูกต้องของยอดเงินโอน
     if (amountTransferred < expectedAmount) {
       return NextResponse.json({
         success: false,
@@ -118,31 +125,18 @@ export async function POST(req: Request) {
       })
     }
 
-    // 3. ตรวจสอบบัญชีผู้รับเงินปลายทาง (ป้องกันผู้ใช้นำสลิปการโอนเงินไปซื้อของร้านอื่นมายืนยันเนียนสิทธิ์)
-    const isCorrectReceiver = EXPECTED_RECEIVING_ACCOUNT.some(acc => 
-      slipData.receiver?.account?.id?.replace(/[^0-9]/g, '').includes(acc) ||
-      slipData.receiver?.proxy?.id?.replace(/[^0-9]/g, '').includes(acc)
-    )
-    
-    // หมายเหตุ: เปิดคอมเมนต์ดักใช้งานได้เมื่อคุณวุฒิ์ใส่เลขผูกรับเงินจริงในตัวแปร EXPECTED_RECEIVING_ACCOUNT ด้านบนเรียบร้อยแล้วค่ะ
-    // if (!isCorrectReceiver) {
-    //   return NextResponse.json({ success: false, reason: 'สลิปนี้ไม่ใช่ยอดการโอนเงินเข้าสู่บัญชีของระบบ PobPet ค่ะ' })
-    // }
-
-    // ── บันทึกประวัติสลิปผ่านการคัดกรองจากธนาคารลงฐานข้อมูล ──
     await supabase.from('payment_slips').insert({
       user_id:       userId,
       reference_no:  reference_no || `SLIPOK-${Date.now()}`,
       amount:        amountTransferred,
       transfer_date: slipData.transDate || null,
-      confidence:    100, // อิงธนาคารความแม่นยำเต็มร้อยเสมอ
+      confidence:    100, 
       is_suspicious: false,
       slip_type,
-      status:        'auto_approved', // อนุมัติผ่านทันที
+      status:        'auto_approved', 
       raw_result:    slipData,
     })
 
-    // ── ทำการอัปเดตเปิดสิทธิ์สมาชิกและโควต้าสัตว์เลี้ยงตาม Logic เดิมแบบคงที่ ──
     if (line_id) {
       await supabase
         .from('profiles')
@@ -161,7 +155,7 @@ export async function POST(req: Request) {
 
       await supabase.from('subscriptions')
         .update({ pet_slots_addon: currentAddon + addSlots })
-        .eq('user_id', userId)
+        .eq('id', userId)
 
       await supabase.from('notifications').insert({
         user_id: userId,
