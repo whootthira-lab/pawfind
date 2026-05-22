@@ -61,6 +61,7 @@ const interestOptions = [
   { value: 'reading',     label: '📚 อ่านหนังสือ' },
   { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' },
 ]
+
 // ── ตัวเลือกสถานะ (Marital Status) ──
 const maritalStatusOptions = [
   { value: 'single', label: 'โสด' },
@@ -79,13 +80,12 @@ export default function LoginPage() {
   )
 
   const [step, setStep] = useState<'email' | 'profile'>('email')
-  const [profileSubStep, setProfileSubStep] = useState<1 | 2>(1) // จัดการหน้าย่อยของโปรไฟล์
+  const [profileSubStep, setProfileSubStep] = useState<1 | 2>(1)
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  // ── Form Data State ──
   const [formData, setFormData] = useState({
     display_name: '',
     first_name: '',
@@ -101,7 +101,6 @@ export default function LoginPage() {
     marital_status: 'single'
   })
 
-  // ── 1. ตรวจสอบ Email ──
   const handleCheckEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
@@ -144,7 +143,6 @@ export default function LoginPage() {
     }
   }
 
-  // ── 2. อัปโหลดรูปภาพประจำตัว ──
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return
     setUploading(true)
@@ -175,7 +173,6 @@ export default function LoginPage() {
     }
   }
 
-  // ── จัดการเลือกความสนใจ ──
   const handleInterestChange = (value: string) => {
     setFormData(prev => {
       const current = [...prev.interests]
@@ -187,18 +184,16 @@ export default function LoginPage() {
     })
   }
 
-  // ── Validation หน้าที่ 1 ก่อนไปหน้าที่ 2 ──
   const handleNextSubStep = (e: React.MouseEvent) => {
     e.preventDefault()
     if (!formData.display_name.trim() || !formData.phone_number.trim() || !formData.first_name.trim() || !formData.last_name.trim()) {
-      setMessage({ type: 'error', text: 'กรุณากรอกข้อมูลที่จำเป็น (ชื่อเล่น, เบอร์โทร, ชื่อ-นามสกุลจริง) ให้ครบถ้วนก่อนไปหน้าถัดไปค่ะ' })
+      setMessage({ type: 'error', text: 'กรุณากรอกข้อมูลที่จำเป็น (ชื่อเล่น, เบอร์โทร, ชื่อ-นามสกุลจริง) ให้ครบถ้วนก่อนลุยต่อครับ' })
       return
     }
     setMessage(null)
     setProfileSubStep(2)
   }
 
-  // ── 3. บันทึกข้อมูลและลงทะเบียน ──
   const handleRegisterAndLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -264,8 +259,8 @@ export default function LoginPage() {
             {step === 'email' 
               ? 'ร่วมเป็นส่วนหนึ่งของเครือข่ายตามหาสัตว์เลี้ยงและดูแลช่วยเหลือสัตว์ในชุมชน'
               : profileSubStep === 1 
-                ? 'ขั้นตอนที่ 1/2: กรอกข้อมูลส่วนตัวและบทบาทอาชีพของคุณ'
-                : 'ขั้นตอนที่ 2/2: เลือกวัตถุประสงค์และสิ่งที่คุณสนใจ'}
+                ? 'ขั้นตอนที่ 1/2: ข้อมูลส่วนตัวหลักและกลุ่มบทบาทอาชีพ'
+                : 'ขั้นตอนที่ 2/2: เลือกวัตถุประสงค์และสิ่งที่คุณสนใจต้องการใช้งานในระบบ'}
           </p>
         </div>
 
@@ -298,7 +293,7 @@ export default function LoginPage() {
               >
                 {loading ? <Loader2 className="animate-spin" /> : (
                   <span className="flex items-center gap-2 justify-center">
-                    ดำเนินการต่อ <LogIn size={20} />
+                    ดำเนินการต่อ ➔
                   </span>
                 )}
               </Button>
@@ -312,19 +307,13 @@ export default function LoginPage() {
             >
               <form onSubmit={handleRegisterAndLogin} className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 
-                {/* ── PROFILE SUB-STEP 1: ข้อมูลทั่วไป + อาชีพ ── */}
+                {/* ── PROFILE SUB-STEP 1: ข้อมูลประวัติและบทบาทอาชีพ ── */}
                 {profileSubStep === 1 && (
                   <>
-                    {/* อัปโหลดรูปภาพ */}
                     <div className="md:col-span-2 flex flex-col items-center justify-center pb-4">
                       <div className="relative w-28 h-28 border-4 border-black rounded-full overflow-hidden bg-gray-100 shadow-paper-sm">
                         {formData.avatar_url ? (
-                          <Image 
-                            src={formData.avatar_url} 
-                            alt="Avatar" 
-                            fill 
-                            className="object-cover"
-                          />
+                          <Image src={formData.avatar_url} alt="Avatar" fill className="object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400">
                             <UserCircle size={64} className="stroke-[1]" />
@@ -338,7 +327,6 @@ export default function LoginPage() {
                       <span className="text-xs font-bold text-gray-500 mt-2">รูปโปรไฟล์ (ไม่จำเป็นต้องใส่ตอนนี้ก็ได้ค่ะ)</span>
                     </div>
 
-                    {/* ชื่อเล่น */}
                     <div className="space-y-1.5">
                       <label className="font-black text-sm text-black flex items-center gap-1"><UserPlus size={16}/> ชื่อเล่น / ชื่อในระบบ <span className="text-red-500">*</span></label>
                       <input 
@@ -350,7 +338,6 @@ export default function LoginPage() {
                       />
                     </div>
 
-                    {/* เบอร์โทร */}
                     <div className="space-y-1.5">
                       <label className="font-black text-sm text-black flex items-center gap-1"><Phone size={16}/> เบอร์โทรศัพท์ติดต่อ <span className="text-red-500">*</span></label>
                       <input 
@@ -362,7 +349,6 @@ export default function LoginPage() {
                       />
                     </div>
 
-                    {/* ชื่อจริง */}
                     <div className="space-y-1.5">
                       <label className="font-black text-sm text-black">ชื่อจริง (ภาษาไทย) <span className="text-red-500">*</span></label>
                       <input 
@@ -373,7 +359,6 @@ export default function LoginPage() {
                       />
                     </div>
 
-                    {/* นามสกุล */}
                     <div className="space-y-1.5">
                       <label className="font-black text-sm text-black">นามสกุล (ภาษาไทย) <span className="text-red-500">*</span></label>
                       <input 
@@ -384,7 +369,6 @@ export default function LoginPage() {
                       />
                     </div>
 
-                    {/* วันเกิด */}
                     <div className="space-y-1.5">
                       <label className="font-black text-sm text-black flex items-center gap-1"><Cake size={16}/> วันเกิด</label>
                       <input 
@@ -395,7 +379,6 @@ export default function LoginPage() {
                       />
                     </div>
 
-                    {/* เพศ */}
                     <div className="space-y-1.5">
                       <label className="font-black text-sm text-black">เพศ</label>
                       <select 
@@ -410,7 +393,6 @@ export default function LoginPage() {
                       </select>
                     </div>
 
-                    {/* จังหวัด */}
                     <div className="space-y-1.5">
                       <label className="font-black text-sm text-black flex items-center gap-1"><MapPin size={16}/> จังหวัดประจำการหลัก</label>
                       <select 
@@ -424,7 +406,6 @@ export default function LoginPage() {
                       </select>
                     </div>
 
-                    {/* สถานะภาพ */}
                     <div className="space-y-1.5">
                       <label className="font-black text-sm text-black flex items-center gap-1"><Smile size={16}/> สถานะภาพ</label>
                       <select 
@@ -438,7 +419,7 @@ export default function LoginPage() {
                       </select>
                     </div>
 
-                    {/* ช่องกรอกเลือกอาชีพ (จัดวางในกล่องเด่นชัด ไม่หายแน่นอน) */}
+                    {/* กล่องแสดงผลฟิลด์การเลือกอาชีพหลัก */}
                     <div className="space-y-1.5 md:col-span-2 border-2 border-black p-4 rounded-2xl bg-gray-50/50 mt-2">
                       <label className="font-black text-sm text-black flex items-center gap-1">
                         <Briefcase size={16} /> บทบาทในเครือข่ายสัตว์เลี้ยง (อาชีพ)
@@ -446,7 +427,7 @@ export default function LoginPage() {
                       <select 
                         value={formData.community_role}
                         onChange={e => setFormData({...formData, community_role: e.target.value})}
-                        className="w-full border-2 border-black rounded-xl p-3 font-bold bg-white focus:bg-white outline-none transition-colors cursor-pointer"
+                        className="w-full border-2 border-black rounded-xl p-3 font-bold bg-white focus:bg-white outline-none cursor-pointer"
                       >
                         {expertiseOptions.map(opt => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -454,7 +435,6 @@ export default function LoginPage() {
                       </select>
                     </div>
 
-                    {/* ฟิลด์ระบุเพิ่มเติมเมื่อเลือก "อื่นๆ" */}
                     {formData.community_role === 'other' && (
                       <div className="md:col-span-2 space-y-1.5">
                         <label className="font-black text-sm text-black">โปรดระบุอาชีพหรือบทบาทของคุณ</label>
@@ -468,18 +448,17 @@ export default function LoginPage() {
                       </div>
                     )}
 
-                    {/* ปุ่มไปหน้าถัดไป */}
                     <Button 
                       type="button"
                       onClick={handleNextSubStep}
                       className="md:col-span-2 mt-4 bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-2"
                     >
-                      เลือกความสนใจต่อ <ChevronRight size={20} />
+                      เลือกความสนใจต่อ ➔
                     </Button>
                   </>
                 )}
 
-                {/* ── PROFILE SUB-STEP 2: วัตถุประสงค์ / ความสนใจหลัก ── */}
+                {/* ── PROFILE SUB-STEP 2: วัตถุประสงค์และความสนใจ (แยกมาอยู่หน้าย่อยที่ 2) ── */}
                 {profileSubStep === 2 && (
                   <>
                     <div className="space-y-3 md:col-span-2 border-4 border-black p-6 rounded-2xl bg-wagashi-matcha/10 shadow-paper-sm">
@@ -487,7 +466,7 @@ export default function LoginPage() {
                         <Sparkles size={20} className="text-amber-500 fill-amber-500"/> วัตถุประสงค์ / ความสนใจหลัก (เลือกได้มากกว่า 1 ข้อ)
                       </label>
                       <p className="text-xs font-bold text-gray-600 mb-2">
-                        เลือกสิ่งที่คุณต้องการทำบนระบบ PobPet เพื่อให้ระบบช่วยจับคู่ส่งสตรีมข่าวสารและกลุ่มช่วยเหลือรอบตัวคุณได้ตรงจุด
+                        เลือกสิ่งที่คุณต้องการใช้บนระบบ PobPet เพื่อให้ AI ซิงค์แมปข่าวสารหรือส่งแจ้งเตือนรอบพิกัดพื้นที่ได้ตรงใจคุณที่สุด
                       </p>
                       <div className="grid grid-cols-1 gap-3">
                         {interestOptions.map(opt => (
@@ -508,15 +487,14 @@ export default function LoginPage() {
                       * ข้อมูลความสนใจนี้จะช่วยให้เราสร้างเครือข่ายความช่วยเหลือในชุมชนได้ปลอดภัยและแข็งแกร่งขึ้น
                     </p>
 
-                    {/* แผงควบคุมปุ่มกดย้อนกลับและตกลงลงทะเบียน */}
                     <div className="md:col-span-2 grid grid-cols-3 gap-3 mt-4">
                       <Button 
                         type="button"
-                        onClick={() => setProfileSubStep(1)}
+                        onClick={() => { setMessage(null); setProfileSubStep(1); }}
                         variant="outline"
-                        className="col-span-1 border-2 border-black py-8 font-black rounded-2xl bg-white hover:bg-gray-100 transition-all flex items-center justify-center gap-1.5 text-black"
+                        className="col-span-1 border-2 border-black py-8 font-black rounded-2xl bg-white hover:bg-gray-100 text-black flex items-center justify-center gap-1"
                       >
-                        <ArrowLeft size={18} /> ย้อนกลับ
+                        <ArrowLeft size={16} /> ย้อนกลับ
                       </Button>
                       
                       <Button 
@@ -531,12 +509,8 @@ export default function LoginPage() {
                 )}
               </form>
               
-              {/* ปุ่มกลับไปหน้ากรอกอีเมลแรกสุด */}
               <Button 
-                onClick={() => {
-                  setStep('email');
-                  setProfileSubStep(1);
-                }} 
+                onClick={() => { setStep('email'); setProfileSubStep(1); setMessage(null); }} 
                 variant="ghost" 
                 className="mt-6 text-gray-500 font-bold hover:text-black hover:bg-gray-100 rounded-xl px-4 py-2"
               >
