@@ -104,8 +104,6 @@ export async function POST(req: Request) {
     if (!apiKey) throw new Error('Missing GEMINI_API_KEY')
 
     const genAI = new GoogleGenerativeAI(apiKey)
-    
-    // 🟢 [แก้ไขสำเร็จเรียบร้อย] ปรับชื่อ Engine Model เป็นเวอร์ชัน gemini-2.5-flash เพื่อปลดล็อกพอร์ต v1 อย่างเป็นทางการ
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
     const result = await model.generateContent([
@@ -134,19 +132,33 @@ export async function POST(req: Request) {
         .from('payment_slips')
         .select('id')
         .eq('reference_no', reference_no)
-        .single()
+        .maybeSingle() // เปลี่ยนเป็น maybeSingle ป้องกันอาการบอร์ดสั่นค้างกรณีไม่เจอข้อมูล
       if (dup) {
         return NextResponse.json({ success: false, reason: 'สลิปนี้เคยใช้ไปแล้วค่ะ' })
       }
     }
 
+    // ── 🟢 [แก้ไขจุดพังเรื่อง TIMEZONE ของตัวแปรสลิป] ──
     if (transfer_date) {
-      const slipTime  = new Date(`${transfer_date}T${transfer_time || '00:00'}`)
-      const diffHours = (Date.now() - slipTime.getTime()) / 3_600_000
+      // ประกอบเวลาจากสลิปเป็นฟอร์แมตไทย (Bangkok Time)
+      const slipTime = new Date(`${transfer_date}T${transfer_time || '00:00'}:00+07:00`)
+      const now = new Date()
+
+      // คำนวณหาผลต่างชั่วโมงแบบ Absolute เพื่อล้างปัญหาระบบติดลบข้ามซีกโลก
+      const diffHours = (now.getTime() - slipTime.getTime()) / 3600000
+
+      // ยอมรับช่วงเวลาคาบเกี่ยว (Grace Period ของนาฬิกาเครื่อง) เผื่อเวลานาฬิกาเดินไม่เท่ากันได้ 1 ชั่วโมง
+      if (diffHours < -1) {
+        return NextResponse.json({
+          success: false,
+          reason: `ข้อมูลเวลาบนหน้าสลิปขัดแย้งกับเวลาปัจจุบันของเซิร์ฟเวอร์ ยอดโอนส่งมาจากอนาคตกรุณาส่งใหม่อีกครั้งค่ะ`,
+        })
+      }
+
       if (diffHours > MAX_SLIP_AGE_HOURS) {
         return NextResponse.json({
           success: false,
-          reason:  `สลิปเกิน ${MAX_SLIP_AGE_HOURS} ชั่วโมงแล้ว กรุณาโอนใหม่ค่ะ`,
+          reason: `สลิปเกิน ${MAX_SLIP_AGE_HOURS} ชั่วโมงแล้ว กรุณาใช้สลิปที่โอนใหม่ล่าสุดค่ะ`,
         })
       }
     }
