@@ -11,7 +11,7 @@ import {
   Briefcase, Heart, Sparkles, Smile, ChevronRight, ArrowLeft
 } from 'lucide-react'
 
-// ── ตัวเลือกบทบาทชุมชน / อาชีพ ──
+// ── 1. ตัวเลือกบทบาทเครือข่ายสัตว์เลี้ยง ──
 const expertiseOptions = [
   { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
   { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
@@ -23,37 +23,50 @@ const expertiseOptions = [
   { value: 'other', label: 'อื่นๆ (โปรดระบุ)' },
 ]
 
-// ── ตัวเลือกความสนใจ (Interests) ──
+// ── 2. ตัวเลือกอาชีพหลัก (ตรงตามโครงสร้างตาราง profiles) ──
+const occupationOptions = [
+  { value: 'student', label: '🎓 นักเรียน / นักศึกษา' },
+  { value: 'employee', label: '💼 พนักงานบริษัท / ลูกจ้าง' },
+  { value: 'government', label: '🏛 ข้าราชการ / รัฐวิสาหกิจ' },
+  { value: 'business_owner', label: '🏪 เจ้าของกิจการ / ธุรกิจส่วนตัว' },
+  { value: 'freelance', label: '🖥 Freelance / อาชีพอิสระ' },
+  { value: 'agriculturist', label: '🌾 เกษตรกร' },
+  { value: 'healthcare', label: '🏥 บุคลากรทางการแพทย์' },
+  { value: 'educator', label: '📚 ครู / อาจารย์' },
+  { value: 'retired', label: '🏖 เกษียณอายุ' },
+  { value: 'unemployed', label: '🔍 ว่างงาน / กำลังหางาน' },
+  { value: 'other', label: '✏️ อื่นๆ' },
+]
+
+// ── 3. ตัวเลือกวัตถุประสงค์และความสนใจครบทุกมิติ ──
 const interestOptions = [
   { value: 'dog',         label: '🐕 สุนัข' },
   { value: 'cat',         label: '🐈 แมว' },
-  { value: 'bird',        label: '🦜 นกสวยงาม / นกเสียง' },
+  { value: 'bird',        label: '🦜 นกสวยงาม' },
   { value: 'fish',        label: '🐟 ปลาสวยงาม' },
   { value: 'exotic',      label: '🦎 สัตว์ Exotic' },
-  { value: 'rabbit',      label: '🐰 กระต่าย / สัตว์ขนาดเล็ก' },
-  { value: 'adopt', label: '🐶 หาบ้านใหม่/รับเลี้ยงสัตว์' },
-  { value: 'rescue', label: '🆘 ช่วยเหลือสัตว์เจ็บป่วย/สัตว์จร' },
-  { value: 'mating', label: '❤️ หาคู่ผสมพันธุ์ให้น้องๆ' },
-  { value: 'showcase', label: '📸 อวดความน่ารัก/ประกวดสัตว์เลี้ยง' },
-  { value: 'knowledge', label: '📚 ศึกษาความรู้และการเลี้ยงดู' },
-  { value: 'health',      label: '🏥 สุขภาพและการดูแลสัตว์' },
-  { value: 'prosthetics', label: '🦿 นวัตกรรม,DIY' },
-  { value: 'adoption',    label: '💖 การรับเลี้ยงและหาบ้าน' },
-  { value: 'contest',     label: '🏆 การประกวดสัตว์' },
-  { value: 'community',   label: '🤝 ชุมชนและอาสาสมัคร' },
+  { value: 'rabbit',      label: '🐰 กระต่าย / สัตว์เล็ก' },
+  { value: 'adopt',       label: '🐶 หาบ้านใหม่ / รับเลี้ยง' },
+  { value: 'rescue',      label: '🆘 ช่วยเหลือสัตว์จร' },
+  { value: 'mating',      label: '❤️ หาคู่ผสมพันธุ์' },
+  { value: 'showcase',    label: '📸 ประกวด / อวดความน่ารัก' },
+  { value: 'knowledge',   label: '📚 ศึกษาความรู้การเลี้ยง' },
+  { value: 'health',      label: '🏥 สุขภาพสัตว์เลี้ยง' },
+  { value: 'prosthetics', label: '🦿 นวัตกรรมขาเทียม / DIY' },
+  { value: 'community',   label: '🤝 ชุมชนอาสาสมัคร' },
   { value: 'memorial',    label: '🕯 ของที่ระลึกสัตว์เลี้ยง' },
   { value: 'astrology',   label: '🔮 ดูดวง / โหราศาสตร์' },
   { value: 'psychology',  label: '🧠 จิตวิทยา' },
   { value: 'selfdev',     label: '📈 พัฒนาตนเอง' },
   { value: 'sport_football',  label: '⚽ ฟุตบอล' },
-  { value: 'sport_badminton', label: '🏸 แบดมินตัน,เทนนิส' },
-  { value: 'sport_golf',      label: '⛳ กอล์ฟ' },
-  { value: 'sport_muay',      label: '🥊 กีฬาต่อสู้ / ศิลปะการต่อสู้' },
-  { value: 'sport_other',     label: '🏅 กีฬา — ประเภทอื่นๆ' },
-  { value: 'fitness',     label: '💪 ออกกำลังกาย / Fitness' },
+  { value: 'sport_badminton', label: '🏸 แบดมินตัน / เทนนิส' },
+  { value: 'sport_golf',      label: '⛳ กольф' },
+  { value: 'sport_muay',      label: '🥊 ศิลปะการต่อสู้' },
+  { value: 'sport_other',     label: '🏅 กีฬาประเภทอื่นๆ' },
+  { value: 'fitness',     label: '💪 ฟิตเนส / ออกกำลังกาย' },
   { value: 'fashion',     label: '👗 แฟชั่น / สไตล์' },
-  { value: 'herbs',       label: '🌿 สมุนไพร / ธรรมชาติบำบัด' },
-  { value: 'cooking',     label: '🍳 ทำอาหาร / อาหารเพื่อสุขภาพ' },
+  { value: 'herbs',       label: '🌿 สมุนไพรธรรมชาติ' },
+  { value: 'cooking',     label: '🍳 ทำอาหารเพื่อสุขภาพ' },
   { value: 'travel',      label: '✈️ ท่องเที่ยว' },
   { value: 'tech',        label: '💻 เทคโนโลยี / AI' },
   { value: 'art',         label: '🎨 ศิลปะ / งานฝีมือ' },
@@ -62,7 +75,7 @@ const interestOptions = [
   { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' },
 ]
 
-// ── ตัวเลือกสถานะ (Marital Status) ──
+// ── 4. ตัวเลือกสถานะภาพ ──
 const maritalStatusOptions = [
   { value: 'single', label: 'โสด' },
   { value: 'married', label: 'แต่งงานแล้ว' },
@@ -71,7 +84,7 @@ const maritalStatusOptions = [
 
 const thailandProvinces = [
   "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยะลา", "ยโสธร", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อุดรธานี", "อุทัยธานี", "อุตรดิตถ์", "อุบลราชธานี", "อำนาจเจริญ"
-]
+].sort()
 
 export default function LoginPage() {
   const supabase = createBrowserClient(
@@ -79,7 +92,7 @@ export default function LoginPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  const [step, setStep] = useState<'email' | 'profile'>('email')
+  const [step, setStep] = useState<'email' | 'profile' | 'success'>('email')
   const [profileSubStep, setProfileSubStep] = useState<1 | 2>(1)
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
@@ -92,9 +105,10 @@ export default function LoginPage() {
     last_name: '',
     birth_date: '',
     phone_number: '',
-    province: 'กรุงเทพมหานคร',
+    province: 'นครราชสีมา',
     gender: 'unknown',
     avatar_url: '',
+    occupation: 'employee',
     community_role: 'general',
     community_role_custom: '',
     interests: [] as string[],
@@ -127,11 +141,7 @@ export default function LoginPage() {
         })
 
         if (signInErr) throw signInErr
-
-        setMessage({
-          type: 'success',
-          text: 'พบข้อมูลโปรไฟล์ของคุณแล้ว! ระบบได้ส่ง Magic Link สำหรับเข้าสู่ระบบไปยังอีเมลของคุณเรียบร้อยแล้วค่ะ'
-        })
+        setStep('success')
       } else {
         setStep('profile')
         setProfileSubStep(1)
@@ -187,7 +197,7 @@ export default function LoginPage() {
   const handleNextSubStep = (e: React.MouseEvent) => {
     e.preventDefault()
     if (!formData.display_name.trim() || !formData.phone_number.trim() || !formData.first_name.trim() || !formData.last_name.trim()) {
-      setMessage({ type: 'error', text: 'กรุณากรอกข้อมูลที่จำเป็น (ชื่อเล่น, เบอร์โทร, ชื่อ-นามสกุลจริง) ให้ครบถ้วนก่อนลุยต่อครับ' })
+      setMessage({ type: 'error', text: 'กรุณากรอกข้อมูลที่จำเป็น (ชื่อแสดงผล, เบอร์โทร, ชื่อ-นามสกุลจริง) ให้ครบถ้วนก่อนไปต่อครับ' })
       return
     }
     setMessage(null)
@@ -201,45 +211,50 @@ export default function LoginPage() {
 
     try {
       const cleanEmail = email.trim().toLowerCase()
+      const finalCommunityRole = formData.community_role === 'other' ? formData.community_role_custom.trim() : formData.community_role
 
       const { error: authErr } = await supabase.auth.signInWithOtp({
         email: cleanEmail,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            pobpet_custom_registration: true,
+            display_name: formData.display_name.trim(),
+            first_name: formData.first_name.trim(),
+            last_name: formData.last_name.trim(),
+            birth_date: formData.birth_date || null,
+            phone_number: formData.phone_number.trim(),
+            province: formData.province,
+            gender: formData.gender,
+            avatar_url: formData.avatar_url || null,
+            occupation: formData.occupation,
+            community_role: finalCommunityRole,
+            interests: formData.interests,
+            marital_status: formData.marital_status
+          }
         }
       })
 
       if (authErr) throw authErr
-
-      const { error: insertErr } = await supabase
-        .from('profiles')
-        .insert({
-          email: cleanEmail,
-          display_name: formData.display_name.trim(),
-          first_name: formData.first_name.trim(),
-          last_name: formData.last_name.trim(),
-          birth_date: formData.birth_date || null,
-          phone_number: formData.phone_number.trim(),
-          province: formData.province,
-          gender: formData.gender,
-          avatar_url: formData.avatar_url || null,
-          community_role: formData.community_role,
-          community_role_custom: formData.community_role === 'other' ? formData.community_role_custom.trim() : null,
-          interests: formData.interests,
-          marital_status: formData.marital_status
-        })
-
-      if (insertErr) throw insertErr
-
-      setMessage({
-        type: 'success',
-        text: 'ลงทะเบียนโปรไฟล์เสร็จสิ้น! เราได้ส่ง Magic Link ไปที่อีเมลของคุณแล้ว กรุณาเปิดกล่องจดหมายเพื่อกดยืนยันการเข้าใช้งานค่ะ'
-      })
+      setStep('success')
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลโปรไฟล์' })
     } finally {
       setLoading(false)
     }
+  }
+
+  if (step === 'success') {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center p-4 text-center">
+        <div className="max-w-md w-full p-10 bg-wagashi-matcha border-4 border-black rounded-3xl shadow-paper animate-in zoom-in">
+          <CheckCircle2 size={80} className="mx-auto mb-6 text-black" />
+          <h2 className="text-3xl font-black mb-4 uppercase">Success!</h2>
+          <p className="font-bold text-lg">เราส่งลิงก์เข้าสู่ระบบไปที่ <br/> <span className="underline">{email}</span> แล้วครับ</p>
+          <p className="mt-4 text-sm font-bold opacity-70">กรุณาตรวจสอบกล่องจดหมายของคุณเพื่อล็อกอิน</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -259,8 +274,8 @@ export default function LoginPage() {
             {step === 'email' 
               ? 'ร่วมเป็นส่วนหนึ่งของเครือข่ายตามหาสัตว์เลี้ยงและดูแลช่วยเหลือสัตว์ในชุมชน'
               : profileSubStep === 1 
-                ? 'ขั้นตอนที่ 1/2: ข้อมูลส่วนตัวหลักและกลุ่มบทบาทอาชีพ'
-                : 'ขั้นตอนที่ 2/2: เลือกวัตถุประสงค์และสิ่งที่คุณสนใจต้องการใช้งานในระบบ'}
+                ? 'ขั้นตอนที่ 1/2: ข้อมูลส่วนตัวหลัก อาชีพ และบทบาทชุมชน'
+                : 'ขั้นตอนที่ 2/2: เลือกสิ่งที่สนใจและวัตถุประสงค์ในระบบ'}
           </p>
         </div>
 
@@ -283,19 +298,15 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="yourname@example.com"
-                  className="w-full border-4 border-black p-4 rounded-2xl font-bold text-lg outline-none bg-white focus:ring-4 ring-black/5 placeholder:text-gray-400 transition-all"
+                  className="w-full border-4 border-black p-4 rounded-2xl font-bold text-lg outline-none bg-white focus:ring-4 ring-black/5"
                 />
               </div>
               <Button 
                 type="submit" 
                 disabled={loading} 
-                className="w-full bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50"
+                className="w-full bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper transition-all"
               >
-                {loading ? <Loader2 className="animate-spin" /> : (
-                  <span className="flex items-center gap-2 justify-center">
-                    ดำเนินการต่อ ➔
-                  </span>
-                )}
+                ดำเนินการต่อ ➔
               </Button>
             </motion.form>
           ) : (
@@ -305,87 +316,55 @@ export default function LoginPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
-              <form onSubmit={handleRegisterAndLogin} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <form onSubmit={handleRegisterAndLogin} className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left">
                 
-                {/* ── PROFILE SUB-STEP 1: ข้อมูลประวัติและบทบาทอาชีพ ── */}
+                {/* ── SUB-STEP 1: ข้อมูลประวัติ อาชีพ บทบาทชุมชน ── */}
                 {profileSubStep === 1 && (
                   <>
-                    <div className="md:col-span-2 flex flex-col items-center justify-center pb-4">
-                      <div className="relative w-28 h-28 border-4 border-black rounded-full overflow-hidden bg-gray-100 shadow-paper-sm">
+                    <div className="md:col-span-2 flex flex-col items-center justify-center pb-2">
+                      <div className="relative w-24 h-24 border-4 border-black rounded-full overflow-hidden bg-gray-100 shadow-paper-sm">
                         {formData.avatar_url ? (
-                          <Image src={formData.avatar_url} alt="Avatar" fill className="object-cover" />
+                          <Image src={formData.avatar_url} alt="Avatar" fill className="object-cover" unoptimized />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <UserCircle size={64} className="stroke-[1]" />
+                            <UserCircle size={56} />
                           </div>
                         )}
-                        <label className="absolute bottom-0 right-0 left-0 bg-black/70 text-white p-1 text-center cursor-pointer transition-colors hover:bg-black">
-                          <Camera size={14} className="mx-auto" />
+                        <label className="absolute bottom-0 right-0 left-0 bg-black/70 text-white p-1 text-center cursor-pointer text-xs">
+                          <Camera size={12} className="mx-auto" />
                           <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
                         </label>
                       </div>
-                      <span className="text-xs font-bold text-gray-500 mt-2">รูปโปรไฟล์ (ไม่จำเป็นต้องใส่ตอนนี้ก็ได้ค่ะ)</span>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="font-black text-sm text-black flex items-center gap-1"><UserPlus size={16}/> ชื่อเล่น / ชื่อในระบบ <span className="text-red-500">*</span></label>
-                      <input 
-                        type="text" required
-                        value={formData.display_name}
-                        onChange={e => setFormData({...formData, display_name: e.target.value})}
-                        placeholder="เช่น พี่สมชาย, มะนาว"
-                        className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
-                      />
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black">ชื่อเล่น / ชื่อในระบบ <span className="text-red-500">*</span></label>
+                      <input type="text" required value={formData.display_name} onChange={e => setFormData({...formData, display_name: e.target.value})} placeholder="เช่น whootthira" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="font-black text-sm text-black flex items-center gap-1"><Phone size={16}/> เบอร์โทรศัพท์ติดต่อ <span className="text-red-500">*</span></label>
-                      <input 
-                        type="tel" required
-                        value={formData.phone_number}
-                        onChange={e => setFormData({...formData, phone_number: e.target.value})}
-                        placeholder="09x-xxx-xxxx"
-                        className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
-                      />
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black">เบอร์โทรศัพท์ติดต่อ <span className="text-red-500">*</span></label>
+                      <input type="tel" required value={formData.phone_number} onChange={e => setFormData({...formData, phone_number: e.target.value})} placeholder="09x-xxx-xxxx" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="font-black text-sm text-black">ชื่อจริง (ภาษาไทย) <span className="text-red-500">*</span></label>
-                      <input 
-                        type="text" required
-                        value={formData.first_name}
-                        onChange={e => setFormData({...formData, first_name: e.target.value})}
-                        className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
-                      />
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black">ชื่อจริง (ภาษาไทย) <span className="text-red-500">*</span></label>
+                      <input type="text" required value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="font-black text-sm text-black">นามสกุล (ภาษาไทย) <span className="text-red-500">*</span></label>
-                      <input 
-                        type="text" required
-                        value={formData.last_name}
-                        onChange={e => setFormData({...formData, last_name: e.target.value})}
-                        className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
-                      />
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black">นามสกุล (ภาษาไทย) <span className="text-red-500">*</span></label>
+                      <input type="text" required value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="font-black text-sm text-black flex items-center gap-1"><Cake size={16}/> วันเกิด</label>
-                      <input 
-                        type="date"
-                        value={formData.birth_date}
-                        onChange={e => setFormData({...formData, birth_date: e.target.value})}
-                        className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none cursor-pointer"
-                      />
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black">วันเกิด</label>
+                      <input type="date" value={formData.birth_date} onChange={e => setFormData({...formData, birth_date: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold cursor-pointer" />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="font-black text-sm text-black">เพศ</label>
-                      <select 
-                        value={formData.gender}
-                        onChange={e => setFormData({...formData, gender: e.target.value})}
-                        className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
-                      >
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black">เพศ</label>
+                      <select value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
                         <option value="unknown">ไม่ระบุ</option>
                         <option value="male">ชาย</option>
                         <option value="female">หญิง</option>
@@ -393,142 +372,84 @@ export default function LoginPage() {
                       </select>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="font-black text-sm text-black flex items-center gap-1"><MapPin size={16}/> จังหวัดประจำการหลัก</label>
-                      <select 
-                        value={formData.province}
-                        onChange={e => setFormData({...formData, province: e.target.value})}
-                        className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
-                      >
-                        {thailandProvinces.map(prov => (
-                          <option key={prov} value={prov}>{prov}</option>
-                        ))}
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black">จังหวัดประจำการหลัก</label>
+                      <select value={formData.province} onChange={e => setFormData({...formData, province: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
+                        {thailandProvinces.map(prov => (<option key={prov} value={prov}>{prov}</option>))}
                       </select>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="font-black text-sm text-black flex items-center gap-1"><Smile size={16}/> สถานะภาพ</label>
-                      <select 
-                        value={formData.marital_status}
-                        onChange={e => setFormData({...formData, marital_status: e.target.value})}
-                        className="w-full border-2 border-black p-3 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
-                      >
-                        {maritalStatusOptions.map(status => (
-                          <option key={status.value} value={status.value}>{status.label}</option>
-                        ))}
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black">สถานภาพ</label>
+                      <select value={formData.marital_status} onChange={e => setFormData({...formData, marital_status: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
+                        {maritalStatusOptions.map(status => (<option key={status.value} value={status.value}>{status.label}</option>))}
                       </select>
                     </div>
 
-                    {/* กล่องแสดงผลฟิลด์การเลือกอาชีพหลัก */}
-                    <div className="space-y-1.5 md:col-span-2 border-2 border-black p-4 rounded-2xl bg-gray-50/50 mt-2">
-                      <label className="font-black text-sm text-black flex items-center gap-1">
-                        <Briefcase size={16} /> บทบาทในเครือข่ายสัตว์เลี้ยง (อาชีพ)
-                      </label>
-                      <select 
-                        value={formData.community_role}
-                        onChange={e => setFormData({...formData, community_role: e.target.value})}
-                        className="w-full border-2 border-black rounded-xl p-3 font-bold bg-white focus:bg-white outline-none cursor-pointer"
-                      >
-                        {expertiseOptions.map(opt => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
+                    {/* 🏛️ ฟิลด์เลือกอาชีพหลัก (Occupation - ดึงโครงสร้างมาจากหน้าบัญชีหลักสอดคล้องกัน) */}
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black flex items-center gap-1"><Briefcase size={14}/> อาชีพหลักของคุณ</label>
+                      <select value={formData.occupation} onChange={e => setFormData({...formData, occupation: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
+                        {occupationOptions.map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                      </select>
+                    </div>
+
+                    {/* 🐾 ฟิลด์เลือกบทบาทในเครือข่ายสัตว์เลี้ยง */}
+                    <div className="space-y-1">
+                      <label className="font-black text-xs text-black flex items-center gap-1"><Sparkles size={14}/> บทบาทในเครือข่ายชุมชน</label>
+                      <select value={formData.community_role} onChange={e => setFormData({...formData, community_role: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
+                        {expertiseOptions.map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
                       </select>
                     </div>
 
                     {formData.community_role === 'other' && (
-                      <div className="md:col-span-2 space-y-1.5">
-                        <label className="font-black text-sm text-black">โปรดระบุอาชีพหรือบทบาทของคุณ</label>
-                        <input 
-                          type="text"
-                          value={formData.community_role_custom}
-                          onChange={e => setFormData({...formData, community_role_custom: e.target.value})}
-                          placeholder="เช่น ช่างภาพจิตอาสาช่วยเหลือศูนย์จร"
-                          className="w-full border-2 border-black p-3.5 rounded-xl font-bold outline-none"
-                        />
+                      <div className="md:col-span-2 space-y-1">
+                        <label className="font-black text-xs text-black">โปรดระบุบทบาทอาชีพเพิ่มเติม</label>
+                        <input type="text" value={formData.community_role_custom} onChange={e => setFormData({...formData, community_role_custom: e.target.value})} placeholder="เช่น ช่างภาพช่วยถ่ายรูปสัตว์พิการ" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
                       </div>
                     )}
 
-                    <Button 
-                      type="button"
-                      onClick={handleNextSubStep}
-                      className="md:col-span-2 mt-4 bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-2"
-                    >
-                      เลือกความสนใจต่อ ➔
+                    <Button type="button" onClick={handleNextSubStep} className="md:col-span-2 mt-4 bg-black text-white py-6 text-lg font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper transition-all flex items-center justify-center gap-2">
+                      เลือกความสนใจและวัตถุประสงค์ต่อ ➔
                     </Button>
                   </>
                 )}
 
-                {/* ── PROFILE SUB-STEP 2: วัตถุประสงค์และความสนใจ (แยกมาอยู่หน้าย่อยที่ 2) ── */}
+                {/* ── SUB-STEP 2: วัตถุประสงค์ / ความสนใจหลัก (แยกมาไว้หน้านี้อย่างสะอาดตา) ── */}
                 {profileSubStep === 2 && (
                   <>
-                    <div className="space-y-3 md:col-span-2 border-4 border-black p-6 rounded-2xl bg-wagashi-matcha/10 shadow-paper-sm">
-                      <label className="font-black text-lg text-black flex items-center gap-1.5 mb-1">
-                        <Sparkles size={20} className="text-amber-500 fill-amber-500"/> วัตถุประสงค์ / ความสนใจหลัก (เลือกได้มากกว่า 1 ข้อ)
-                      </label>
-                      <p className="text-xs font-bold text-gray-600 mb-2">
-                        เลือกสิ่งที่คุณต้องการใช้บนระบบ PobPet เพื่อให้ AI ซิงค์แมปข่าวสารหรือส่งแจ้งเตือนรอบพิกัดพื้นที่ได้ตรงใจคุณที่สุด
-                      </p>
-                      <div className="grid grid-cols-1 gap-3">
+                    <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-wagashi-matcha/10 shadow-paper-sm">
+                      <label className="font-black text-base text-black flex items-center gap-1.5"><Heart size={16} className="fill-black"/> สิ่งที่คุณสนใจและวัตถุประสงค์หลัก (เลือกได้หลายข้อ)</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[350px] overflow-y-auto pr-1">
                         {interestOptions.map(opt => (
-                          <label key={opt.value} className="flex items-center gap-4 bg-white border-2 border-black p-4 rounded-xl cursor-pointer select-none font-bold text-sm md:text-base hover:bg-gray-50 transition-all shadow-paper-sm">
-                            <input 
-                              type="checkbox"
-                              checked={formData.interests.includes(opt.value)}
-                              onChange={() => handleInterestChange(opt.value)}
-                              className="w-5 h-5 accent-black rounded border-black focus:ring-0 cursor-pointer"
-                            />
+                          <label key={opt.value} className="flex items-center gap-2.5 bg-white border border-black p-2.5 rounded-xl cursor-pointer select-none font-bold text-xs hover:bg-gray-50 shadow-paper-sm">
+                            <input type="checkbox" checked={formData.interests.includes(opt.value)} onChange={() => handleInterestChange(opt.value)} className="w-4 h-4 accent-black rounded border-black" />
                             {opt.label}
                           </label>
                         ))}
                       </div>
                     </div>
-                    
-                    <p className="text-[11px] font-bold text-gray-500 mt-1 italic md:col-span-2 ml-1">
-                      * ข้อมูลความสนใจนี้จะช่วยให้เราสร้างเครือข่ายความช่วยเหลือในชุมชนได้ปลอดภัยและแข็งแกร่งขึ้น
-                    </p>
 
-                    <div className="md:col-span-2 grid grid-cols-3 gap-3 mt-4">
-                      <Button 
-                        type="button"
-                        onClick={() => { setMessage(null); setProfileSubStep(1); }}
-                        variant="outline"
-                        className="col-span-1 border-2 border-black py-8 font-black rounded-2xl bg-white hover:bg-gray-100 text-black flex items-center justify-center gap-1"
-                      >
-                        <ArrowLeft size={16} /> ย้อนกลับ
-                      </Button>
-                      
-                      <Button 
-                        type="submit"
-                        disabled={loading || uploading} 
-                        className="col-span-2 bg-black text-white py-8 text-lg md:text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50"
-                      >
-                        {loading || uploading ? <Loader2 className="animate-spin mx-auto" /> : "บันทึกข้อมูลสำเร็จ & รับ Magic Link"}
+                    <div className="md:col-span-2 grid grid-cols-3 gap-3 mt-2">
+                      <Button type="button" onClick={() => setProfileSubStep(1)} variant="outline" className="col-span-1 border-2 border-black py-7 font-black rounded-2xl bg-white hover:bg-gray-100 text-black flex items-center justify-center gap-1"><ArrowLeft size={14} /> ย้อนกลับ</Button>
+                      <Button type="submit" disabled={loading || uploading} className="col-span-2 bg-black text-white py-7 text-lg font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper transition-all">
+                        {loading || uploading ? <Loader2 className="animate-spin mx-auto" /> : "💾 ยืนยันข้อมูลสำเร็จ & รับ Magic Link"}
                       </Button>
                     </div>
                   </>
                 )}
               </form>
-              
-              <Button 
-                onClick={() => { setStep('email'); setProfileSubStep(1); setMessage(null); }} 
-                variant="ghost" 
-                className="mt-6 text-gray-500 font-bold hover:text-black hover:bg-gray-100 rounded-xl px-4 py-2"
-              >
-                ← ยกเลิกและกลับไปหน้าแรก
-              </Button>
+              <Button onClick={() => { setStep('email'); setProfileSubStep(1); setMessage(null); }} variant="ghost" className="mt-4 text-gray-500 font-bold hover:text-black rounded-xl px-4 py-2">← ยกเลิกและกลับไปหน้าแรก</Button>
             </motion.div>
           )}
         </AnimatePresence>
 
         {message && (
-          <div className={`mt-6 p-4 rounded-xl border-2 border-black font-bold flex items-center gap-2 text-left ${
-            message.type === 'error' ? 'bg-red-50 border-red-400 text-red-900' : 'bg-green-50 border-green-400 text-green-900'
-          }`}>
+          <div className={`mt-6 p-4 rounded-xl border-2 border-black font-bold flex items-center gap-2 text-left ${message.type === 'error' ? 'bg-red-50 border-red-400 text-red-900' : 'bg-green-50 border-green-400 text-green-900'}`}>
             {message.type === 'error' ? <AlertCircle size={18} className="shrink-0 text-red-600" /> : <CheckCircle2 size={18} className="shrink-0 text-green-600" />}
             <span className="text-sm">{message.text}</span>
           </div>
         )}
-        
       </div>
     </div>
   )
