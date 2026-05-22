@@ -1,575 +1,517 @@
 'use client'
-// app/(main)/pets/new/page.tsx
+// app/(main)/pets/new/page.tsx (V2)
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { createBrowserClient }       from '@supabase/ssr'
 import { useRouter }                 from 'next/navigation'
+import Image                         from 'next/image'
 import {
   Upload, Sparkles, Loader2, ChevronRight,
   PawPrint, Heart, Home, Trophy, Search,
   X, Plus, AlertCircle
 } from 'lucide-react'
 
-// ── Types ─────────────────────────────────────────────────────
 type Mode = 'mode_lost' | 'mode_mating' | 'mode_adoption' | 'mode_showcase'
 
 const SPECIES_OPTIONS = [
   '', 'สุนัข', 'แมว', 'นกสวยงาม', 'ปลาสวยงาม',
   'กระต่าย', 'แฮมสเตอร์', 'เต่า', 'งู', 'กิ้งก่า', 'อื่นๆ',
 ]
+
 const GENDER_OPTIONS = [
-  { value: '', label: '-- เลือก --' },
+  { value: '', label: '-- เลือก เพศ --' },
   { value: 'male',    label: '♂ เพศผู้' },
   { value: 'female',  label: '♀ เพศเมีย' },
   { value: 'unknown', label: '❓ ไม่ทราบ' },
 ]
+
 const MODE_CONFIG: { key: Mode; icon: any; label: string; color: string; desc: string }[] = [
   { key: 'mode_lost',     icon: Search, label: 'ประกาศหาย',     color: 'blue',   desc: 'เปิดเมื่อน้องหาย AI จะช่วยหาคู่ Match' },
-  { key: 'mode_mating',   icon: Heart,  label: 'หาคู่ให้น้อง',  color: 'pink',   desc: 'จับคู่กับสัตว์ที่ต้องการผสมพันธุ์' },
-  { key: 'mode_adoption', icon: Home,   label: 'หาบ้านให้น้อง', color: 'green',  desc: 'ให้คนอื่นมารับเลี้ยงน้องต่อ' },
-  { key: 'mode_showcase', icon: Trophy, label: 'โชว์โปรไฟล์',   color: 'amber',  desc: 'แสดงในฟีดและชมรมสัตว์เลี้ยง' },
+  { key: 'mode_mating',   icon: Heart,  label: 'หาคู่ให้น้อง',  color: 'pink',   desc: 'ตามหาคู่สายพันธุ์เดียวกัน' },
+  { key: 'mode_adoption', icon: Home,   label: 'หาบ้านใหม่',    color: 'green',  desc: 'ส่งต่อความรัก หาบ้านที่อบอุ่นให้น้อง' },
+  { key: 'mode_showcase', icon: Trophy, label: 'โชว์โปรไฟล์',   color: 'amber',  desc: 'พื้นที่อวดความน่ารัก สะสมทำเนียบ' },
 ]
 
-const MODE_COLOR: Record<string, string> = {
-  blue:  'border-blue-400 bg-blue-50 text-blue-700',
-  pink:  'border-pink-400 bg-pink-50 text-pink-700',
-  green: 'border-green-400 bg-green-50 text-green-700',
-  amber: 'border-amber-400 bg-amber-50 text-amber-700',
-}
+// ── รายชื่อ 77 จังหวัดของประเทศไทย เรียงตามตัวอักษร ──────────────────
+const THAI_PROVINCES = [
+  "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", 
+  "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", 
+  "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", 
+  "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", 
+  "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", 
+  "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", 
+  "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", 
+  "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", 
+  "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+].sort((a, b) => a.localeCompare(b, 'th'))
 
-// ── Main ─────────────────────────────────────────────────────
 export default function NewPetPage() {
-  const router  = useRouter()
+  const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), [])
 
-  // ── Form state ──────────────────────────────────────────
+  // ── States ──────────────────────────────────────────────────
+  const [mode, setMode] = useState<Mode>('mode_lost')
   const [form, setForm] = useState({
-    name:           '',
-    species:        '',
-    breed:          '',
-    gender:         '',
-    color:          '',
-    birthday:       '',
-    weight:         '',
-    microchip_id:   '',
-    special_marks:  '',
-    ai_caption:     '',
-    father_name:    '',
-    mother_name:    '',
+    name: '',
+    species: '',
+    breed: '',
+    gender: '',
+    province: '',
+    district: '',
+    sub_district: '',
+    details: '',
+    reward_amount: '',
+    contact_name: '',
+    contact_tel: '',
     emergency_name: '',
-    emergency_tel:  '',
+    emergency_tel: '',
   })
 
-  const [modes, setModes] = useState<Record<Mode, boolean>>({
-    mode_lost: false, mode_mating: false,
-    mode_adoption: false, mode_showcase: false,
-  })
+  const [images, setImages] = useState<{ file: File; preview: string }[]>([])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [atLimit, setAtLimit] = useState(false)
+  const [planChecked, setPlanChecked] = useState(false)
 
-  // ── Image state ─────────────────────────────────────────
-  const [images,        setImages]        = useState<File[]>([])
-  const [previews,      setPreviews]      = useState<string[]>([])
-  const [primaryIndex,  setPrimaryIndex]  = useState(0)
-  const fileRef = useRef<HTMLInputElement>(null)
-
-  // ── UI state ────────────────────────────────────────────
-  const [saving,         setSaving]         = useState(false)
-  const [captioning,     setCaptioning]     = useState(false)
-  const [error,          setError]          = useState('')
-  const [planInfo,       setPlanInfo]       = useState<{ plan: string; limit: number; current: number } | null>(null)
-  const [planChecked,    setPlanChecked]    = useState(false)
-
-  // ── Check plan and profiles identity on mount ──
+  // ── ตรวจสอบโควตาขีดจำกัดสัตว์เลี้ยง (Pet Limit) ของ User ──────────────────
   useEffect(() => {
-    const checkPlanAndProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { 
-        router.push('/login?next=/pets/new')
-        return 
-      }
-      
-      // ตรวจสอบว่ามีแถวข้อมูลใน public.profiles รองรับ Foreign Key แล้วหรือยัง
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', session.user.id)
-        .single()
-
-      if (!profile) {
-        setError('ไม่พบข้อมูลโปรไฟล์ผู้ใช้งานในระบบตารางหลัก (public.profiles) กรุณาติดต่อผู้ดูแลระบบ หรือลองออกจากระบบแล้วเข้าใหม่ด้วย LINE อีกครั้งค่ะ')
-        setPlanChecked(true)
-        return
-      }
-      
+    async function checkLimit() {
       try {
-        const res = await fetch('/api/subscriptions/status')
-        const data = await res.json()
-        setPlanInfo(data)
-        setPlanChecked(true)
-        if (data.current >= data.limit) {
-          setError(`คุณมีโปรไฟล์น้อง ${data.current} ตัวแล้ว (สูงสุด ${data.limit} ตัวสำหรับแพ็คเกจ ${data.plan === 'free' ? 'Free' : 'Member'})`)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          setError('กรุณาล็อกอินก่อนใช้งานค่ะ')
+          return
         }
+
+        // ดึงขีดจำกัดจากตาราง subscriptions ของผู้ใช้
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('pet_limit')
+          .eq('user_id', user.id)
+          .single()
+
+        const limit = sub?.pet_limit || 1 // ค่าเริ่มต้น Free แพลนคือ 1 ตัว
+
+        // นับจำนวนสัตว์เลี้ยงปัจจุบันที่ยังใช้งานอยู่ (ไม่ใช่ archived)
+        const { count } = await supabase
+          .from('pets')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .not('status', 'eq', 'archived')
+
+        if ((count || 0) >= limit) {
+          setAtLimit(true)
+          setError(`คุณลงทะเบียนน้องครบโควตา ${limit} ตัวแล้วค่ะ ต้องการเพิ่มพื้นที่กรุณาซื้อ Add-on`)
+        }
+        setPlanChecked(true)
       } catch (err) {
-        console.error('Failed to load plan info', err)
+        console.error(err)
+        setPlanChecked(true)
       }
     }
-    checkPlanAndProfile()
-  }, [router, supabase])
+    checkLimit()
+  }, [supabase])
 
-  // ── Image handlers ──────────────────────────────────────
-  const maxPhotos = planInfo?.plan === 'member' ? 10 : 3
+  // ── Handle จัดการรูปภาพ ─────────────────────────────────────────
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return
+    const files = Array.from(e.target.files)
+    
+    if (images.length + files.length > 5) {
+      alert('อัปโหลดรูปภาพรวมกันได้สูงสุด 5 รูปค่ะ')
+      return
+    }
 
-  const handleImages = (files: FileList | null) => {
-    if (!files) return
-    const remaining = maxPhotos - images.length
-    const newFiles  = Array.from(files).slice(0, remaining)
-    setImages(prev  => [...prev, ...newFiles])
-    newFiles.forEach(f => {
-      const reader = new FileReader()
-      reader.onload = e => setPreviews(prev => [...prev, e.target?.result as string])
-      reader.readAsDataURL(f)
+    const newImages = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }))
+    setImages(prev => [...prev, ...newImages])
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => {
+      const target = prev[index]
+      if (target) URL.revokeObjectURL(target.preview)
+      return prev.filter((_, i) => i !== index)
     })
-  }
+  };
 
-  const removeImage = (i: number) => {
-    setImages(prev => prev.filter((_, idx) => idx !== i))
-    setPreviews(prev => prev.filter((_, idx) => idx !== i))
-    if (primaryIndex >= i && primaryIndex > 0) setPrimaryIndex(p => p - 1)
-  }
-
-  // ── AI Caption ──────────────────────────────────────────
-  const generateCaption = async () => {
-    if (!previews[primaryIndex]) return
-    setCaptioning(true)
-    try {
-      const base64 = previews[primaryIndex].split(',')[1]
-      const res    = await fetch('/api/pets/caption', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          imageBase64: base64,
-          petName:     form.name,
-          species:     form.species,
-        }),
-      })
-      const data = await res.json()
-      if (data.caption) setForm(f => ({ ...f, ai_caption: data.caption }))
-    } finally {
-      setCaptioning(false)
-    }
-  }
-
-  // ── Upload images to Supabase Storage ───────────────────
-  const uploadImages = async (petId: string, userId: string) => {
-    const urls: { storage_url: string; is_primary: boolean }[] = []
-    for (let i = 0; i < images.length; i++) {
-      const file     = images[i]
-      const ext      = file.name.split('.').pop()
-      const path     = `pets/${userId}/${petId}/${Date.now()}-${i}.${ext}`
-      const { error: upErr } = await supabase.storage
-        .from('pet-images').upload(path, file)
-      if (upErr) continue
-      const { data: { publicUrl } } = supabase.storage
-        .from('pet-images').getPublicUrl(path)
-      urls.push({ storage_url: publicUrl, is_primary: i === primaryIndex })
-    }
-    return urls
-  }
-
-  // ── Save ────────────────────────────────────────────────
+  // ── ฟังก์ชันบันทึกข้อมูลและส่งเข้าฐานข้อมูลอย่างสมบูรณ์ ──────────────────
   const handleSave = async () => {
-    if (!form.name.trim()) { setError('กรุณาระบุชื่อน้อง'); return }
-    if (!form.species)     { setError('กรุณาเลือกประเภทสัตว์'); return }
-    setSaving(true); setError('')
+    if (saving || atLimit) return
+    setError(null)
+
+    // Validation ตรวจสอบข้อมูลจำเป็น
+    if (!form.species) return setError('กรุณาเลือกประเภทสัตว์เลี้ยงค่ะ')
+    if (!form.province) return setError('กรุณาเลือกจังหวัดที่เกิดเหตุค่ะ')
+    if (!form.contact_tel) return setError('กรุณากรอกเบอร์โทรศัพท์ผู้ติดต่อหลักค่ะ')
+    if (images.length === 0) return setError('กรุณาอัปโหลดรูปภาพน้องอย่างน้อย 1 รูป เพื่อช่วยในการจดจำของ AI ค่ะ')
+
+    setSaving(true)
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/login'); return }
-      
-      // ✅ ดึงและตรวจสอบ ID จากตาราง public.profiles โดยตรง เพื่อป้องกันปัญหาสิทธิ์ Foreign Key บกพร่อง
-      const { data: profile, error: profileErr } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', session.user.id)
-        .single()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('ไม่พบข้อมูลผู้ใช้งาน กรุณาล็อกอินใหม่อีกครั้ง')
 
-      if (profileErr || !profile) {
-        throw new Error('ไม่สามารถบันทึกข้อมูลได้ เนื่องจากระบบตรวจไม่พบโปรไฟล์หลักของคุณในฐานข้อมูล (public.profiles) กรุณาลองล็อกเอาต์แล้วล็อกอินเข้าสู่ระบบใหม่อีกครั้งค่ะ')
+      const uploadedUrls: string[] = []
+
+      // 1. อัปโหลดรูปภาพเข้า Supabase Storage (Bucket: pet-images)
+      for (const img of images) {
+        const fileExt = img.file.name.split('.').pop()
+        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+        
+        const { error: uploadErr, data } = await supabase.storage
+          .from('pet-images')
+          .upload(fileName, img.file, { cacheControl: '3600', upsert: true })
+
+        if (uploadErr) throw uploadErr
+
+        // ดึง Public URL ของรูปภาพออกมา
+        const { data: { publicUrl } } = supabase.storage
+          .from('pet-images')
+          .getPublicUrl(fileName)
+
+        uploadedUrls.push(publicUrl)
       }
 
-      const userId = profile.id
-
-      // Insert pet
-      const { data: pet, error: petErr } = await supabase
+      // 2. บันทึกแถวข้อมูลโครงสร้างลงตาราง 'pets' ในฐานข้อมูลจริง
+      const { data: insertedPet, error: insertErr } = await supabase
         .from('pets')
         .insert({
-          user_id:        userId, // ปลอดภัย 100% เพราะยืนยันจาก profiles ชัดเจนแล้ว
-          name:           form.name.trim(),
-          species:        form.species,
-          breed:          form.breed   || null,
-          gender:         form.gender  || null,
-          color:          form.color   || null,
-          birthday:       form.birthday || null,
-          weight:         form.weight ? parseFloat(form.weight) : null,
-          microchip_id:   form.microchip_id   || null,
-          special_marks:  form.special_marks  || null,
-          ai_caption:     form.ai_caption     || null,
-          father_name:    form.father_name    || null,
-          mother_name:    form.mother_name    || null,
-          emergency_contact: (form.emergency_name || form.emergency_tel) ? {
-            name: form.emergency_name,
-            tel:  form.emergency_tel,
-          } : null,
-          ...modes,
-          status: 'active',
+          user_id: user.id,
+          name: form.name || 'ไม่ทราบชื่อ',
+          species: form.species,
+          breed: form.breed || null,
+          gender: form.gender || 'unknown',
+          province: form.province,
+          district: form.district || null,
+          sub_district: form.sub_district || null,
+          details: form.details || null,
+          reward_amount: form.reward_amount ? parseFloat(form.reward_amount) : 0,
+          mode: mode,
+          images: uploadedUrls, // อาเรย์ URL รูปภาพ
+          status: mode === 'mode_lost' ? 'lost' : 'active',
+          contact_name: form.contact_name || null,
+          contact_tel: form.contact_tel,
+          emergency_name: form.emergency_name || null,
+          emergency_tel: form.emergency_tel || null
         })
-        .select('id')
+        .select()
         .single()
 
-      if (petErr) throw petErr
+      if (insertErr) throw insertErr
 
-      const petId = pet.id
+      // บันทึกสำเร็จ ล้าง Object URL เพื่อคืน Memory เบราว์เซอร์
+      images.forEach(img => URL.revokeObjectURL(img.preview))
 
-      // Upload images
-      if (images.length > 0) {
-        const imageUrls = await uploadImages(petId, userId)
-        if (imageUrls.length > 0) {
-          await supabase.from('pet_images').insert(
-            imageUrls.map(u => ({ pet_id: petId, ...u }))
-          )
-        }
-      }
+      // นำทางผู้ใช้ไปยังหน้ารายละเอียดของน้องตัวที่เพิ่งกดสร้างขึ้น (เพื่อกระตุ้นให้ AI Matcher แสดงผลหน้าดีเทล)
+      router.push(`/pets/${insertedPet.id}`)
+      router.refresh()
 
-      router.push(`/pets/${petId}?created=true`)
-
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด'
-      setError(msg)
+    } catch (err: any) {
+      console.error('[Create Pet Error]:', err)
+      setError(err.message || 'เกิดข้อผิดพลาดระหว่างบันทึกข้อมูล กรุณาลองใหม่อีกครั้งค่ะ')
     } finally {
       setSaving(false)
     }
-  }
-
-  const atLimit = planInfo && planInfo.current >= planInfo.limit
+  };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10 mb-20">
-
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-black mb-1 flex items-center gap-2">
-          <PawPrint size={28} /> สร้างโปรไฟล์น้อง
+    <div className="max-w-2xl mx-auto px-4 py-8 mb-24">
+      {/* ── ส่วนหัวข้อเว็บนวัตกรรมกระดาษยับ ── */}
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-black tracking-tight text-ori-ink flex items-center justify-center gap-2">
+          <PawPrint size={36} className="text-black" />
+          สร้างประกาศใหม่
         </h1>
-        <p className="text-ori-ink-l font-bold text-sm">
-          บันทึกข้อมูลน้องไว้ ช่วย AI จับคู่ได้แม่นขึ้นถ้าน้องหาย
+        <p className="text-sm font-bold text-ori-ink-l mt-2">
+          เลือกหมวดหมู่ที่ต้องการและกรอกข้อมูลน้องให้ครบถ้วนเพื่อให้ AI เริ่มสแกนโครงข่ายทันที
         </p>
       </div>
 
-      {/* Limit or Foreign Key profile warning */}
-      {planChecked && (atLimit || error) && (
-        <div className="mb-6 p-4 bg-red-50 border-2 border-red-400
-          rounded-2xl flex items-start gap-3">
-          <AlertCircle size={20} className="text-red-600 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-black text-red-800">{error}</p>
-            {atLimit && (
-              <a href="/pricing"
-                className="text-xs font-black text-red-600 underline mt-1 inline-block">
-                อัปเกรด Member เพื่อเพิ่มได้ถึง 3 ตัว →
-              </a>
-            )}
-          </div>
-        </div>
-      )}
+      {/* ── ช่องสลับประเภทโหมดประกาศ (Mode Selector Cards) ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        {MODE_CONFIG.map(cfg => {
+          const Icon = cfg.icon
+          const isSelected = mode === cfg.key
+          return (
+            <button
+              key={cfg.key}
+              onClick={() => !saving && setMode(cfg.key)}
+              type="button"
+              className={`p-4 border-4 rounded-2xl flex flex-col items-center text-center gap-2 transition-all ${
+                isSelected
+                  ? 'border-black bg-white shadow-paper translate-y-0'
+                  : 'border-gray-200 bg-gray-50/50 hover:border-gray-400 opacity-70'
+              }`}
+            >
+              <div className={`p-2 rounded-xl border-2 border-black bg-${cfg.color}-100`}>
+                <Icon size={20} className="text-black" />
+              </div>
+              <p className="font-black text-sm">{cfg.label}</p>
+            </button>
+          )
+        })}
+      </div>
 
-      <div className={`space-y-6 ${atLimit || (planChecked && error && !atLimit) ? 'opacity-50 pointer-events-none' : ''}`}>
+      {/* คำอธิบายสั้นขยายความของโหมดที่เลือก */}
+      <div className="p-4 bg-gray-50 border-2 border-black rounded-2xl mb-6 flex items-start gap-2">
+        <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5" />
+        <p className="text-xs font-bold text-gray-600">
+          {MODE_CONFIG.find(c => c.key === mode)?.desc}
+        </p>
+      </div>
 
-        {/* ── รูปภาพ ── */}
-        <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
-          <h2 className="font-black text-lg mb-4 flex items-center justify-between">
-            <span>📸 รูปภาพน้อง</span>
-            <span className="text-sm font-bold text-ori-ink-l">
-              {images.length}/{maxPhotos} รูป
-            </span>
+      <div className="space-y-6">
+        {/* ── Section อัปโหลดรูปภาพน้อง ── */}
+        <div className="p-5 border-4 border-black rounded-3xl bg-white shadow-paper-sm space-y-4">
+          <h2 className="font-black text-lg text-ori-ink flex items-center gap-1.5">
+            🖼️ รูปภาพของน้อง ({images.length}/5) <span className="text-red-500 text-xs font-bold">*</span>
           </h2>
 
-          {/* Previews */}
-          {previews.length > 0 && (
-            <div className="flex flex-wrap gap-3 mb-4">
-              {previews.map((src, i) => (
-                <div key={i} className="relative">
-                  <div
-                    onClick={() => setPrimaryIndex(i)}
-                    className={`w-20 h-20 rounded-xl overflow-hidden border-4 cursor-pointer
-                      transition-all ${i === primaryIndex
-                        ? 'border-ori-orange shadow-paper-sm'
-                        : 'border-gray-200 hover:border-gray-400'
-                      }`}
-                  >
-                    <img src={src} alt="" className="w-full h-full object-cover" />
-                  </div>
-                  {i === primaryIndex && (
-                    <div className="absolute -top-1.5 -left-1.5 bg-ori-orange
-                      text-white text-[9px] font-black px-1.5 py-0.5
-                      rounded-full border border-white">
-                      หลัก
-                    </div>
-                  )}
-                  <button onClick={() => removeImage(i)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500
-                      text-white rounded-full border-2 border-white
-                      flex items-center justify-center hover:bg-red-700">
-                    <X size={10} />
-                  </button>
-                </div>
-              ))}
-
-              {/* Add more */}
-              {images.length < maxPhotos && (
-                <button onClick={() => fileRef.current?.click()}
-                  className="w-20 h-20 rounded-xl border-4 border-dashed
-                    border-gray-300 hover:border-ori-ink flex flex-col
-                    items-center justify-center text-gray-400
-                    hover:text-ori-ink transition-all">
-                  <Plus size={20} />
-                  <span className="text-[9px] font-bold mt-0.5">เพิ่ม</span>
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Drop zone */}
-          {previews.length === 0 && (
-            <div
-              onClick={() => fileRef.current?.click()}
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => { e.preventDefault(); handleImages(e.dataTransfer.files) }}
-              className="border-4 border-dashed border-gray-300 rounded-2xl
-                min-h-[120px] flex flex-col items-center justify-center gap-2
-                cursor-pointer hover:border-ori-ink hover:bg-gray-50 transition-all"
-            >
-              <Upload size={32} className="text-gray-400" />
-              <p className="font-black text-sm">กดเพื่อเลือกรูปน้อง</p>
-              <p className="text-xs font-bold text-gray-400">
-                สูงสุด {maxPhotos} รูป · JPG, PNG
-              </p>
-            </div>
-          )}
-
-          <input ref={fileRef} type="file" multiple accept="image/*"
-            className="hidden"
-            onChange={e => handleImages(e.target.files)} />
-
-          {/* AI Caption */}
-          {previews.length > 0 && (
-            <div className="mt-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="font-black text-sm">
-                  🤖 คำบรรยาย AI (ช่วย Matching)
-                </label>
-                <button onClick={generateCaption} disabled={captioning}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs
-                    font-black bg-purple-100 text-purple-700 border border-purple-300
-                    rounded-xl hover:bg-purple-200 transition-all disabled:opacity-50">
-                  {captioning
-                    ? <Loader2 size={12} className="animate-spin" />
-                    : <Sparkles size={12} />
-                  }
-                  สร้างอัตโนมัติ
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+            {images.map((img, idx) => (
+              <div key={idx} className="relative aspect-square border-2 border-black rounded-xl overflow-hidden group bg-gray-100">
+                <Image src={img.preview} alt="preview" fill className="object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeImage(idx)}
+                  className="absolute top-1 right-1 p-1 bg-white border border-black rounded-full hover:bg-red-50"
+                >
+                  <X size={12} />
                 </button>
               </div>
-              <textarea
-                value={form.ai_caption}
-                onChange={e => setForm(f => ({ ...f, ai_caption: e.target.value }))}
-                placeholder="AI จะวิเคราะห์รูปหลักและสร้างคำบรรยายให้อัตโนมัติ หรือพิมพ์เองก็ได้"
-                rows={2}
-                className="ori-input resize-none text-sm"
-              />
-            </div>
-          )}
+            ))}
+
+            {images.length < 5 && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="aspect-square border-2 border-dashed border-gray-400 rounded-xl flex flex-col items-center justify-center gap-1 hover:border-black hover:bg-gray-50 transition-colors bg-gray-50/50"
+              >
+                <Upload size={20} className="text-gray-400" />
+                <span className="text-[10px] font-black text-gray-500">เพิ่มรูปภาพ</span>
+              </button>
+            )}
+          </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageChange}
+            accept="image/*"
+            multiple
+            className="hidden"
+          />
         </div>
 
-        {/* ── ข้อมูลพื้นฐาน ── */}
-        <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
-          <h2 className="font-black text-lg mb-4">🐾 ข้อมูลพื้นฐาน</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
+        {/* ── Section ข้อมูลจำเพาะของสัตว์เลี้ยง ── */}
+        <div className="p-5 border-4 border-black rounded-3xl bg-white shadow-paper-sm space-y-4">
+          <h2 className="font-black text-lg text-ori-ink">🐾 ข้อมูลลักษณะสัตว์เลี้ยง</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="font-black text-sm">ชื่อน้อง *</label>
-              <input value={form.name}
+              <label className="font-black text-sm">ชื่อน้อง (ถ้ามี)</label>
+              <input
+                type="text"
+                value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="เช่น บัตเตอร์, มะลิ"
-                className="ori-input" />
+                placeholder="เช่น น้องส้ม, หลงหลง"
+                className="ori-input"
+              />
             </div>
 
             <div className="space-y-1">
-              <label className="font-black text-sm">ประเภทสัตว์ *</label>
-              <select value={form.species}
+              <label className="font-black text-sm">ประเภท <span className="text-red-500">*</span></label>
+              <select
+                value={form.species}
                 onChange={e => setForm(f => ({ ...f, species: e.target.value }))}
-                className="ori-input bg-white cursor-pointer">
-                {SPECIES_OPTIONS.map(s => (
-                  <option key={s} value={s}>{s || '-- เลือก --'}</option>
+                className="ori-input bg-white"
+              >
+                {SPECIES_OPTIONS.map(opt => (
+                  <option key={opt} value={opt}>{opt === '' ? '-- เลือกประเภท --' : opt}</option>
                 ))}
               </select>
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-sm">สายพันธุ์</label>
-              <input value={form.breed}
+              <input
+                type="text"
+                value={form.breed}
                 onChange={e => setForm(f => ({ ...f, breed: e.target.value }))}
-                placeholder="เช่น โกลเด้น, เปอร์เซีย"
-                className="ori-input" />
+                placeholder="เช่น ชิสุ, เปอร์เซีย (ระบุหรือไม่ก็ได้)"
+                className="ori-input"
+              />
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-sm">เพศ</label>
-              <select value={form.gender}
+              <select
+                value={form.gender}
                 onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
-                className="ori-input bg-white cursor-pointer">
+                className="ori-input bg-white"
+              >
                 {GENDER_OPTIONS.map(g => (
                   <option key={g.value} value={g.value}>{g.label}</option>
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* ปรับปรุงฟิลด์รางวัลแสดงผลตามความจำเป็นเฉพาะโหมดสัตว์หาย */}
+          {mode === 'mode_lost' && (
+            <div className="space-y-1 pt-2 animate-fadeIn">
+              <label className="font-black text-sm flex items-center gap-1 text-ori-yellow-d">
+                💰 สินน้ำใจ / เงินรางวัลนำส่ง (บาท)
+              </label>
+              <input
+                type="number"
+                value={form.reward_amount}
+                onChange={e => setForm(f => ({ ...f, reward_amount: e.target.value }))}
+                placeholder="0 (ใส่จำนวนเงิน หรือเว้นว่างไว้หากไม่มีรางวัล)"
+                className="ori-input border-ori-yellow focus:ring-ori-yellow"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* ── Section พิกัดพื้นที่ปักหมุดเกิดเหตุ ── */}
+        <div className="p-5 border-4 border-black rounded-3xl bg-white shadow-paper-sm space-y-4">
+          <h2 className="font-black text-lg text-ori-ink">📍 พื้นที่และสถานที่เกิดเหตุ</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* ดรอปดาวน์ 77 จังหวัดที่เปลี่ยนใหม่ตามสั่ง */}
+            <div className="space-y-1">
+              <label className="font-black text-sm">จังหวัด <span className="text-red-500">*</span></label>
+              <select
+                value={form.province}
+                onChange={e => setForm(f => ({ ...f, province: e.target.value }))}
+                className="ori-input bg-white"
+              >
+                <option value="">-- เลือกจังหวัด --</option>
+                {THAI_PROVINCES.map(prov => (
+                  <option key={prov} value={prov}>{prov}</option>
+                ))}
+              </select>
+            </div>
 
             <div className="space-y-1">
-              <label className="font-black text-sm">สี / ลักษณะขน</label>
-              <input value={form.color}
-                onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
-                placeholder="เช่น สีน้ำตาลทอง มีจุดขาวที่อก"
-                className="ori-input" />
+              <label className="font-black text-sm">อำเภอ / เขต</label>
+              <input
+                type="text"
+                value={form.district}
+                onChange={e => setForm(f => ({ ...f, district: e.target.value }))}
+                placeholder="เช่น เมือง, ด่านขุนทด"
+                className="ori-input"
+              />
             </div>
 
             <div className="space-y-1">
-              <label className="font-black text-sm">วันเกิด</label>
-              <input type="date" value={form.birthday}
-                onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))}
-                className="ori-input" />
+              <label className="font-black text-sm">ตำบล / แขวง</label>
+              <input
+                type="text"
+                value={form.sub_district}
+                onChange={e => setForm(f => ({ ...f, sub_district: e.target.value }))}
+                placeholder="เช่น ในเมือง, หินดาด"
+                className="ori-input"
+              />
             </div>
+          </div>
 
-            <div className="space-y-1">
-              <label className="font-black text-sm">น้ำหนัก (กก.)</label>
-              <input type="number" step="0.1" value={form.weight}
-                onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
-                placeholder="0.0"
-                className="ori-input" />
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-black text-sm">เลขไมโครชิป</label>
-              <input value={form.microchip_id}
-                onChange={e => setForm(f => ({ ...f, microchip_id: e.target.value }))}
-                placeholder="15 หลัก (ถ้ามี)"
-                className="ori-input" />
-            </div>
-
-            <div className="sm:col-span-2 space-y-1">
-              <label className="font-black text-sm">ตำหนิพิเศษ</label>
-              <input value={form.special_marks}
-                onChange={e => setForm(f => ({ ...f, special_marks: e.target.value }))}
-                placeholder="เช่น แผลเป็นที่ขาซ้าย หูขาดเล็กน้อย ลายพิเศษ"
-                className="ori-input" />
-            </div>
+          <div className="space-y-1">
+            <label className="font-black text-sm">รายละเอียดเพิ่มเติม / จุดสังเกตเด่น</label>
+            <textarea
+              rows={3}
+              value={form.details}
+              onChange={e => setForm(f => ({ ...f, details: e.target.value }))}
+              placeholder="เช่น น้องมีปลอกคอสีแดง, ขนแหว่งที่ขาหลังซ้าย, เชื่องแต่ขี้กลัวตื่นตระหนกง่าย"
+              className="ori-input resize-none"
+            />
           </div>
         </div>
 
-        {/* ── Mode ── */}
-        <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
-          <h2 className="font-black text-lg mb-1">🔀 Mode</h2>
-          <p className="text-sm font-bold text-ori-ink-l mb-4">
-            เปิดได้หลาย Mode พร้อมกัน · โปรไฟล์จะแสดงต่อสาธารณะเมื่อเปิด Mode
-          </p>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {MODE_CONFIG.map(m => {
-              const active = modes[m.key]
-              return (
-                <button key={m.key} type="button"
-                  onClick={() => setModes(prev => ({ ...prev, [m.key]: !prev[m.key] }))}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
-                    active
-                      ? MODE_COLOR[m.color]
-                      : 'border-gray-200 bg-gray-50 hover:border-gray-400'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <m.icon size={16} />
-                    <span className="font-black text-sm">{m.label}</span>
-                    {active && <span className="ml-auto text-xs font-black">✓ เปิด</span>}
-                  </div>
-                  <p className="text-xs font-bold opacity-70">{m.desc}</p>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* ── ประวัติพ่อแม่ ── */}
-        <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
-          <h2 className="font-black text-lg mb-4">🧬 ประวัติพ่อ-แม่ (ไม่บังคับ)</h2>
-          <div className="grid sm:grid-cols-2 gap-4">
+        {/* ── Section ข้อมูลช่องทางการติดต่อ ── */}
+        <div className="p-5 border-4 border-black rounded-3xl bg-white shadow-paper-sm space-y-4">
+          <h2 className="font-black text-lg text-ori-ink">📞 ข้อมูลผู้ติดต่อ</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="font-black text-sm">ชื่อพ่อ</label>
-              <input value={form.father_name}
-                onChange={e => setForm(f => ({ ...f, father_name: e.target.value }))}
-                placeholder="ชื่อพ่อน้อง"
-                className="ori-input" />
+              <label className="font-black text-sm">ชื่อผู้ติดต่อหลัก</label>
+              <input
+                type="text"
+                value={form.contact_name}
+                onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))}
+                placeholder="ชื่อของคุณ"
+                className="ori-input"
+              />
             </div>
-            <div className="space-y-1">
-              <label className="font-black text-sm">ชื่อแม่</label>
-              <input value={form.mother_name}
-                onChange={e => setForm(f => ({ ...f, mother_name: e.target.value }))}
-                placeholder="ชื่อแม่น้อง"
-                className="ori-input" />
-            </div>
-          </div>
-        </div>
 
-        {/* ── ผู้ติดต่อฉุกเฉิน ── */}
-        <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
-          <h2 className="font-black text-lg mb-1">🆘 ผู้ติดต่อฉุกเฉิน</h2>
-          <p className="text-sm font-bold text-ori-ink-l mb-4">
-            ถ้าติดต่อเจ้าของไม่ได้ คนที่พบน้องจะเห็นข้อมูลนี้
-          </p>
-          <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="font-black text-sm">ชื่อ</label>
-              <input value={form.emergency_name}
+              <label className="font-black text-sm">เบอร์โทรศัพท์ <span className="text-red-500">*</span></label>
+              <input
+                type="tel"
+                value={form.contact_tel}
+                onChange={e => setForm(f => ({ ...f, contact_tel: e.target.value }))}
+                placeholder="0xx-xxx-xxxx"
+                className="ori-input"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-black text-sm">ชื่อผู้ติดต่อสำรอง (ถ้ามี)</label>
+              <input
+                type="text"
+                value={form.emergency_name}
                 onChange={e => setForm(f => ({ ...f, emergency_name: e.target.value }))}
-                placeholder="ชื่อผู้ติดต่อสำรอง"
-                className="ori-input" />
+                placeholder="ชื่อบุคคลสำรอง"
+                className="ori-input"
+              />
             </div>
+
             <div className="space-y-1">
-              <label className="font-black text-sm">เบอร์โทร</label>
-              <input value={form.emergency_tel}
+              <label className="font-black text-sm">เบอร์โทรศัพท์สำรอง</label>
+              <input
+                type="tel"
+                value={form.emergency_tel}
                 onChange={e => setForm(f => ({ ...f, emergency_tel: e.target.value }))}
-                placeholder="08x-xxx-xxxx"
-                className="ori-input" />
+                placeholder="0xx-xxx-xxxx"
+                className="ori-input"
+              />
             </div>
           </div>
         </div>
 
-        {/* ── Error ── */}
-        {error && !atLimit && (
-          <div className="p-4 bg-red-50 border-2 border-red-400 rounded-2xl
-            flex items-center gap-3 text-red-800">
+        {/* ── แท่งแสดง Error แถบสีแดงเมื่อเงื่อนไขไม่ผ่าน ── */}
+        {error && (
+          <div className="p-4 bg-red-50 border-2 border-red-400 rounded-2xl flex items-center gap-3 text-red-800 animate-shake">
             <AlertCircle size={18} className="shrink-0" />
             <span className="font-bold text-sm">{error}</span>
           </div>
         )}
 
-        {/* ── Save ── */}
-        <button onClick={handleSave} disabled={saving || !!atLimit || (planChecked && !!error && !atLimit)}
-          className="w-full py-5 bg-ori-ink text-white font-black text-lg
-            rounded-2xl border-4 border-ori-ink shadow-paper
-            hover:shadow-paper-lg hover:-translate-y-1 transition-all
-            flex items-center justify-center gap-2 disabled:opacity-50
-            disabled:cursor-not-allowed disabled:translate-y-0">
-          {saving
-            ? <><Loader2 size={20} className="animate-spin" /> กำลังบันทึก...</>
-            : <><PawPrint size={20} /> บันทึกโปรไฟล์น้อง <ChevronRight size={18} /></>
-          }
+        {/* ── ปุ่มกดเซฟบันทึกประกาศ ── */}
+        <button
+          onClick={handleSave}
+          disabled={saving || !planChecked || atLimit}
+          className="w-full py-5 bg-black text-white font-black text-lg rounded-2xl border-4 border-black shadow-paper hover:shadow-paper-lg hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0"
+        >
+          {saving ? (
+            <>
+              <Loader2 size={20} className="animate-spin" />
+              กำลังประมวลผลและส่งข้อมูลเข้าฐานระบบ...
+            </>
+          ) : (
+            <>
+              <Sparkles size={20} className="text-ori-yellow" />
+              ลงประกาศและเปิดระบบ AI สแกนจับคู่คู่สำเร็จ
+            </>
+          )}
         </button>
       </div>
     </div>
