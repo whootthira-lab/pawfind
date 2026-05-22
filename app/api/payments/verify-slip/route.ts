@@ -84,7 +84,7 @@ export async function POST(req: Request) {
         'x-lib-api-key': apiKey
       },
       body: JSON.stringify({
-        image: data:image/jpeg;base64,${cleanBase64},
+        image: `data:image/jpeg;base64,${cleanBase64}`,
         branch_id: branchId,
         log: true
       })
