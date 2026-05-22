@@ -16,13 +16,35 @@ export async function GET(request: Request) {
 
       if (session?.user) {
         const userId = session.user.id
+        const userMeta = session.user.user_metadata // 🟢 ดึงกล่องข้อมูลฟอร์มที่กรอกมาจากหน้า Login
+
+        // ── 🌟 [เพิ่มฟังก์ชันที่มาที่ไป] ดึงข้อมูลจาก Metadata ลงตาราง profiles ทันที ──
+        if (userMeta?.pobpet_custom_registration) {
+          // ใช้ upsert เพื่อบันทึกข้อมูลทับหรือสร้างใหม่ตามไอดีผู้ใช้งาน ป้องกันข้อมูลว่างเปล่า (NULL)
+          await supabase.from('profiles').upsert({
+            id:             userId,
+            email:          session.user.email,
+            display_name:   userMeta.display_name || '',
+            first_name:     userMeta.first_name || null,
+            last_name:      userMeta.last_name || null,
+            birth_date:     userMeta.birth_date || null,
+            phone_number:   userMeta.phone_number || null,
+            province:       userMeta.province || 'กรุงเทพมหานคร',
+            gender:         userMeta.gender || 'unknown',
+            avatar_url:     userMeta.avatar_url || null,
+            occupation:     userMeta.occupation || null,
+            community_role: userMeta.community_role || 'general',
+            interests:      Array.isArray(userMeta.interests) ? userMeta.interests : [],
+            marital_status: userMeta.marital_status || 'single'
+          })
+        }
 
         // ── 1. สร้าง Free Subscription ถ้ายังไม่มี ──────────
         const { data: existingSub } = await supabase
           .from('subscriptions')
           .select('id, plan')
           .eq('user_id', userId)
-          .single()
+          .maybeSingle()
 
         if (!existingSub) {
           await supabase.from('subscriptions').insert({
@@ -37,7 +59,7 @@ export async function GET(request: Request) {
           .from('profiles')
           .select('phone_number, occupation, interests')
           .eq('id', userId)
-          .single()
+          .maybeSingle()
 
         const isLineUser   = session.user.app_metadata?.provider === 'line'
         const isIncomplete = !profile?.phone_number
@@ -54,7 +76,7 @@ export async function GET(request: Request) {
             .from('subscriptions')
             .select('expires_at, grace_until, is_active')
             .eq('user_id', userId)
-            .single()
+            .maybeSingle()
 
           const now = new Date()
 
