@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 // กำหนดเงื่อนไขตรวจสอบเลขอ้างอิงบัญชีผู้รับเงินของระบบ PobPet (เลือกใส่ เลขบัญชี หรือ เลขพร้อมเพย์ ของคุณวุฒิ์)
-const EXPECTED_RECEIVING_ACCOUNT = ['095XXXXXXX', '1234567890'] 
+const EXPECTED_RECEIVING_ACCOUNT = ['010753700088205', 'MH116010MG0160333S'] 
 
 const SLIP_AMOUNTS: Record<string, number> = {
   member:  399,
