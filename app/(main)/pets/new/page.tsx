@@ -560,7 +560,7 @@ export default function NewPetPage() {
         )}
 
         {/* ── Save ── */}
-        <button onClick={handleSave} disabled={saving || !!atLimit || (planChecked && error && !atLimit)}
+        <button onClick={handleSave} disabled={saving || !!atLimit || (planChecked && !!error && !atLimit)}
           className="w-full py-5 bg-ori-ink text-white font-black text-lg
             rounded-2xl border-4 border-ori-ink shadow-paper
             hover:shadow-paper-lg hover:-translate-y-1 transition-all
