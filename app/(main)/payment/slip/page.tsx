@@ -11,7 +11,9 @@ import {
 } from 'lucide-react'
 
 const PROMPTPAY_ID = process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0935352653'
-const LINE_OA_URL  = 'https://pobpet.com/api/line/webhook'
+
+// 🟢 [แก้ไขสำเร็จ] เปลี่ยนจากลิงก์ Webhook หลังบ้าน เป็นลิงก์เพิ่มเพื่อนจริงของทาง LINE OA (lin.ee)
+const LINE_OA_URL  = 'https://lin.ee/nUVh8xM' 
 const QR_IMAGE_URL = '/images/qr-pobpet.jpg'
 
 const SLIP_CONFIG: Record<string, { label: string; amount: number }> = {
@@ -54,7 +56,6 @@ function SlipContent() {
   const [lineError, setLineError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // ดึง LINE ID เดิมจากฐานข้อมูลมาแสดงรอก่อน (ถ้ามี)
   useEffect(() => {
     async function fetchExistingLineId() {
       const { data: { session } } = await supabase.auth.getSession()
@@ -73,9 +74,8 @@ function SlipContent() {
   const handleFile = async (file: File) => {
     if (!file) return
     
-    // บังคับกรอก LINE ID เพื่อสิทธิประโยชน์การแชทและการแจ้งเตือนบน LINE OA
     if (!lineId.trim()) {
-      setLineError('⚠️ กรุณากรอก LINE ID ก่อนอัปโหลดสลิป เพื่อผูกสิทธิ์ระบบแจ้งเตือนค่ะ')
+      setLineError('⚠️ กรุณากรอก LINE ID ก่อนอัปโหลดสลิป เพื่อผ็คสิทธิ์ระบบแจ้งเตือนค่ะ')
       return
     }
     setLineError('')
@@ -107,7 +107,7 @@ function SlipContent() {
           imageBase64: base64,
           userId:      session.user.id,
           slip_type:   slipType,
-          line_id:     lineId.trim() // ← ส่งพ่วงไปอัปเดตที่ API ในธุรกรรมเดียวกัน
+          line_id:     lineId.trim()
         }),
       })
 
@@ -222,8 +222,8 @@ function SlipContent() {
           <Upload size={20} /> อัปโหลดสลิป
         </h2>
 
+        {/* 🟢 [แก้ไขสำเร็จ] ถอดฟังก์ชัน handleFile แบบซ้อนคำสั่งอันเดิมออกเพื่อความลื่นไหลของหน้าต่างกดคลิก */}
         <div
-          onClick={() => !isProcessing && handleFile}
           className={`relative border-4 border-dashed rounded-2xl min-h-[180px]
             flex flex-col items-center justify-center gap-3 transition-all
             ${isProcessing
