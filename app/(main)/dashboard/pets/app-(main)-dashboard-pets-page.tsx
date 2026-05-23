@@ -1,4 +1,5 @@
 'use client'
+// app/(main)/dashboard/pets/page.tsx
 
 import { useState, useEffect, useMemo } from 'react'
 import { createBrowserClient }          from '@supabase/ssr'
@@ -54,30 +55,14 @@ export default function DashboardPetsPage() {
       const limit = plan === 'member' ? 3 : 1
       setSub({ plan, limit })
 
-      // 🟢 [แก้ไขสอดคล้อง] คิวรีแบบ Relation ดึงข้อมูลรูปภาพ และประวัติสุขภาพตัวล่าสุดพ่วงออกมาพร้อมกัน
+      // Active pets
       const { data: activePets } = await supabase
         .from('pets')
-        .select(`
-          *,
-          pet_images(storage_url, is_primary),
-          pet_health_events(event_date, event_type)
-        `)
+        .select('*, pet_images(storage_url, is_primary)')
         .eq('user_id', session.user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
-
-      // นำข้อมูลประวัติสุขภาพกลุ่มวัคซีนตัวที่ใหม่ที่สุดมาแมปแปลงชื่อเป็นฟิลด์ last_vaccine_date เพื่อให้ PetCard ดึงไปแสดง Badge อัตโนมัติ
-      const mappedPets = (activePets || []).map(pet => {
-        const vaccineEvents = (pet.pet_health_events || [])
-          .filter((e: any) => e.event_type === 'vaccine' || e.event_type === 'rabies_vaccine')
-          .sort((a: any, b: any) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime())
-        
-        return {
-          ...pet,
-          last_vaccine_date: vaccineEvents[0]?.event_date || null
-        }
-      })
-      setPets(mappedPets)
+      setPets(activePets || [])
 
       // Archived pets
       const { data: archivedPets } = await supabase
@@ -91,7 +76,7 @@ export default function DashboardPetsPage() {
       setLoading(false)
     }
     load()
-  }, [supabase, router])
+  }, [])
 
   const getThumb = (pet: any) => {
     const imgs = pet.pet_images || []
@@ -115,17 +100,21 @@ export default function DashboardPetsPage() {
   )
 
   const atLimit = pets.length >= sub.limit
+  const remaining = sub.limit - pets.length
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10 mb-20" onClick={() => setActiveMenu(null)}>
-      {/* ส่วนโครงสร้าง HTML แสดงการ์ดทำงานเหมือนเดิมทุกประการ */}
+    <div className="max-w-3xl mx-auto px-4 py-10 mb-20"
+      onClick={() => setActiveMenu(null)}>
+
+      {/* ── Header ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-black flex items-center gap-2">
             <PawPrint size={28} /> โปรไฟล์น้อง
           </h1>
           <p className="text-sm font-bold text-ori-ink-l mt-0.5">
-            {sub.plan === 'member' ? '⭐ Member' : '🐾 Free'} · {pets.length}/{sub.limit} ตัว
+            {sub.plan === 'member' ? '⭐ Member' : '🐾 Free'} ·
+            {' '}{pets.length}/{sub.limit} ตัว
           </p>
         </div>
 
@@ -156,14 +145,19 @@ export default function DashboardPetsPage() {
         )}
       </div>
 
+      {/* ── Upgrade nudge ── */}
       {sub.plan === 'free' && pets.length >= 1 && (
         <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-300
           rounded-2xl flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Crown size={20} className="text-amber-500 shrink-0" />
             <div>
-              <p className="font-black text-sm text-amber-800">อัปเกรด Member เพิ่มได้ถึง 3 ตัว</p>
-              <p className="text-xs font-bold text-amber-600">พร้อมสมุดสุขภาพ · LINE OA · QR Code</p>
+              <p className="font-black text-sm text-amber-800">
+                อัปเกรด Member เพิ่มได้ถึง 3 ตัว
+              </p>
+              <p className="text-xs font-bold text-amber-600">
+                พร้อมสมุดสุขภาพ · LINE OA · QR Code
+              </p>
             </div>
           </div>
           <Link href="/pricing"
@@ -175,11 +169,15 @@ export default function DashboardPetsPage() {
         </div>
       )}
 
+      {/* ── Active pets ── */}
       {pets.length === 0 ? (
-        <div className="text-center py-20 bg-white border-4 border-dashed border-gray-300 rounded-3xl">
+        <div className="text-center py-20 bg-white border-4 border-dashed
+          border-gray-300 rounded-3xl">
           <PawPrint size={48} className="text-gray-300 mx-auto mb-4" />
           <p className="font-black text-xl text-ori-ink-l mb-2">ยังไม่มีโปรไฟล์น้อง</p>
-          <p className="text-sm font-bold text-gray-400 mb-6">สร้างโปรไฟล์เพื่อ AI ช่วยหาน้องได้แม่นขึ้น</p>
+          <p className="text-sm font-bold text-gray-400 mb-6">
+            สร้างโปรไฟล์เพื่อ AI ช่วยหาน้องได้แม่นขึ้น
+          </p>
           <Link href="/pets/new"
             className="inline-flex items-center gap-2 px-6 py-3 bg-ori-ink
               text-white font-black rounded-xl border-2 border-ori-ink
@@ -196,11 +194,15 @@ export default function DashboardPetsPage() {
             const menuOpen  = activeMenu === pet.id
 
             return (
-              <div key={pet.id} className="bg-white border-4 border-ori-ink rounded-3xl overflow-hidden shadow-paper">
+              <div key={pet.id}
+                className="bg-white border-4 border-ori-ink rounded-3xl
+                  overflow-hidden shadow-paper">
                 <div className="flex items-stretch">
+                  {/* Thumbnail */}
                   <div className="w-28 shrink-0 bg-gray-100">
                     {thumb ? (
-                      <img src={thumb} alt={pet.name} className="w-full h-full object-cover" />
+                      <img src={thumb} alt={pet.name}
+                        className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <PawPrint size={32} className="text-gray-300" />
@@ -208,6 +210,7 @@ export default function DashboardPetsPage() {
                     )}
                   </div>
 
+                  {/* Info */}
                   <div className="flex-1 p-4">
                     <div className="flex items-start justify-between">
                       <div>
@@ -215,26 +218,32 @@ export default function DashboardPetsPage() {
                         <p className="text-sm font-bold text-ori-ink-l">
                           {[pet.species, pet.breed].filter(Boolean).join(' · ')}
                         </p>
-                        {/* 🟢 แสดงผลสถานะ Badge สุขภาพสั้นในหน้า Dashboard ย่อย */}
-                        {pet.last_vaccine_date && (
-                          <p className="text-xs font-bold text-green-600 mt-1">
-                            🛡️ ฉีดวัคซีนแล้วล่าสุดเมื่อเร็วๆ นี้
-                          </p>
-                        )}
                       </div>
 
+                      {/* Menu */}
                       <div className="relative">
                         <button
-                          onClick={e => { e.stopPropagation(); setActiveMenu(menuOpen ? null : pet.id) }}
+                          onClick={e => {
+                            e.stopPropagation()
+                            setActiveMenu(menuOpen ? null : pet.id)
+                          }}
                           className="p-1.5 hover:bg-gray-100 rounded-lg transition-all">
                           <MoreVertical size={18} />
                         </button>
                         {menuOpen && (
-                          <div className="absolute right-0 top-8 bg-white border-2 border-ori-ink rounded-2xl shadow-paper z-10 overflow-hidden min-w-[150px]" onClick={e => e.stopPropagation()}>
-                            <Link href={`/pets/${pet.id}`} className="flex items-center gap-2 px-4 py-3 text-sm font-bold hover:bg-gray-50 transition-all">
+                          <div className="absolute right-0 top-8 bg-white
+                            border-2 border-ori-ink rounded-2xl shadow-paper
+                            z-10 overflow-hidden min-w-[150px]"
+                            onClick={e => e.stopPropagation()}>
+                            <Link href={`/pets/${pet.id}`}
+                              className="flex items-center gap-2 px-4 py-3
+                                text-sm font-bold hover:bg-gray-50 transition-all">
                               <Eye size={14} /> ดูโปรไฟล์
                             </Link>
-                            <Link href={`/pets/${pet.id}/edit`} className="flex items-center gap-2 px-4 py-3 text-sm font-bold hover:bg-gray-50 transition-all border-t border-gray-100">
+                            <Link href={`/pets/${pet.id}/edit`}
+                              className="flex items-center gap-2 px-4 py-3
+                                text-sm font-bold hover:bg-gray-50 transition-all
+                                border-t border-gray-100">
                               <Edit3 size={14} /> แก้ไข
                             </Link>
                           </div>
@@ -242,12 +251,16 @@ export default function DashboardPetsPage() {
                       </div>
                     </div>
 
+                    {/* Mode badges */}
                     {actModes.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {actModes.map(k => {
                           const Icon = MODE_ICONS[k]
                           return (
-                            <span key={k} className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded-full text-xs font-black text-ori-ink-l border border-gray-200">
+                            <span key={k}
+                              className="flex items-center gap-1 px-2 py-0.5
+                                bg-gray-100 rounded-full text-xs font-black
+                                text-ori-ink-l border border-gray-200">
                               <Icon size={10} /> {MODE_LABELS[k]}
                             </span>
                           )
@@ -255,11 +268,18 @@ export default function DashboardPetsPage() {
                       </div>
                     )}
 
+                    {/* Quick actions */}
                     <div className="flex gap-2 mt-3">
-                      <Link href={`/pets/${pet.id}`} className="flex items-center gap-1 px-3 py-1.5 text-xs font-black border-2 border-ori-ink rounded-lg hover:bg-gray-50 transition-all">
+                      <Link href={`/pets/${pet.id}`}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs
+                          font-black border-2 border-ori-ink rounded-lg
+                          hover:bg-gray-50 transition-all">
                         <Eye size={12} /> ดู
                       </Link>
-                      <Link href={`/pets/${pet.id}/edit`} className="flex items-center gap-1 px-3 py-1.5 text-xs font-black border-2 border-ori-ink rounded-lg hover:bg-gray-50 transition-all">
+                      <Link href={`/pets/${pet.id}/edit`}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs
+                          font-black border-2 border-ori-ink rounded-lg
+                          hover:bg-gray-50 transition-all">
                         <Edit3 size={12} /> แก้ไข
                       </Link>
                     </div>
@@ -271,30 +291,44 @@ export default function DashboardPetsPage() {
         </div>
       )}
 
+      {/* ── Archived pets ── */}
       {archived.length > 0 && (
         <div className="mt-10">
-          <h2 className="font-black text-lg mb-3 flex items-center gap-2 text-ori-ink-l">
+          <h2 className="font-black text-lg mb-3 flex items-center gap-2
+            text-ori-ink-l">
             <Archive size={18} /> โปรไฟล์ที่ซ่อนอยู่
           </h2>
 
-          <div className="p-4 bg-red-50 border-2 border-red-300 rounded-2xl mb-4 flex items-start gap-2">
+          <div className="p-4 bg-red-50 border-2 border-red-300 rounded-2xl
+            mb-4 flex items-start gap-2">
             <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-            <p className="text-xs font-bold text-red-700">โปรไฟล์เหล่านี้ถูกซ่อนเพราะแพ็คเกจหมดอายุ ต่ออายุเพื่อดึงข้อมูลกลับมาก่อนที่จะถูกลบถาวร</p>
+            <p className="text-xs font-bold text-red-700">
+              โปรไฟล์เหล่านี้ถูกซ่อนเพราะแพ็คเกจหมดอายุ
+              ต่ออายุเพื่อดึงข้อมูลกลับมา ก่อนที่จะถูกลบถาวร
+            </p>
           </div>
 
           <div className="space-y-3">
             {archived.map(pet => {
-              const days = pet.delete_after ? daysUntilDelete(pet.delete_after) : null
+              const days = pet.delete_after
+                ? daysUntilDelete(pet.delete_after)
+                : null
               const urgent = days !== null && days <= 7
 
               return (
-                <div key={pet.id} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-2xl p-4 flex items-center justify-between gap-3 opacity-70">
+                <div key={pet.id}
+                  className="bg-gray-50 border-2 border-dashed border-gray-300
+                    rounded-2xl p-4 flex items-center justify-between gap-3 opacity-70">
                   <div>
                     <p className="font-black">{pet.name}</p>
                     <p className="text-xs font-bold text-ori-ink-l">{pet.species}</p>
                   </div>
                   {days !== null && (
-                    <div className={`text-xs font-black px-2 py-1 rounded-lg ${urgent ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-600'}`}>
+                    <div className={`text-xs font-black px-2 py-1 rounded-lg ${
+                      urgent
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
                       ลบใน {days} วัน
                     </div>
                   )}
@@ -303,8 +337,14 @@ export default function DashboardPetsPage() {
             })}
           </div>
 
-          <Link href="/pricing" className="mt-4 flex items-center justify-center gap-2 py-3 px-6 bg-ori-ink text-white font-black rounded-2xl border-4 border-ori-ink shadow-paper-sm hover:shadow-paper hover:-translate-y-0.5 transition-all">
-            <Crown size={18} className="text-amber-400" /> ต่ออายุ Member เพื่อดึงข้อมูลกลับ <ChevronRight size={16} />
+          <Link href="/pricing"
+            className="mt-4 flex items-center justify-center gap-2 py-3
+              px-6 bg-ori-ink text-white font-black rounded-2xl border-4
+              border-ori-ink shadow-paper-sm hover:shadow-paper
+              hover:-translate-y-0.5 transition-all">
+            <Crown size={18} className="text-amber-400" />
+            ต่ออายุ Member เพื่อดึงข้อมูลกลับ
+            <ChevronRight size={16} />
           </Link>
         </div>
       )}

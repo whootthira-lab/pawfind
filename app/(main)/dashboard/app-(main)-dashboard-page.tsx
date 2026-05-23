@@ -1,9 +1,8 @@
 'use client'
-// app/dashboard/page.tsx
 import { useEffect, useState, useMemo } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js'
-import { Doughnut } from 'react-chartjs-2'
+import { Doughnut, Bar } from 'react-chartjs-2'
 import { Loader2, PawPrint, CheckCircle, Users, Share, MessageCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { th } from 'date-fns/locale'
@@ -22,15 +21,15 @@ export default function AnalyticsDashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // 1. ดึงข้อมูลทั้งหมดจากตารางหลัก (🟢 ปรับแก้คำสั่งคอลัมน์และตารางให้สอดรับกับฐานข้อมูลจริงของระบบ)
+        // 1. ดึงข้อมูลทั้งหมดจากตารางหลัก
         const [
           { data: pets },
           { data: profiles },
           { data: chats }
         ] = await Promise.all([
-          supabase.from('pets').select('id, status, species, province, is_resolved, created_at'),
+          supabase.from('pets').select('id, status, animal_type, province, is_resolved, created_at'),
           supabase.from('profiles').select('id, occupation, interests, created_at'),
-          supabase.from('pet_chat_histories').select('id, role, text, created_at')
+          supabase.from('chat_logs').select('id, character_id, sentiment, message, created_at')
         ])
 
         // 2. ประมวลผลข้อมูล (Aggregation)
@@ -44,9 +43,9 @@ export default function AnalyticsDashboard() {
         const foundCount = pets?.filter(p => p.status === 'found').length || 0
         const adoptionCount = pets?.filter(p => p.status === 'adoption').length || 0
 
-        // - นับจำนวนสัตว์ Top 6 (🟢 สลับใช้ .species แทนฟิลด์เดิม)
+        // - นับจำนวนสัตว์ Top 6
         const petTypeCount = pets?.reduce((acc: any, curr) => {
-          const type = curr.species || 'อื่นๆ'
+          const type = curr.animal_type || 'อื่นๆ'
           acc[type] = (acc[type] || 0) + 1
           return acc
         }, {})
@@ -60,11 +59,19 @@ export default function AnalyticsDashboard() {
         }, {})
         const topProvincesList = Object.entries(provinceCount || {}).sort((a: any, b: any) => b[1] - a[1]).slice(0, 6)
 
-        // - ข้อมูลสัดส่วนข้อความในฐานข้อมูลจำลองสั้นๆ สำหรับ Analytics
-        const userCount = chats?.filter(c => c.role === 'user').length || 0
-        const botCount  = chats?.filter(c => c.role === 'bot').length || 0
+        // - ข้อมูล Chatbot
+        const chatChars = chats?.reduce((acc: any, curr) => {
+          const char = curr.character_id || 'cat'
+          acc[char] = (acc[char] || 0) + 1
+          return acc
+        }, {})
+        const chatSentiments = chats?.reduce((acc: any, curr) => {
+          const sent = curr.sentiment || 'neutral'
+          acc[sent] = (acc[sent] || 0) + 1
+          return acc
+        }, {})
 
-        // ความสนใจ และ อาชีพ
+        // - ความสนใจ และ อาชีพ
         const interestsCount: Record<string, number> = {}
         const occupationCount: Record<string, number> = {}
         profiles?.forEach(p => {
@@ -76,18 +83,19 @@ export default function AnalyticsDashboard() {
         const topInterests = Object.entries(interestsCount).sort((a: any, b: any) => b[1] - a[1]).slice(0, 6)
         const topOccupations = Object.entries(occupationCount).sort((a: any, b: any) => b[1] - a[1]).slice(0, 6)
 
-        // - รวมกิจกรรมล่าสุด (Recent Activity)
+        // - รวมกิจกรรมล่าสุด (Recent Activity) เรียงตามเวลา
         const allActivities = [
-          ...(pets?.map(p => ({ type: 'pet', text: `ลงประกาศช่วยน้อง ${p.species || 'สัตว์เลี้ยง'}`, time: p.created_at, color: '#3266ad' })) || []),
-          ...(profiles?.map(p => ({ type: 'user', text: `คนรักสัตว์ลงทะเบียนผู้ใช้ใหม่`, time: p.created_at, color: '#EF9F27' })) || []),
-          ...(chats?.map(c => ({ type: 'chat', text: `ทักคุยปรึกษาลักกี้บอทผ่านช่องแชท`, time: c.created_at, color: '#1D9E75' })) || [])
+          ...(pets?.map(p => ({ type: 'pet', text: `ลงประกาศ ${p.animal_type || 'สัตว์เลี้ยง'}`, time: p.created_at, color: '#3266ad' })) || []),
+          ...(profiles?.map(p => ({ type: 'user', text: `ผู้ใช้ใหม่ลงทะเบียน`, time: p.created_at, color: '#EF9F27' })) || []),
+          ...(chats?.map(c => ({ type: 'chat', text: `ผู้ใช้แชทสอบถามระบบ`, time: c.created_at, color: '#1D9E75' })) || [])
         ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 7)
 
         setStats({
           totalPets, resolvedPets, totalUsers, totalChats,
           statusData: [lostCount, foundCount, adoptionCount],
           topPetsList, topProvincesList,
-          charData: [userCount, botCount, totalChats],
+          charData: [chatChars['cat'] || 0, chatChars['dog'] || 0, chatChars['owl'] || 0],
+          sentimentData: [chatSentiments['crisis'] || 0, chatSentiments['sad'] || 0, chatSentiments['neutral'] || 0, chatSentiments['happy'] || 0],
           topInterests, topOccupations,
           activities: allActivities
         })
@@ -108,18 +116,27 @@ export default function AnalyticsDashboard() {
     </div>
   )
 
+  // กราฟสัดส่วนประกาศ
   const statusChartData = {
     labels: ['สัตว์หาย', 'พบสัตว์', 'หาบ้าน'],
     datasets: [{ data: stats.statusData, backgroundColor: ['#3266ad', '#1D9E75', '#EF9F27'], borderWidth: 2, borderColor: '#fff' }]
   }
 
+  // กราฟตัวละครแชทบอท
   const charChartData = {
-    labels: ['คำถามผู้ใช้', 'คำตอบบอท', 'ยอดรวมรวม'],
+    labels: ['ลักกี้', 'โกลดี้', 'ลุงฮูก'],
     datasets: [{ data: stats.charData, backgroundColor: ['#FF9F66', '#FFCC00', '#A0522D'], borderWidth: 2, borderColor: '#fff' }]
+  }
+
+  // กราฟอารมณ์ผู้ใช้
+  const sentimentChartData = {
+    labels: ['วิกฤต', 'เศร้า', 'กลาง', 'ดีใจ'],
+    datasets: [{ data: stats.sentimentData, backgroundColor: ['#D85A30', '#EF9F27', '#888780', '#1D9E75'], borderWidth: 2, borderColor: '#fff' }]
   }
 
   const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
 
+  // Component สำหรับสร้างแถบ Bar (เลียนแบบ HTML เดิม)
   const ProgressBar = ({ label, value, max, color }: { label: string, value: number, max: number, color: string }) => {
     const pct = max > 0 ? Math.round((value / max) * 100) : 0
     return (
@@ -135,8 +152,10 @@ export default function AnalyticsDashboard() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 bg-gray-50 min-h-screen font-sans">
+      
+      {/* ── Overview Metrics ── */}
       <div>
-        <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">ภาพรวมแพลตฟอร์มพบเพ็ต</h2>
+        <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">ภาพรวมแพลตฟอร์ม</h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <MetricCard icon={<PawPrint size={16}/>} title="ประกาศทั้งหมด" value={stats.totalPets} sub="ข้อมูลล่าสุด" />
           <MetricCard icon={<CheckCircle size={16}/>} title="พบสัตว์สำเร็จ" value={stats.resolvedPets} sub={`Success rate ${stats.totalPets ? ((stats.resolvedPets/stats.totalPets)*100).toFixed(1) : 0}%`} />
@@ -147,6 +166,7 @@ export default function AnalyticsDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* ── ประกาศตามประเภท ── */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
           <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">ประกาศตามประเภท</h2>
           <div className="flex flex-wrap gap-3 mb-4 text-xs text-gray-500">
@@ -159,6 +179,7 @@ export default function AnalyticsDashboard() {
           </div>
         </div>
 
+        {/* ── กิจกรรมล่าสุด ── */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
           <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">กิจกรรมล่าสุด (Real-time)</h2>
           <div className="space-y-3">
@@ -176,6 +197,7 @@ export default function AnalyticsDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* ── ประเภทสัตว์ Top 6 ── */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
           <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">ประเภทสัตว์ที่มีประกาศสูงสุด</h2>
           {stats.topPetsList.map(([name, count]: any) => (
@@ -183,6 +205,7 @@ export default function AnalyticsDashboard() {
           ))}
         </div>
 
+        {/* ── จังหวัด Top 6 ── */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
           <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">จังหวัดที่มีประกาศสูงสุด</h2>
           {stats.topProvincesList.map(([name, count]: any) => (
@@ -192,18 +215,34 @@ export default function AnalyticsDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* ── Chatbot ตัวละคร ── */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-          <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">สัดส่วนข้อความผ่านแชตบอต</h2>
+          <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Chatbot — ตัวละครที่เลือก</h2>
           <div className="flex flex-wrap gap-3 mb-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#FF9F66]"/> คำถามผู้ใช้</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#FFCC00]"/> คำตอบบอท</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#A0522D]"/> ยอดรวม</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#FF9F66]"/> ลักกี้</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#FFCC00]"/> โกลดี้</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#A0522D]"/> ลุงฮูก</span>
           </div>
           <div className="h-[150px] relative">
             <Doughnut data={charChartData} options={chartOptions} />
           </div>
         </div>
+
+        {/* ── Chatbot อารมณ์ ── */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+          <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Chatbot — อารมณ์ผู้ใช้ (Sentiment)</h2>
+          <div className="flex flex-wrap gap-3 mb-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#D85A30]"/> วิกฤต</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#EF9F27]"/> เศร้า</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#888780]"/> กลาง</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#1D9E75]"/> ดีใจ</span>
+          </div>
+          <div className="h-[150px] relative">
+            <Doughnut data={sentimentChartData} options={chartOptions} />
+          </div>
+        </div>
       </div>
+
     </div>
   )
 }
