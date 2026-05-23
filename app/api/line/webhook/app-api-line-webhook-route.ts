@@ -7,7 +7,6 @@ import crypto           from 'crypto'
 
 const LINE_REPLY_API = 'https://api.line.me/v2/bot/message/reply'
 const BASE_URL       = process.env.NEXT_PUBLIC_BASE_URL || 'https://pobpet.com'
-const MAX_HISTORY    = 6
 
 // ── Verify LINE signature ─────────────────────────────────────
 function verifySignature(body: string, signature: string): boolean {
@@ -27,39 +26,15 @@ async function replyMessage(replyToken: string, messages: object[]) {
   })
 }
 
-// ── 🟢 [ปรับปรุง] ดึงผู้ใช้และเชื่อมโยง ID อัตโนมัติ (Fallback & Auto Sync) ──
-async function getUserByLineContext(lineUserId: string, fallbackTextId?: string) {
+// ── Get user from line_user_id ────────────────────────────────
+async function getUserByLineId(lineUserId: string) {
   const supabase = createClient()
-  
-  // 1. ค้นหาจาก line_user_id (รหัสแฮชแท้ของ LINE) ก่อนเป็นอันดับแรก
-  let { data: user } = await supabase
+  const { data } = await supabase
     .from('profiles')
-    .select('id, display_name, line_user_id')
+    .select('id, display_name')
     .eq('line_user_id', lineUserId)
-    .maybeSingle()
-
-  // 2. ถ้าไม่เจอ และมีการส่ง text id เข้ามา (อาจจะมาจากการดึงโปรไฟล์ LINE ผ่าน API ภายหลัง หรือจาก event อื่น)
-  if (!user && fallbackTextId) {
-    const cleanId = fallbackTextId.replace('@', '').trim()
-    
-    // ค้นหาจากฟิลด์ line_id ที่คนพิมพ์กรอกไว้ตอนจ่ายเงินแนบสลิป
-    const { data: fallbackUser } = await supabase
-      .from('profiles')
-      .select('id, display_name, line_user_id')
-      .or(`line_id.eq.${cleanId},line_id.eq.@${cleanId}`)
-      .maybeSingle()
-
-    if (fallbackUser) {
-      user = fallbackUser
-      // ทำการสิงร่าง (Sync ID) บันทึกรหัสแฮชแท้ลงฐานข้อมูลทันที เพื่อความเสถียรในอนาคต
-      await supabase
-        .from('profiles')
-        .update({ line_user_id: lineUserId })
-        .eq('id', fallbackUser.id)
-    }
-  }
-
-  return user
+    .single()
+  return data
 }
 
 // ── Check Member plan ─────────────────────────────────────────
@@ -71,39 +46,6 @@ async function checkMember(userId: string): Promise<boolean> {
     .eq('user_id', userId)
     .single()
   return !!(data?.plan === 'member' && data?.expires_at && new Date(data.expires_at) > new Date())
-}
-
-// ── 🟢 [ปรับปรุง] จัดการประวัติสนทนาผ่านฐานข้อมูล Supabase ป้องกันบอทลืมบริบท ──
-async function getChatHistory(userId: string): Promise<{ role: string; text: string }[]> {
-  const supabase = createClient()
-  const { data } = await supabase
-    .from('pet_chat_histories')
-    .select('role, text')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: true })
-    .limit(MAX_HISTORY)
-  return data || []
-}
-
-async function saveChatHistory(userId: string, userText: string, botReply: string) {
-  const supabase = createClient()
-  // บันทึกทั้งประโยคของผู้ใช้และบอทลงฐานข้อมูล
-  await supabase.from('pet_chat_histories').insert([
-    { user_id: userId, role: 'user', text: userText },
-    { user_id: userId, role: 'bot',  text: botReply }
-  ])
-  
-  // (Optional) เคลียร์ประวัติเก่าที่เกินโควตาเพื่อประหยัดพื้นที่ฐานข้อมูล
-  const { data } = await supabase
-    .from('pet_chat_histories')
-    .select('id')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-  
-  if (data && data.length > MAX_HISTORY * 2) {
-    const expiredIds = data.slice(MAX_HISTORY * 2).map(h => h.id)
-    await supabase.from('pet_chat_histories').delete().in('id', expiredIds)
-  }
 }
 
 // ── Forward to AI (พร้อม userId สำหรับ Function Calling) ──────
@@ -118,6 +60,7 @@ async function getAIReplyWithTools(
       method:  'POST',
       headers: {
         'Content-Type': 'application/json',
+        // ส่ง header พิเศษให้ route.ts รู้ว่ามาจาก LINE
         'x-line-user-id': userId,
       },
       body: JSON.stringify({
@@ -125,7 +68,7 @@ async function getAIReplyWithTools(
         characterId,
         pageContext:  '/line',
         history,
-        line_user_id: userId,
+        line_user_id: userId,   // ← ส่ง userId โดยตรงให้ bypass session check
       }),
     })
     const data = await res.json()
@@ -138,7 +81,7 @@ async function getAIReplyWithTools(
   }
 }
 
-// ── Build action buttons text ─────────────────────────────────
+// ── Build action buttons text (แปลง action_buttons → ข้อความ LINE) ──
 function buildActionText(
   buttons: { label: string; link: string }[] | undefined
 ): string {
@@ -156,6 +99,11 @@ const POSTBACK_ACTIONS: Record<string, { text: string; url?: string }> = {
   'action=subscription': { text: '💎 จัดการแพ็คเกจ',        url: `${BASE_URL}/account/subscription` },
   'action=help':         { text: '❓ ต้องการความช่วยเหลือ'                                           },
 }
+
+// ── Conversation history (in-memory per LINE userId) ──────────
+// ใช้ Map เพื่อจำประวัติสนทนาสั้นๆ ใน 1 session
+const conversationHistory = new Map<string, { role: string; text: string }[]>()
+const MAX_HISTORY = 6
 
 // ══════════════════════════════════════════════════════════════
 // WEBHOOK HANDLER
@@ -177,33 +125,30 @@ export async function POST(req: Request) {
       const lineUserId = event.source?.userId
       const replyToken = event.replyToken
 
-      if (!lineUserId) continue
-
       // ── Follow ──────────────────────────────────────────
       if (event.type === 'follow') {
         await replyMessage(replyToken, [{
           type: 'text',
-          text: `สวัสดีค่ะ! ยินดีต้อนรับสู่ PobPet 🐾\n\nฉันคือลักกี้ ผู้ช่วย AI พร้อมช่วยตามหาน้องค่ะ\n\n🌐 ${BASE_URL}\n\nหากท่านเพิ่งสมัครแพ็คเกจ ให้ลองพิมพ์ข้อความทักทายเข้ามาได้เลยนะคะ ระบบจะผูกสิทธิ์ให้อัตโนมัติค่ะ`,
+          text: `สวัสดีค่ะ! ยินดีต้อนรับสู่ PobPet 🐾\n\nฉันคือลักกี้ ผู้ช่วย AI พร้อมช่วยตามหาน้องค่ะ\n\n🌐 ${BASE_URL}\n\nพิมพ์ถามได้เลยนะคะ`,
         }])
+        continue
+      }
+
+      if (event.type === 'unfollow') {
+        conversationHistory.delete(lineUserId)
         continue
       }
 
       // ── Text message ─────────────────────────────────────
       if (event.type === 'message' && event.message?.type === 'text') {
         const text = event.message.text.trim()
-        
-        // ค้นหาผู้ใช้ (ส่ง lineUserId ไปตรวจหา และยอมให้ตรวจสอบความสอดคล้องกับข้อความที่พิมพ์เข้ามาได้ในกรณีฉุกเฉิน)
-        let user = await getUserByLineContext(lineUserId)
-
-        // ตรวจดักสำรอง: เผื่อผู้ใช้พิมพ์ไอดีไลน์ของตัวเองเข้ามาตรงๆ ในห้องแชทเพื่อผูกสิทธิ์ในครั้งแรก
-        if (!user && (text.startsWith('@') || text.length >= 4)) {
-          user = await getUserByLineContext(lineUserId, text)
-        }
+        const user = await getUserByLineId(lineUserId)
 
         if (!user) {
+          // ยังไม่ได้ login → แนะนำให้ไปสมัคร
           await replyMessage(replyToken, [{
             type: 'text',
-            text: `สวัสดีค่ะ 🐾\n\nไม่พบการผูกบัญชี LINE นี้ในระบบ PobPet ค่ะ\n\nหากคุณทำรายการชำระเงินเรียบร้อยแล้ว กรุณาพิมพ์ @ตามด้วยไอดีไลน์ ที่คุณกรอกไว้ในหน้าเว็บสลิป ส่งเข้ามาในแชทนี้เพื่อยืนยันตัวตนนะคะ\n\nหรือสมัครบัญชีได้ที่: ${BASE_URL}/login`,
+            text: `สวัสดีค่ะ 🐾\n\nต้องสมัครบัญชีก่อนนะคะ\n\nสมัครได้ที่: ${BASE_URL}/login`,
           }])
           continue
         }
@@ -211,23 +156,29 @@ export async function POST(req: Request) {
         const isMember = await checkMember(user.id)
 
         if (!isMember) {
+          // Free user
           await replyMessage(replyToken, [{
             type: 'text',
-            text: `สวัสดีค่ะ ${user.display_name || ''} 🐾\n\nฟีเจอร์แชทผ่าน LINE ใช้ได้เฉพาะ Member นะคะ\n\n💎 Member ฿399/ปี ได้:\n• แชท AI ผ่าน LINE\n• บันทึกสุขภาพน้อง\n• รับแจ้งเตือน Match ด่วน\n• สมุดสุขภาพน้อง\n\nอัปเกรดเพื่อเปิดระบบได้ที่: ${BASE_URL}/pricing`,
+            text: `สวัสดีค่ะ ${user.display_name || ''} 🐾\n\nฟีเจอร์แชทผ่าน LINE ใช้ได้เฉพาะ Member นะคะ\n\n💎 Member ฿399/ปี ได้:\n• แชท AI ผ่าน LINE\n• บันทึกสุขภาพน้อง\n• รับแจ้งเตือน Match ด่วน\n• สมุดสุขภาพน้อง\n\nอัปเกรด: ${BASE_URL}/pricing`,
           }])
           continue
         }
 
-        // ── Member: ดึงประวัติจาก Supabase -> ยิงหา AI ──
-        const history = await getChatHistory(user.id)
+        // ── Member: ส่งไป AI พร้อม history ──────────────────
+        const history = conversationHistory.get(lineUserId) || []
         const { reply, action_buttons } = await getAIReplyWithTools(
           text, 'cat', user.id, history
         )
 
-        // บันทึกประวัติใหม่ลง Database
-        await saveChatHistory(user.id, text, reply)
+        // อัปเดต history
+        const newHistory = [
+          ...history,
+          { role: 'user', text },
+          { role: 'bot',  text: reply },
+        ].slice(-MAX_HISTORY)
+        conversationHistory.set(lineUserId, newHistory)
 
-        // สรุปการตอบกลับรวมปุ่ม
+        // สร้างข้อความ reply รวม action buttons
         const fullReply = reply + buildActionText(action_buttons)
         const truncated = fullReply.length > 4900
           ? fullReply.substring(0, 4900) + '...'

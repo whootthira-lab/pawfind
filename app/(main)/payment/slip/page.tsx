@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 
 const PROMPTPAY_ID = process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0935352653'
-const LINE_OA_URL  = 'https://line.me/R/ti/p/@pobpet'
+const LINE_OA_URL  = 'https://pobpet.com/api/line/webhook'
 const QR_IMAGE_URL = '/images/qr-pobpet.jpg'
 
 const SLIP_CONFIG: Record<string, { label: string; amount: number }> = {
