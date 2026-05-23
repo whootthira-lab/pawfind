@@ -1,5 +1,5 @@
 'use client'
-// components/pet/PetCard.tsx — พร้อม CTR + Share tracking + Health Badge
+// components/pet/PetCard.tsx — พร้อม CTR + Share tracking + Health Badge (Fixed Routes)
 
 import { Pet }  from '@/types/pet'
 import Link     from 'next/link'
@@ -19,11 +19,6 @@ function statusCfg(status: string) {
 }
 
 // ── Health Status Badge ───────────────────────────────────────
-// คำนวณจาก last_vaccine_date (ถ้ามี)
-// 🟢 ฉีดวัคซีนล่าสุดไม่เกิน 11 เดือน
-// 🟡 เกิน 11 เดือน (ใกล้ถึงกำหนด)
-// 🔴 เกิน 13 เดือน (เลยกำหนด)
-// ⚪ ไม่มีข้อมูล
 function HealthBadge({ lastVaccineDate }: { lastVaccineDate?: string | null }) {
   if (!lastVaccineDate) return null
 
@@ -49,7 +44,7 @@ export function PetCard({ pet }: { pet: Pet }) {
   const cfg            = statusCfg((pet as any).status || 'lost')
   const icon           = speciesIcon((pet as any).species || (pet as any).type || 'other')
   const days           = (pet as any).days_missing
-  const lastVaccine    = (pet as any).last_vaccine_date   // ← ดึงจาก query ถ้ามี
+  const lastVaccine    = (pet as any).last_vaccine_date
 
   const handleCardShare = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -140,8 +135,9 @@ export function PetCard({ pet }: { pet: Pet }) {
 
       {/* CTA */}
       <div className="px-4 pb-4">
+        {/* 🟢 [แก้ไขสำเร็จ] ปรับโครงสร้างเส้นทางเติมตัว s ลิงก์ตรงเข้าหน้าดีเทลหลักไม่ติด 404 */}
         <Link
-          href={`/pet/${pet.id}`}
+          href={`/pets/${pet.id}`}
           onClick={() => trackCardClick(pet.id, 'view_detail')}
           className="ori-btn ori-btn-orange w-full text-sm">
           ดูรายละเอียด →
