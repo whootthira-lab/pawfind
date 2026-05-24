@@ -1,14 +1,14 @@
 'use client'
-// app/(main)/pets/new/page.tsx (V2)
+// app/(main)/pets/new/page.tsx (V3 - ปลดล็อคโควตาใช้งานฟรี 100% ทุกฟีเจอร์)
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { createBrowserClient }       from '@supabase/ssr'
 import { useRouter }                 from 'next/navigation'
 import Image                         from 'next/image'
 import {
-  Upload, Sparkles, Loader2, ChevronRight,
+  Upload, Sparkles, Loader2,
   PawPrint, Heart, Home, Trophy, Search,
-  X, Plus, AlertCircle
+  X, AlertCircle
 } from 'lucide-react'
 
 type Mode = 'mode_lost' | 'mode_mating' | 'mode_adoption' | 'mode_showcase'
@@ -32,7 +32,6 @@ const MODE_CONFIG: { key: Mode; icon: any; label: string; color: string; desc: s
   { key: 'mode_showcase', icon: Trophy, label: 'โชว์โปรไฟล์',   color: 'amber',  desc: 'พื้นที่อวดความน่ารัก สะสมทำเนียบ' },
 ]
 
-// ── รายชื่อ 77 จังหวัดของประเทศไทย เรียงตามตัวอักษร ──────────────────
 const THAI_PROVINCES = [
   "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", 
   "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", 
@@ -75,49 +74,26 @@ export default function NewPetPage() {
   const [images, setImages] = useState<{ file: File; preview: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [atLimit, setAtLimit] = useState(false)
-  const [planChecked, setPlanChecked] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
 
-  // ── ตรวจสอบโควตาขีดจำกัดสัตว์เลี้ยง (Pet Limit) ของ User ──────────────────
+  // ── 🟢 [ปรับปรุง] เช็คแค่สถานะการล็อกอินธรรมดา ปลดล็อคระบบตรวจจำกัดโควตาสัตว์เลี้ยงทิ้งร้อยเปอร์เซ็นต์ ──
   useEffect(() => {
-    async function checkLimit() {
+    async function checkAuth() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
-          setError('กรุณาล็อกอินก่อนใช้งานค่ะ')
+          setError('กรุณาล็อกอินก่อนใช้งานลงประกาศนะคะ')
           return
         }
-
-        // ดึงขีดจำกัดจากตาราง subscriptions ของผู้ใช้
-        const { data: sub } = await supabase
-          .from('subscriptions')
-          .select('pet_limit')
-          .eq('user_id', user.id)
-          .single()
-
-        const limit = sub?.pet_limit || 1 // ค่าเริ่มต้น Free แพลนคือ 1 ตัว
-
-        // นับจำนวนสัตว์เลี้ยงปัจจุบันที่ยังใช้งานอยู่ (ไม่ใช่ archived)
-        const { count } = await supabase
-          .from('pets')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .not('status', 'eq', 'archived')
-
-        if ((count || 0) >= limit) {
-          setAtLimit(true)
-          setError(`คุณลงทะเบียนน้องครบโควตา ${limit} ตัวแล้วค่ะ ต้องการเพิ่มพื้นที่กรุณาซื้อ Add-on`)
-        }
-        setPlanChecked(true)
+        setAuthChecked(true)
       } catch (err) {
         console.error(err)
-        setPlanChecked(true)
+        setAuthChecked(true)
       }
     }
-    checkLimit()
+    checkAuth()
   }, [supabase])
 
-  // ── Handle จัดการรูปภาพ ─────────────────────────────────────────
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return
     const files = Array.from(e.target.files)
@@ -132,7 +108,7 @@ export default function NewPetPage() {
       preview: URL.createObjectURL(file)
     }))
     setImages(prev => [...prev, ...newImages])
-  };
+  }
 
   const removeImage = (index: number) => {
     setImages(prev => {
@@ -140,14 +116,12 @@ export default function NewPetPage() {
       if (target) URL.revokeObjectURL(target.preview)
       return prev.filter((_, i) => i !== index)
     })
-  };
+  }
 
-  // ── ฟังก์ชันบันทึกข้อมูลและส่งเข้าฐานข้อมูลอย่างสมบูรณ์ ──────────────────
   const handleSave = async () => {
-    if (saving || atLimit) return
+    if (saving || !authChecked) return
     setError(null)
 
-    // Validation ตรวจสอบข้อมูลจำเป็น
     if (!form.species) return setError('กรุณาเลือกประเภทสัตว์เลี้ยงค่ะ')
     if (!form.province) return setError('กรุณาเลือกจังหวัดที่เกิดเหตุค่ะ')
     if (!form.contact_tel) return setError('กรุณากรอกเบอร์โทรศัพท์ผู้ติดต่อหลักค่ะ')
@@ -161,18 +135,16 @@ export default function NewPetPage() {
 
       const uploadedUrls: string[] = []
 
-      // 1. อัปโหลดรูปภาพเข้า Supabase Storage (Bucket: pet-images)
       for (const img of images) {
         const fileExt = img.file.name.split('.').pop()
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
         
-        const { error: uploadErr, data } = await supabase.storage
+        const { error: uploadErr } = await supabase.storage
           .from('pet-images')
           .upload(fileName, img.file, { cacheControl: '3600', upsert: true })
 
         if (uploadErr) throw uploadErr
 
-        // ดึง Public URL ของรูปภาพออกมา
         const { data: { publicUrl } } = supabase.storage
           .from('pet-images')
           .getPublicUrl(fileName)
@@ -180,7 +152,6 @@ export default function NewPetPage() {
         uploadedUrls.push(publicUrl)
       }
 
-      // 2. บันทึกแถวข้อมูลโครงสร้างลงตาราง 'pets' ในฐานข้อมูลจริง
       const { data: insertedPet, error: insertErr } = await supabase
         .from('pets')
         .insert({
@@ -195,7 +166,7 @@ export default function NewPetPage() {
           details: form.details || null,
           reward_amount: form.reward_amount ? parseFloat(form.reward_amount) : 0,
           mode: mode,
-          images: uploadedUrls, // อาเรย์ URL รูปภาพ
+          images: uploadedUrls,
           status: mode === 'mode_lost' ? 'lost' : 'active',
           contact_name: form.contact_name || null,
           contact_tel: form.contact_tel,
@@ -207,11 +178,10 @@ export default function NewPetPage() {
 
       if (insertErr) throw insertErr
 
-      // บันทึกสำเร็จ ล้าง Object URL เพื่อคืน Memory เบราว์เซอร์
       images.forEach(img => URL.revokeObjectURL(img.preview))
 
-      // นำทางผู้ใช้ไปยังหน้ารายละเอียดของน้องตัวที่เพิ่งกดสร้างขึ้น (เพื่อกระตุ้นให้ AI Matcher แสดงผลหน้าดีเทล)
-      router.push(`/pets/${insertedPet.id}`)
+      // ลิงก์ตรงส่งเข้าหน้าดีเทลหลัก (มีตัว s สอดคล้องตามโครงสร้างสากล) พร้อมพารามิเตอร์ส่งท้าย
+      router.push(`/pets/${insertedPet.id}?created=true`)
       router.refresh()
 
     } catch (err: any) {
@@ -220,22 +190,20 @@ export default function NewPetPage() {
     } finally {
       setSaving(false)
     }
-  };
+  }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 mb-24">
-      {/* ── ส่วนหัวข้อเว็บนวัตกรรมกระดาษยับ ── */}
+    <div className="max-w-2xl mx-auto px-4 py-8 mb-24 text-black">
       <div className="text-center mb-8">
         <h1 className="text-4xl font-black tracking-tight text-ori-ink flex items-center justify-center gap-2">
           <PawPrint size={36} className="text-black" />
-          สร้างประกาศใหม่
+          สร้างประกาศใหม่ 🐾
         </h1>
         <p className="text-sm font-bold text-ori-ink-l mt-2">
-          เลือกหมวดหมู่ที่ต้องการและกรอกข้อมูลน้องให้ครบถ้วนเพื่อให้ AI เริ่มสแกนโครงข่ายทันที
+          เลือกหมวดหมู่ที่ต้องการและกรอกข้อมูลน้องให้ครบถ้วน เพื่อให้ระบบคลังข้อมูลเริ่มวิเคราะห์จับคู่ทันทีฟรีไม่มีเงื่อนไข
         </p>
       </div>
 
-      {/* ── ช่องสลับประเภทโหมดประกาศ (Mode Selector Cards) ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {MODE_CONFIG.map(cfg => {
           const Icon = cfg.icon
@@ -260,7 +228,6 @@ export default function NewPetPage() {
         })}
       </div>
 
-      {/* คำอธิบายสั้นขยายความของโหมดที่เลือก */}
       <div className="p-4 bg-gray-50 border-2 border-black rounded-2xl mb-6 flex items-start gap-2">
         <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5" />
         <p className="text-xs font-bold text-gray-600">
@@ -269,7 +236,7 @@ export default function NewPetPage() {
       </div>
 
       <div className="space-y-6">
-        {/* ── Section อัปโหลดรูปภาพน้อง ── */}
+        {/* Section รูปภาพ */}
         <div className="p-5 border-4 border-black rounded-3xl bg-white shadow-paper-sm space-y-4">
           <h2 className="font-black text-lg text-ori-ink flex items-center gap-1.5">
             🖼️ รูปภาพของน้อง ({images.length}/5) <span className="text-red-500 text-xs font-bold">*</span>
@@ -300,39 +267,22 @@ export default function NewPetPage() {
               </button>
             )}
           </div>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImageChange}
-            accept="image/*"
-            multiple
-            className="hidden"
-          />
+          <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" multiple className="hidden" />
         </div>
 
-        {/* ── Section ข้อมูลจำเพาะของสัตว์เลี้ยง ── */}
+        {/* Section ข้อมูลลักษณะ */}
         <div className="p-5 border-4 border-black rounded-3xl bg-white shadow-paper-sm space-y-4">
           <h2 className="font-black text-lg text-ori-ink">🐾 ข้อมูลลักษณะสัตว์เลี้ยง</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="font-black text-sm">ชื่อน้อง (ถ้ามี)</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="เช่น น้องส้ม, หลงหลง"
-                className="ori-input"
-              />
+              <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="เช่น น้องส้ม, หลงหลง" className="ori-input" />
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-sm">ประเภท <span className="text-red-500">*</span></label>
-              <select
-                value={form.species}
-                onChange={e => setForm(f => ({ ...f, species: e.target.value }))}
-                className="ori-input bg-white"
-              >
+              <select value={form.species} onChange={e => setForm(f => ({ ...f, species: e.target.value }))} className="ori-input bg-white font-bold">
                 {SPECIES_OPTIONS.map(opt => (
                   <option key={opt} value={opt}>{opt === '' ? '-- เลือกประเภท --' : opt}</option>
                 ))}
@@ -341,22 +291,12 @@ export default function NewPetPage() {
 
             <div className="space-y-1">
               <label className="font-black text-sm">สายพันธุ์</label>
-              <input
-                type="text"
-                value={form.breed}
-                onChange={e => setForm(f => ({ ...f, breed: e.target.value }))}
-                placeholder="เช่น ชิสุ, เปอร์เซีย (ระบุหรือไม่ก็ได้)"
-                className="ori-input"
-              />
+              <input type="text" value={form.breed} onChange={e => setForm(f => ({ ...f, breed: e.target.value }))} placeholder="เช่น ชิสุ, เปอร์เซีย (ระบุหรือไม่ก็ได้)" className="ori-input" />
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-sm">เพศ</label>
-              <select
-                value={form.gender}
-                onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
-                className="ori-input bg-white"
-              >
+              <select value={form.gender} onChange={e => setForm(f => ({ ...f, gender: e.target.value }))} className="ori-input bg-white font-bold">
                 {GENDER_OPTIONS.map(g => (
                   <option key={g.value} value={g.value}>{g.label}</option>
                 ))}
@@ -364,36 +304,24 @@ export default function NewPetPage() {
             </div>
           </div>
 
-          {/* ปรับปรุงฟิลด์รางวัลแสดงผลตามความจำเป็นเฉพาะโหมดสัตว์หาย */}
           {mode === 'mode_lost' && (
             <div className="space-y-1 pt-2 animate-fadeIn">
               <label className="font-black text-sm flex items-center gap-1 text-ori-yellow-d">
                 💰 สินน้ำใจ / เงินรางวัลนำส่ง (บาท)
               </label>
-              <input
-                type="number"
-                value={form.reward_amount}
-                onChange={e => setForm(f => ({ ...f, reward_amount: e.target.value }))}
-                placeholder="0 (ใส่จำนวนเงิน หรือเว้นว่างไว้หากไม่มีรางวัล)"
-                className="ori-input border-ori-yellow focus:ring-ori-yellow"
-              />
+              <input type="number" value={form.reward_amount} onChange={e => setForm(f => ({ ...f, reward_amount: e.target.value }))} placeholder="0 (ใส่จำนวนเงิน หรือเว้นว่างไว้หากไม่มีรางวัล)" className="ori-input" />
             </div>
           )}
         </div>
 
-        {/* ── Section พิกัดพื้นที่ปักหมุดเกิดเหตุ ── */}
+        {/* Section พิกัดเกิดเหตุ */}
         <div className="p-5 border-4 border-black rounded-3xl bg-white shadow-paper-sm space-y-4">
           <h2 className="font-black text-lg text-ori-ink">📍 พื้นที่และสถานที่เกิดเหตุ</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* ดรอปดาวน์ 77 จังหวัดที่เปลี่ยนใหม่ตามสั่ง */}
             <div className="space-y-1">
               <label className="font-black text-sm">จังหวัด <span className="text-red-500">*</span></label>
-              <select
-                value={form.province}
-                onChange={e => setForm(f => ({ ...f, province: e.target.value }))}
-                className="ori-input bg-white"
-              >
+              <select value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value }))} className="ori-input bg-white font-bold">
                 <option value="">-- เลือกจังหวัด --</option>
                 {THAI_PROVINCES.map(prov => (
                   <option key={prov} value={prov}>{prov}</option>
@@ -403,91 +331,48 @@ export default function NewPetPage() {
 
             <div className="space-y-1">
               <label className="font-black text-sm">อำเภอ / เขต</label>
-              <input
-                type="text"
-                value={form.district}
-                onChange={e => setForm(f => ({ ...f, district: e.target.value }))}
-                placeholder="เช่น เมือง, ด่านขุนทด"
-                className="ori-input"
-              />
+              <input type="text" value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} placeholder="เช่น เมือง, ด่านขุนทด" className="ori-input" />
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-sm">ตำบล / แขวง</label>
-              <input
-                type="text"
-                value={form.sub_district}
-                onChange={e => setForm(f => ({ ...f, sub_district: e.target.value }))}
-                placeholder="เช่น ในเมือง, หินดาด"
-                className="ori-input"
-              />
+              <input type="text" value={form.sub_district} onChange={e => setForm(f => ({ ...f, sub_district: e.target.value }))} placeholder="เช่น ในเมือง, หินดาด" className="ori-input" />
             </div>
           </div>
 
           <div className="space-y-1">
             <label className="font-black text-sm">รายละเอียดเพิ่มเติม / จุดสังเกตเด่น</label>
-            <textarea
-              rows={3}
-              value={form.details}
-              onChange={e => setForm(f => ({ ...f, details: e.target.value }))}
-              placeholder="เช่น น้องมีปลอกคอสีแดง, ขนแหว่งที่ขาหลังซ้าย, เชื่องแต่ขี้กลัวตื่นตระหนกง่าย"
-              className="ori-input resize-none"
-            />
+            <textarea rows={3} value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="เช่น น้องมีปลอกคอสีแดง, ขนแหว่งที่ขาหลังซ้าย" className="ori-input resize-none" />
           </div>
         </div>
 
-        {/* ── Section ข้อมูลช่องทางการติดต่อ ── */}
+        {/* Section ผู้ติดต่อ */}
         <div className="p-5 border-4 border-black rounded-3xl bg-white shadow-paper-sm space-y-4">
           <h2 className="font-black text-lg text-ori-ink">📞 ข้อมูลผู้ติดต่อ</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="font-black text-sm">ชื่อผู้ติดต่อหลัก</label>
-              <input
-                type="text"
-                value={form.contact_name}
-                onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))}
-                placeholder="ชื่อของคุณ"
-                className="ori-input"
-              />
+              <input type="text" value={form.contact_name} onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))} placeholder="ชื่อของคุณ" className="ori-input" />
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-sm">เบอร์โทรศัพท์ <span className="text-red-500">*</span></label>
-              <input
-                type="tel"
-                value={form.contact_tel}
-                onChange={e => setForm(f => ({ ...f, contact_tel: e.target.value }))}
-                placeholder="0xx-xxx-xxxx"
-                className="ori-input"
-              />
+              <input type="tel" value={form.contact_tel} onChange={e => setForm(f => ({ ...f, contact_tel: e.target.value }))} placeholder="0xx-xxx-xxxx" className="ori-input" />
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-sm">ชื่อผู้ติดต่อสำรอง (ถ้ามี)</label>
-              <input
-                type="text"
-                value={form.emergency_name}
-                onChange={e => setForm(f => ({ ...f, emergency_name: e.target.value }))}
-                placeholder="ชื่อบุคคลสำรอง"
-                className="ori-input"
-              />
+              <input type="text" value={form.emergency_name} onChange={e => setForm(f => ({ ...f, emergency_name: e.target.value }))} placeholder="ชื่อบุคคลสำรอง" className="ori-input" />
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-sm">เบอร์โทรศัพท์สำรอง</label>
-              <input
-                type="tel"
-                value={form.emergency_tel}
-                onChange={e => setForm(f => ({ ...f, emergency_tel: e.target.value }))}
-                placeholder="0xx-xxx-xxxx"
-                className="ori-input"
-              />
+              <input type="tel" value={form.emergency_tel} onChange={e => setForm(f => ({ ...f, emergency_tel: e.target.value }))} placeholder="0xx-xxx-xxxx" className="ori-input" />
             </div>
           </div>
         </div>
 
-        {/* ── แท่งแสดง Error แถบสีแดงเมื่อเงื่อนไขไม่ผ่าน ── */}
         {error && (
           <div className="p-4 bg-red-50 border-2 border-red-400 rounded-2xl flex items-center gap-3 text-red-800 animate-shake">
             <AlertCircle size={18} className="shrink-0" />
@@ -495,10 +380,9 @@ export default function NewPetPage() {
           </div>
         )}
 
-        {/* ── ปุ่มกดเซฟบันทึกประกาศ ── */}
         <button
           onClick={handleSave}
-          disabled={saving || !planChecked || atLimit}
+          disabled={saving || !authChecked}
           className="w-full py-5 bg-black text-white font-black text-lg rounded-2xl border-4 border-black shadow-paper hover:shadow-paper-lg hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0"
         >
           {saving ? (
@@ -509,7 +393,7 @@ export default function NewPetPage() {
           ) : (
             <>
               <Sparkles size={20} className="text-ori-yellow" />
-              ลงประกาศและเปิดระบบ AI สแกนจับคู่คู่สำเร็จ
+              ลงประกาศและเปิดระบบวิเคราะห์คลังข้อมูลสำเร็จ
             </>
           )}
         </button>
