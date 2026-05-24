@@ -8,11 +8,34 @@ import Link                                       from 'next/link'
 import Image                                      from 'next/image'
 import { Button }                                 from '@/components/ui/button'
 import {
-  PawPrint, Plus, AlertCircle, Edit, Trash2,
-  CheckCircle2, Loader2, User, Phone, MapPin, 
+  Crown, PawPrint, Plus, AlertCircle,
+  CheckCircle2, ChevronRight, Receipt,
+  Bell, Shield, Loader2, User, Phone, MapPin, 
   Briefcase, Heart, Camera, Sparkles, Settings,
-  Home, MessageSquare, Cake, UserPlus, CalendarDays, PlusCircle
+  Home, MessageSquare, Cake, UserPlus
 } from 'lucide-react'
+
+interface SubInfo {
+  plan:            string
+  expires_at:      string | null
+  grace_until:     string | null
+  is_active:       boolean
+  pet_slots_addon: number
+  pet_limit:       number
+  days_left:       number
+  in_grace:        boolean
+  is_expired:      boolean
+}
+
+interface PaymentRecord {
+  id:            string
+  amount:        number
+  status:        string
+  slip_type:     string
+  created_at:    string
+}
+
+// ── 🟢 ปรับเปลี่ยนตัวเลือกให้ตรงกับหน้า Login เพื่อความสอดคล้องตามสั่ง ──
 
 const expertiseOptions = [
   { value: 'adopt',       label: '🐶 หาบ้านใหม่ / รับเลี้ยง' },
@@ -65,7 +88,7 @@ const interestOptions = [
   { value: 'selfdev',     label: '📈 พัฒนาตนเอง' },
   { value: 'sport_football',  label: '⚽ ฟุตบอล' },
   { value: 'sport_badminton', label: '🏸 แบดมินตัน / เทนนิส' },
-  { value: 'sport_golf',      label: '⛳ กอล์ฟ' },
+  { value: 'sport_golf',      label: '⛳ กольф' },
   { value: 'sport_muay',      label: '🥊 ศิลปะการต่อสู้' },
   { value: 'sport_other',     label: '🏅 กีฬาประเภทอื่นๆ' },
   { value: 'fitness',     label: '💪 ฟิตเนส / ออกกำลังกาย' },
@@ -104,16 +127,18 @@ function SubscriptionContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const supabase = useMemo(() => createBrowserClient(
+  const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  ), [])
+  )
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'events'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile')
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
-  const [events, setEvents] = useState<any[]>([])
-  const [isLoadingEvents, setIsLoadingEvents] = useState(false)
+
+  // Subscriptions & Payments State
+  const [subInfo, setSubInfo] = useState<SubInfo | null>(null)
+  const [payments, setPayments] = useState<PaymentRecord[]>([])
 
   // Profile Form State
   const [savingProfile, setSavingProfile] = useState(false)
@@ -141,26 +166,10 @@ function SubscriptionContent() {
     marital_status: 'single'
   })
 
-  const fetchMyEvents = async (userId: string) => {
-    setIsLoadingEvents(true)
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('organizer_id', userId)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Error fetching events:', error)
-    } else {
-      setEvents(data || [])
-    }
-    setIsLoadingEvents(false)
-  }
-
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    if (tabParam === 'events') {
-      setActiveTab('events')
+    if (tabParam === 'billing') {
+      setActiveTab('billing')
     }
   }, [searchParams])
 
@@ -174,6 +183,7 @@ function SubscriptionContent() {
         }
         setUser(session.user)
 
+        // 1. ดึงข้อมูล Profile
         const { data: prof } = await supabase
           .from('profiles')
           .select('*')
@@ -203,7 +213,34 @@ function SubscriptionContent() {
           })
         }
 
-        await fetchMyEvents(session.user.id)
+        // 2. ดึงข้อมูล Subscription & Payments
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
+
+        if (sub) {
+          setSubInfo({
+            plan:            sub.plan || 'free',
+            expires_at:      sub.expires_at,
+            grace_until:     sub.grace_until,
+            is_active:       sub.is_active ?? false,
+            pet_slots_addon: sub.pet_slots_addon || 0,
+            pet_limit:       sub.plan === 'member' ? 15 : 3,
+            days_left:       0,
+            in_grace:        false,
+            is_expired:      false
+          })
+        }
+
+        const { data: pmts } = await supabase
+          .from('payments')
+          .select('id, amount, status, slip_type, created_at')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+
+        if (pmts) setPayments(pmts)
 
       } catch (err) {
         console.error(err)
@@ -316,31 +353,6 @@ function SubscriptionContent() {
     }
   }
 
-  const handleEventDelete = async (eventId: string, title: string) => {
-    if (!window.confirm(`⚠️ ยืนยันการลบประกาศ "${title}"?\nข้อมูลนี้จะถูกลบอย่างถาวรและไม่สามารถกู้คืนได้`)) return
-
-    try {
-      const { error } = await supabase.from('events').delete().eq('id', eventId)
-      if (error) throw error
-      
-      alert('✅ ลบประกาศเรียบร้อยแล้วครับ')
-      fetchMyEvents(user.id)
-    } catch (err: any) {
-      alert(`ลบไม่สำเร็จ: ${err.message}`)
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'approved': return <span className="bg-green-100 text-green-800 border-2 border-green-300 px-3 py-1 rounded-lg text-xs font-black">✅ อนุมัติแล้ว</span>
-      case 'pending_ai': return <span className="bg-blue-100 text-blue-800 border-2 border-blue-300 px-3 py-1 rounded-lg text-xs font-black">🤖 รอ AI ตรวจสอบ</span>
-      case 'pending_admin': return <span className="bg-orange-100 text-orange-800 border-2 border-orange-300 px-3 py-1 rounded-lg text-xs font-black">⏳ รอแอดมินพิจารณา</span>
-      case 'draft_returned': return <span className="bg-yellow-100 text-yellow-800 border-2 border-yellow-300 px-3 py-1 rounded-lg text-xs font-black">✍️ ส่งกลับให้แก้ไข</span>
-      case 'rejected': return <span className="bg-red-100 text-red-800 border-2 border-red-300 px-3 py-1 rounded-lg text-xs font-black">❌ ไม่อนุมัติ</span>
-      default: return <span className="bg-gray-100 text-gray-800 border-2 border-gray-300 px-3 py-1 rounded-lg text-xs font-black">{status}</span>
-    }
-  }
-
   if (loading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-2">
@@ -352,6 +364,7 @@ function SubscriptionContent() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 text-black">
+      {/* ส่วนหัวเพจหลัก */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-4 border-black p-6 rounded-3xl bg-white shadow-paper mb-8">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-wagashi-matcha/30 border-2 border-black rounded-2xl shadow-paper-sm">
@@ -359,11 +372,12 @@ function SubscriptionContent() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-black">การตั้งค่าและบัญชีของฉัน</h1>
-            <p className="text-sm font-bold text-gray-500 mt-0.5">จัดการข้อมูลโปรไฟล์ชาว PobPet และการเลือกสิทธิ์สมาชิกเครือข่ายชุมชน</p>
+            <p className="text-sm font-bold text-gray-500 mt-0.5">จัดการข้อมูลโปรไฟล์ชาว PobPet และการเลือกสิทธิ์สมาชิกเครือข่าย</p>
           </div>
         </div>
       </div>
 
+      {/* Tabs สลับหน้าจอ */}
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setActiveTab('profile')}
@@ -376,20 +390,23 @@ function SubscriptionContent() {
           ⚙️ ข้อมูลโปรไฟล์ทั่วไป
         </button>
         <button
-          onClick={() => setActiveTab('events')}
+          onClick={() => setActiveTab('billing')}
           className={`px-6 py-3 font-black rounded-xl border-2 border-black transition-all ${
-            activeTab === 'events'
+            activeTab === 'billing'
               ? 'bg-black text-white shadow-none translate-y-0.5'
               : 'bg-white text-black shadow-paper-sm hover:-translate-y-0.5'
           }`}
         >
-          📋 ประกาศกิจกรรมของฉัน
+          👑 สิทธิ์สมาชิกและการเงิน
         </button>
       </div>
 
+      {/* แผงเนื้อหาหลัก */}
       <div className="bg-white border-4 border-black rounded-3xl p-6 md:p-10 shadow-paper">
         {activeTab === 'profile' ? (
           <form onSubmit={handleSaveProfile} className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+            
+            {/* อัปโหลดรูปประจำตัว */}
             <div className="md:col-span-2 flex flex-col items-center justify-center pb-4 border-b-2 border-dashed border-black/20">
               <div className="relative w-28 h-28 border-4 border-black rounded-full overflow-hidden bg-gray-100 shadow-paper-sm">
                 {formData.avatar_url ? (
@@ -407,6 +424,7 @@ function SubscriptionContent() {
               <span className="text-xs font-bold text-gray-500 mt-2">รูปโปรไฟล์ประจำเครือข่าย</span>
             </div>
 
+            {/* กลุ่มฟิลด์ข้อมูลหลัก */}
             <div className="space-y-1">
               <label className="font-black text-xs text-black flex items-center gap-1"><UserPlus size={16}/> ชื่อเล่น / ชื่อในระบบ <span className="text-red-500">*</span></label>
               <input 
@@ -414,7 +432,7 @@ function SubscriptionContent() {
                 value={formData.display_name}
                 onChange={e => setFormData({...formData, display_name: e.target.value})}
                 placeholder="เช่น พี่สมชาย, มะนาว"
-                className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
+                className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
               />
             </div>
 
@@ -425,7 +443,7 @@ function SubscriptionContent() {
                 value={formData.phone_number}
                 onChange={e => setFormData({...formData, phone_number: e.target.value})}
                 placeholder="09x-xxx-xxxx"
-                className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
+                className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
               />
             </div>
 
@@ -492,11 +510,12 @@ function SubscriptionContent() {
                 type="text"
                 value={formData.line_id}
                 onChange={e => setFormData({...formData, line_id: e.target.value})}
-                placeholder="ใส่ไอดีไลน์เพื่อผูกระบบ"
-                className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
+                placeholder="ใส่ไอดีไลน์เพื่อรับงาน"
+                className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
               />
             </div>
 
+            {/* ข้อมูลด้านภูมิศาสตร์ */}
             <div className="space-y-1">
               <label className="font-black text-xs text-black flex items-center gap-1"><MapPin size={16}/> จังหวัดประจำการหลัก</label>
               <select 
@@ -527,7 +546,7 @@ function SubscriptionContent() {
                 type="text"
                 value={formData.subdistrict}
                 onChange={e => setFormData({...formData, subdistrict: e.target.value})}
-                placeholder="เช่น ในเมือง"
+                placeholder="เช่น ด่านขุนทด"
                 className="w-full border-2 border-black p-3 rounded-xl font-bold"
               />
             </div>
@@ -543,6 +562,7 @@ function SubscriptionContent() {
               />
             </div>
 
+            {/* อาชีพ & บทบาทเครือข่าย */}
             <div className="space-y-1">
               <label className="font-black text-xs text-black flex items-center gap-1"><Briefcase size={14}/> อาชีพหลักของคุณ</label>
               <select 
@@ -582,6 +602,7 @@ function SubscriptionContent() {
               </div>
             )}
 
+            {/* ── ส่วนเลือกความสนใจหลัก (Interests) ── */}
             <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-wagashi-matcha/5 shadow-paper-sm mt-2">
               <label className="font-black text-sm text-black flex items-center gap-1.5"><Heart size={16} className="fill-black"/> สิ่งที่คุณสนใจและวัตถุประสงค์หลัก (Interests - เลือกได้หลายข้อ)</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
@@ -594,6 +615,7 @@ function SubscriptionContent() {
               </div>
             </div>
 
+            {/* ── ส่วนเลือกแท็กความเชี่ยวชาญ (Expertise Tags) ── */}
             <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-wagashi-sakura/5 shadow-paper-sm">
               <label className="font-black text-sm text-black flex items-center gap-1.5"><Sparkles size={16} className="fill-black"/> แท็กความเชี่ยวชาญเพื่อช่วยเหลือสัตว์เลี้ยง (Expertise Tags - เลือกได้หลายข้อ)</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
@@ -606,6 +628,7 @@ function SubscriptionContent() {
               </div>
             </div>
 
+            {/* แถบแจ้งเตือนสถานะการเซฟ */}
             {profileMsg && (
               <div className={`md:col-span-2 p-4 rounded-xl border-2 border-black flex items-center gap-2 text-left font-bold ${
                 profileMsg.type === 'error' ? 'bg-red-50 border-red-400 text-red-900' : 'bg-green-50 border-green-400 text-green-900'
@@ -615,68 +638,65 @@ function SubscriptionContent() {
               </div>
             )}
 
-            <Button type="submit" disabled={savingProfile || uploading} className="md:col-span-2 bg-black text-white py-7 text-lg font-black rounded-2xl border-4 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50 mt-2">
+            {/* ปุ่มยืนยันการเซฟ */}
+            <Button type="submit" disabled={savingProfile || uploading} className="md:col-span-2 bg-black text-white py-7 text-lg font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50 mt-2">
               {savingProfile ? <><Loader2 className="animate-spin" /> กำลังบันทึกการเปลี่ยนแปลง...</> : "💾 บันทึกการเปลี่ยนแปลงโปรไฟล์"}
             </Button>
           </form>
         ) : (
+          /* แท็บสิทธิ์สมาชิกและการเงิน (คง UI และ Logic เดิมไว้ครบถ้วน) */
           <div className="space-y-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b-4 border-black pb-6">
-              <div className="flex items-center gap-3 text-left">
-                <CalendarDays className="text-black" size={32} />
-                <div>
-                  <h3 className="text-2xl font-black text-ori-ink">ประกาศกิจกรรมของฉัน</h3>
-                  <p className="font-bold text-xs text-gray-500 mt-1">จัดการแก้ไขและลบประกาศกิจกรรมทั้งหมดในชุมชนของคุณ</p>
-                </div>
+            <div className="border-4 border-black p-6 rounded-2xl bg-wagashi-matcha/10 relative overflow-hidden shadow-paper-sm">
+              <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                <Crown size={120} />
               </div>
-              <Link href="/events/create">
-                <Button className="bg-black border-2 border-black font-black py-5 px-6 rounded-xl flex items-center gap-2 shadow-paper-sm hover:shadow-paper transition-all hover:-translate-y-0.5">
-                  <PlusCircle size={18} /> สร้างประกาศใหม่
-                </Button>
-              </Link>
+              <h3 className="text-xl font-black uppercase flex items-center gap-2">
+                <Crown className="text-black fill-yellow-400" /> 
+                แพ็คเกจปัจจุบัน: <span className="underline">{subInfo?.plan === 'member' ? 'PRO MEMBER' : 'FREE PLAN'}</span>
+              </h3>
+              <p className="font-bold text-sm text-gray-600 mt-2">
+                โควต้าช่องสัตว์เลี้ยงทั้งหมดที่คุณใช้ได้: {subInfo?.pet_limit ?? 3} ตัว 
+                {subInfo?.pet_slots_addon && subInfo.pet_slots_addon > 0 ? ` (รวมแอดออนพิเศษ +${subInfo.pet_slots_addon} ช่อง)` : ''}
+              </p>
+              {subInfo?.plan === 'member' && subInfo.expires_at && (
+                <p className="text-xs font-black bg-black text-white inline-block px-3 py-1 rounded-md mt-4">
+                  หมดอายุวันที่: {new Date(subInfo.expires_at).toLocaleDateString('th-TH')}
+                </p>
+              )}
             </div>
 
-            {isLoadingEvents ? (
-              <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-black" size={36} /></div>
-            ) : events.length === 0 ? (
-              <div className="text-center py-16 bg-gray-50 rounded-2xl border-4 border-dashed border-gray-300">
-                <CalendarDays size={48} className="mx-auto text-gray-300 mb-4" />
-                <p className="font-black text-gray-500 text-lg">คุณยังไม่มีประกาศกิจกรรมเลยครับ</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 text-left">
-                {events.map((event) => (
-                  <div key={event.id} className="border-4 border-black rounded-2xl p-5 bg-white shadow-paper-sm hover:-translate-y-0.5 transition-transform duration-200">
-                    <div className="flex flex-col md:flex-row justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-3 mb-1">
-                          {getStatusBadge(event.status)}
-                        </div>
-                        <h4 className="text-xl font-black text-ori-ink line-clamp-1">{event.title}</h4>
+            {/* ประวัติการชำระเงิน */}
+            <div className="space-y-4">
+              <h3 className="text-xl font-black flex items-center gap-2 border-b-4 border-black pb-2">
+                <Receipt size={20} /> ประวัติการแจ้งโอน / บิลชำระเงิน
+              </h3>
+              {payments.length === 0 ? (
+                <p className="text-sm font-bold text-gray-400 text-center py-6">ยังไม่มีประวัติการทำรายการชำระเงินในระบบค่ะ</p>
+              ) : (
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                  {payments.map(p => (
+                    <div key={p.id} className="border-2 border-black p-4 rounded-xl flex justify-between items-center bg-white shadow-paper-sm">
+                      <div>
+                        <p className="font-black text-sm">เลขรายการ: #{p.id.substring(0,8).toUpperCase()}</p>
                         <p className="text-xs font-bold text-gray-500">
-                          หมวดหมู่: {event.event_type} | สร้างเมื่อ: {new Date(event.created_at).toLocaleDateString('th-TH')}
+                          วันที่: {new Date(p.created_at).toLocaleString('th-TH')} | ประเภท: {p.slip_type}
                         </p>
                       </div>
-
-                      <div className="flex gap-2 items-center">
-                        <Button 
-                          onClick={() => router.push(`/events/edit/${event.id}`)}
-                          className="bg-white border-2 border-black text-black hover:bg-gray-100 font-black h-11 px-4 rounded-xl flex items-center justify-center gap-2 shadow-paper-sm"
-                        >
-                          <Edit size={16} /> แก้ไข
-                        </Button>
-                        <Button 
-                          onClick={() => handleEventDelete(event.id, event.title)}
-                          className="bg-red-50 text-red-600 border-2 border-red-600 hover:bg-red-100 font-black h-11 px-4 rounded-xl flex items-center justify-center gap-2 shadow-paper-sm"
-                        >
-                          <Trash2 size={16} /> ลบ
-                        </Button>
+                      <div className="text-right">
+                        <p className="font-black text-base">{p.amount.toLocaleString()} ฿</p>
+                        <span className={`text-[10px] font-black uppercase border px-2 py-0.5 rounded-md ${
+                          p.status === 'approved' ? 'bg-green-100 border-green-500 text-green-700' :
+                          p.status === 'pending' ? 'bg-yellow-100 border-yellow-500 text-yellow-700' :
+                          'bg-red-100 border-red-500 text-red-700'
+                        }`}>
+                          {p.status === 'approved' ? 'สำเร็จ' : p.status === 'pending' ? 'รอตรวจ' : 'ปฏิเสธ'}
+                        </span>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
