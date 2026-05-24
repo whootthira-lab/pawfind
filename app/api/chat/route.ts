@@ -7,145 +7,25 @@ import { recordHealthEvent }       from '@/lib/pet-health-recorder'
 import { createReminder }          from '@/lib/reminder-engine'
 
 // ══════════════════════════════════════════════════════════════
-// KNOWLEDGE BASE
+// KNOWLEDGE BASE (ล้างข้อความจำกัดแพ็คเกจเงิน)
 // ══════════════════════════════════════════════════════════════
 const KNOWLEDGE_BASE = `
 ## เกี่ยวกับ PobPet
 - PobPet (พบเพ็ต) คือแพลตฟอร์มดิจิทัลช่วยตามหาสัตว์เลี้ยงที่หายด้วย AI
 - ผู้ก่อตั้ง: นายวุฒิ์ธีระ ครุฑขุนทด อ.ด่านขุนทด จ.นครราชสีมา
 - ผลงานพิเศษ: ทดลองขาเทียม 3D Print ให้กับนกกระเรียน สวนสัตว์นครราชสีมา (2566)
-- ติดต่อ PobPet: ผ่านแบบฟอร์มในเว็บ หรือ LINE OA ของ PobPet
-
-## ปัญหาการใช้งานพบบ่อย (FAQ)
-### "ไม่พบประกาศของตัวเอง"
-- สาเหตุ: ล็อกอินผิดบัญชี เช่น เคยใช้ Email แต่กด LINE Login แทน
-- วิธีแก้: ออกจากระบบแล้วล็อกอินด้วยช่องทางเดิม ประกาศยังอยู่ปลอดภัย
+- ติดต่อ PobPet: ผ่านแบบฟอร์มในเว็บ หรือช่องทางสื่อสารหลักบนหน้าเว็บไซต์
 
 ## วิธีใช้ระบบ
 ### ลงประกาศสัตว์หาย:
 1. กดปุ่ม "ลงประกาศ" หรือไปที่ /report
 2. อัปโหลดรูปสัตว์ที่ชัดเจน 1-5 รูป
 3. กรอกข้อมูล: ชื่อ ประเภท สี จังหวัด อำเภอ ตำบล
-4. กด GPS เพื่อปักหมุดตำแหน่งที่หาย
-5. ใส่ช่องทางติดต่อและเงินรางวัล (ถ้ามี)
-6. กด Submit — AI จะวิเคราะห์รูปและจับคู่ทันที
+4. กด Submit — AI จะวิเคราะห์รูปและจับคู่ทันที
 
-### เทคนิคถ่ายรูปให้ AI จับคู่ได้แม่น:
-- ถ่ายอย่างน้อย 3 มุม: หน้าตรง ด้านข้าง ด้านหลัง/หาง
-- ใช้แสงธรรมชาติ หลีกเลี่ยงแสงจ้าหรือมืด
-- ระยะห่าง 50-100 ซม. จากสัตว์
-- ถ่ายให้เห็นลักษณะพิเศษ เช่น ลาย แผลเป็น ปลอกคอ
-- ไม่ควรซูมหรือ crop รูปก่อนอัปโหลด
-
-### แจ้งพบสัตว์หลงทาง:
-1. กดปุ่ม "แจ้งพบสัตว์" หรือไปที่ /report?status=found
-2. ถ่ายรูปสัตว์ที่พบพร้อมปักหมุดพิกัด
-3. ระบบจะ Match กับประกาศหายที่มีอยู่อัตโนมัติ
-4. ถ้า AI พบความคล้ายคลึง ≥ 80% จะแจ้งเจ้าของทันที
-
-### การลบประกาศเมื่อพบสัตว์แล้ว:
-- เข้าไปที่ประกาศของตัวเอง กดปุ่ม "ลบ"
-- ระบบจะถามเหตุผล เช่น เจอแล้ว / ยกเลิก
-- กรุณาลบทันทีเมื่อเจอแล้ว เพื่อไม่ให้คนอื่นเข้าใจผิด
-
-### การรับเลี้ยงสัตว์ผ่าน PobPet:
-- ดูประกาศ "หาบ้านให้น้อง" ในหน้า /search?status=adoption
-- ติดต่อเจ้าของผ่านช่องทางที่ระบุในประกาศ
-
-## สิ่งที่ต้องทำ 6 ขั้นตอนแรกเมื่อสัตว์หาย (24 ชม. แรกสำคัญที่สุด)
-1. ลงประกาศบน PobPet ทันที พร้อมรูปชัดเจน
-2. แชร์ประกาศไปยัง LINE กลุ่ม Facebook ในพื้นที่
-3. แจ้งเพื่อนบ้านและร้านค้าในรัศมี 1-2 กม.
-4. แจ้งคลินิกสัตวแพทย์ใกล้บ้าน
-5. ติดโปสเตอร์บริเวณที่หายและทางเดินหลัก
-6. แจ้ง อบต./เทศบาลในพื้นที่
-
-## เมื่อพบสัตว์เลี้ยงหลงทาง
-1. ประเมินความปลอดภัย: บาดเจ็บหรือไม่
-2. ถ่ายรูปหลายมุมก่อนเข้าใกล้
-3. เข้าหาช้าๆ ไม่จ้องตาโดยตรง
-4. ถ้าบาดเจ็บ: ห่อด้วยผ้านุ่มๆ นำส่งหมอทันที ห้ามให้อาหาร/น้ำก่อน
-5. แจ้งผ่าน PobPet ระบบจะ Match เจ้าของให้
-
-## เมื่อพบสัตว์ป่าหรือสัตว์ที่ไม่แน่ใจ
-- ห้ามจับหรือเข้าใกล้สัตว์ป่าโดยตรง
-- โทรแจ้งกรมอุทยานฯ: 1362
-- ห้ามเลี้ยงสัตว์ป่าคุ้มครอง แม้จะพบว่าบาดเจ็บ
-
-## สุขภาพสัตว์เบื้องต้น
-### สัญญาณอันตราย ต้องพาหาหมอทันที:
-- หายใจลำบาก ปากเขียว
-- ชักหรือหมดสติ
-- เลือดออกไม่หยุด
-- กินสิ่งแปลกปลอมหรือยา
-- ถูกรถชน แม้ดูปกติภายนอก
-- ปัสสาวะไม่ออกเกิน 24 ชม.
-- ท้องบวมแข็งผิดปกติ
-- ตัวเย็น ซึม ไม่ตอบสนอง
-
-### อาการพบบ่อยและแนวทาง:
-- ไม่กินข้าว 1-2 วัน: เฝ้าดู ถ้าเกิน 48 ชม. พาหาหมอ
-- ท้องเสีย/อาเจียน: งดอาหาร 12 ชม. ให้น้ำ ถ้ามีเลือดพาหาหมอทันที
-- ขนร่วงผิดปกติ: อาจเป็นโรคผิวหนัง พาหาหมอตรวจ
-- ตาแฉะ น้ำมูกไหล: อาจเป็นหวัด ถ้าหนักพาหาหมอ
-- เกาหูมาก หัวเอียง: อาจเป็นหูชั้นกลางอักเสบ พาหาหมอ
-
-### วัคซีนที่จำเป็น:
-- วัคซีนพิษสุนัขบ้า: ฉีดทุกปี (สุนัข/แมว) — กฎหมายบังคับ
-- วัคซีนรวม 5-8 โรค: ฉีดตามตารางสัตวแพทย์
-
-## การทำหมัน
-- เหมาะอายุ: สุนัข 6-12 เดือน แมว 4-6 เดือน
-- ประโยชน์: ป้องกันโรคมะเร็ง ลดพฤติกรรมก้าวร้าว ลดสัตว์จรจัด
-- ค่าใช้จ่าย: ฿500-3,000 แล้วแต่ขนาดและคลินิก
-
-## กฎหมายสัตว์เลี้ยง
-- พ.ร.บ.ป้องกันการทารุณกรรมสัตว์ 2557: โทษจำคุกสูงสุด 2 ปี ปรับ 40,000 บาท
-- บังคับฉีดวัคซีนพิษสุนัขบ้าตามกฎหมาย
-- รายงานสัตว์ป่าคุ้มครอง: โทร 1362
-
-## เรื่องที่ยังไม่มีในระบบ
-- ถ้าผู้ใช้ถามเรื่องสินค้า บริการ หรือฟีเจอร์ที่ยังไม่มี ให้บอกว่ากำลังพัฒนา
-- ถามความต้องการเพื่อเก็บข้อมูล อย่าปฏิเสธแบบตัดบท
-
-## อาหารและสิ่งที่ควรหลีกเลี่ยง
-### สุนัข — ห้ามกินเด็ดขาด:
-- ช็อกโกแลต โกโก้ → สาร Theobromine เป็นพิษต่อระบบประสาทและหัวใจ อันตรายถึงชีวิต
-- องุ่น ลูกเกด → ทำให้ไตวาย แม้แต่จำนวนเล็กน้อย
-- หัวหอม กระเทียม กุยช่าย → ทำลายเม็ดเลือดแดง ทำให้โลหิตจาง
-- อะโวคาโด → สาร Persin ทำให้อาเจียนและท้องเสียรุนแรง
-- แมคคาเดเมียนัต → ทำให้กล้ามเนื้ออ่อนแรง ตัวสั่น มีไข้
-- แอลกอฮอล์ ไซลิทอล → อันตรายมากแม้ปริมาณน้อย
-
-### แมว — ห้ามกินเด็ดขาด:
-- หัวหอม กระเทียม → อันตรายกว่าสุนัข ทำลายเม็ดเลือดแดงรุนแรง
-- ช็อกโกแลต คาเฟอีน → เป็นพิษต่อระบบประสาท
-- องุ่น ลูกเกด → ทำไตวาย
-- Xylitol → ทำให้น้ำตาลในเลือดต่ำอย่างรุนแรง
-
-## ปัญหาพฤติกรรมที่พบบ่อย
-### สุนัขกัดของ/ทำลายข้าวของ:
-- สาเหตุ: เบื่อ ขาดการออกกำลัง หรืออยู่คนเดียวนานเกินไป (Separation Anxiety)
-- วิธีแก้: เพิ่มเวลาเดินเล่น ให้ของเล่นกัด ฝึกคำสั่ง "ไม่"
-
-### แมวไม่ใช้กระบะทราย:
-- สาเหตุ: กระบะสกปรก ไม่ชอบทราย ความเครียด หรือปัญหาสุขภาพ (นิ่ว UTI)
-- วิธีแก้: ทำความสะอาดทุกวัน ลองเปลี่ยนทราย มีกระบะ 1+1 ตัว
-
-## การปรับตัวสัตว์เลี้ยงตัวใหม่
-- 3 วันแรก: ให้พักในห้องเล็กๆ คุ้นเคยกับกลิ่นและเสียงก่อน
-- 3 สัปดาห์: สัตว์เริ่มเข้าใจ routine ของบ้าน
-- 3 เดือน: เริ่มรู้สึกปลอดภัย แสดงพฤติกรรมที่แท้จริง
-
-## คำแนะนำสำหรับผู้เลี้ยงมือใหม่
-- ค่าใช้จ่ายเฉลี่ย: ฿2,000-5,000/เดือน
-- เตรียมบ้านให้ปลอดภัย: เก็บสายไฟ ยา สารเคมีให้พ้นมือสัตว์
-- สิ่งที่มือใหม่มักเข้าใจผิด: สัตว์ต้องฝึกอย่างสม่ำเสมอ อาหารคนมักมีเกลือเป็นอันตราย
-
-## แนวปฏิบัติด้านความปลอดภัย
-- บอทไม่ใช่สัตวแพทย์ ให้ข้อมูลเบื้องต้นเท่านั้น
-- ห้ามวินิจฉัยโรคสัตว์แทนสัตวแพทย์โดยเด็ดขาด
-- กรณีผู้ใช้แสดงสัญญาณวิกฤต: ให้เบอร์ 1323 ทันที
+### สมุดบันทึกประวัติสุขภาพสัตว์ (ฟรีกว่าเดิม):
+- ผู้ใช้ทุกคนสามารถกรอกข้อมูลประวัติสุขภาพ นัดหมายวัคซีน ถ่ายพยาธิ และแนบรูปถ่ายใบเสร็จหรือหลักฐานทางการแพทย์ประกอบได้ฟรีทันทีบนหน้าเว็บ
+- สามารถตั้งระบบการเตือนความจำพุชบอร์ด (Web Push Notification) ให้เด้งส่งข้อมูลนัดหมายรอบถัดไปตรงสู่หน้าจอคอมพิวเตอร์และมือถือได้โดยไม่มีค่าใช้จ่าย
 `
 
 // ══════════════════════════════════════════════════════════════
@@ -168,8 +48,8 @@ const TOOLS = [
           },
           medicine_name: { type: 'string', description: 'ชื่อวัคซีนหรือยา (ถ้ามี)' },
           event_date:   { type: 'string', description: 'วันที่ในรูปแบบ YYYY-MM-DD หรือ "today"' },
-          notes:        { type: 'string', description: 'หมายเหตุเพิ่มเติม' },
-          next_due_days: { type: 'number', description: 'จำนวนวันจนถึงครั้งต่อไป (ถ้าต้องการ override ค่าอัตโนมัติ)' },
+          notes:        { type: 'string', description: 'หมายเหตุเพิ่มเติมหรือที่อยู่ลิงก์รูปภาพใบเสร็จ' },
+          next_due_days: { type: 'number', description: 'จำนวนวันจนถึงครั้งต่อไป เพื่อการตั้งเตือนร่วมกับ Web Push อัตโนมัติ' },
         },
         required: ['event_type', 'event_date'],
       },
@@ -179,7 +59,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'create_reminder',
-      description: 'ตั้งการแจ้งเตือน เช่น เตือนซื้ออาหาร เตือนพาตัดขน เตือนนัดหมอ ใช้เมื่อผู้ใช้ขอให้เตือน',
+      description: 'ตั้งการแจ้งเตือนพุชหน้าจอ เช่น เตือนซื้ออาหาร เตือนพาตัดขน เตือนนัดหมอ ใช้เมื่อผู้ใช้ขอให้เตือนระบบจะยิงผ่าน Web Push ฟรี',
       parameters: {
         type: 'object',
         properties: {
@@ -210,9 +90,6 @@ const TOOLS = [
   },
 ]
 
-// ══════════════════════════════════════════════════════════════
-// CONTEXT-AWARE INSTRUCTIONS
-// ══════════════════════════════════════════════════════════════
 function getContextInstruction(pageContext: string): string {
   if (pageContext.startsWith('/report')) {
     const status = pageContext.includes('found') ? 'แจ้งพบสัตว์' : 'ลงประกาศสัตว์หาย'
@@ -230,9 +107,6 @@ function getContextInstruction(pageContext: string): string {
   return ''
 }
 
-// ══════════════════════════════════════════════════════════════
-// SENTIMENT DETECTION
-// ══════════════════════════════════════════════════════════════
 function detectSentiment(message: string): string {
   const lower = message.toLowerCase()
   const crisis = ['ทำร้ายตัวเอง', 'อยากตาย', 'ไม่อยากมีชีวิต', 'หมดหวัง', 'ทนไม่ไหว']
@@ -246,9 +120,6 @@ function detectSentiment(message: string): string {
   return 'neutral'
 }
 
-// ══════════════════════════════════════════════════════════════
-// INSIGHT TRACKING
-// ══════════════════════════════════════════════════════════════
 function detectTopic(message: string): { topic: string; sub_topic: string } {
   const lower = message
   if (/หาย|ประกาศ|ตามหา|หลง/.test(lower))    return { topic: 'lost_found',  sub_topic: 'lost_pet' }
@@ -263,9 +134,6 @@ function detectTopic(message: string): { topic: string; sub_topic: string } {
   return { topic: 'general', sub_topic: 'other' }
 }
 
-// ══════════════════════════════════════════════════════════════
-// GET PET INFO
-// ══════════════════════════════════════════════════════════════
 async function getPetInfo(userId: string, petName: string, infoType: string) {
   const supabase = createClient()
 
@@ -307,9 +175,6 @@ async function getPetInfo(userId: string, petName: string, infoType: string) {
   return result
 }
 
-// ══════════════════════════════════════════════════════════════
-// SYSTEM PROMPTS
-// ══════════════════════════════════════════════════════════════
 function getSystemPrompt(
   characterId:  string,
   pageContext:  string,
@@ -317,9 +182,9 @@ function getSystemPrompt(
 ): string {
   const contextNote        = `[บริบทปัจจุบัน: ผู้ใช้อยู่ที่หน้า "${pageContext}"]`
   const contextInstruction = getContextInstruction(pageContext)
-  const memberNote         = isMember
-    ? 'ผู้ใช้เป็น Member — สามารถบันทึกสุขภาพและตั้งแจ้งเตือนผ่าน Chatbot ได้'
-    : 'ผู้ใช้เป็น Free Plan — ถ้าพยายามบันทึกสุขภาพ ให้แจ้งว่าต้องอัปเกรด Member ก่อน (฿399/ปี)'
+  
+  // ── 🟢 [ปรับปรุงฟีเจอร์ฟรี] ยกเลิกข้อความคัดกรองสมาชิก ──
+  const memberNote         = 'ผู้ใช้ทุกคนเข้าถึงฟีเจอร์พรีเมียมได้ฟรี — สามารถใช้งานแชทบอตบันทึกสุขภาพสัตว์เลี้ยง แนบภาพหลักฐานใบเสร็จ และตั้งคิวแจ้งเตือนความจำพุชบอร์ดเบราว์เซอร์ (Web Push Notification) ได้ทันทีโดยไม่มีค่าใช้จ่าย'
 
   const sharedRules = `
 ## สถานะแพ็คเกจ
@@ -395,9 +260,6 @@ ${KNOWLEDGE_BASE}
   return personas[characterId] || personas.cat
 }
 
-// ══════════════════════════════════════════════════════════════
-// API HANDLER
-// ══════════════════════════════════════════════════════════════
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.OPENAI_API_KEY
@@ -411,12 +273,9 @@ export async function POST(req: Request) {
       characterId  = 'cat',
       pageContext   = '/',
       history       = [],
-      line_user_id,          // ← รับจาก LINE webhook (bypass session)
+      line_user_id,
     } = await req.json()
 
-    // ── Resolve userId ────────────────────────────────────────
-    // ถ้ามาจาก LINE webhook → ใช้ line_user_id หา userId จาก profiles
-    // ถ้ามาจากเว็บ → ใช้ session ปกติ
     let userId: string | null = session?.user?.id ?? null
 
     if (!userId && line_user_id) {
@@ -430,26 +289,14 @@ export async function POST(req: Request) {
 
     const sentiment = detectSentiment(message)
 
-    // ── เช็ค Member plan ──────────────────────────────────────
-    let isMember = false
-    if (userId) {
-      const { data: sub } = await supabase
-        .from('subscriptions')
-        .select('plan, expires_at')
-        .eq('user_id', userId)
-        .single()
-      if (sub?.plan === 'member' && sub?.expires_at) {
-        isMember = new Date(sub.expires_at) > new Date()
-      }
-    }
+    // ── 🟢 [ปรับปรุงฟีเจอร์ฟรี] สั่ง Force ปลดล็อกชุดเครื่องมือคำสั่งให้ทุกคนใช้งานได้ทันทีฟรี ──
+    const isMember = true
 
-    // ── Build messages ────────────────────────────────────────
     const historyMessages = history.map((m: { role: string; text: string }) => ({
       role:    m.role === 'bot' ? 'assistant' : 'user',
       content: m.text,
     }))
 
-    // ── Call OpenAI (with tools for Member) ───────────────────
     const body: Record<string, unknown> = {
       model: 'gpt-4o-mini',
       messages: [
@@ -463,8 +310,7 @@ export async function POST(req: Request) {
       presence_penalty:  0.4,
     }
 
-    // เพิ่ม tools เฉพาะ Member และ login แล้ว
-    if (isMember && userId) {
+    if (userId) {
       body.tools       = TOOLS
       body.tool_choice = 'auto'
     }
@@ -486,7 +332,6 @@ export async function POST(req: Request) {
     let   reply          = ''
     let   actionButtons: { label: string; link: string }[] = []
 
-    // ── Handle Function Calling ───────────────────────────────
     if (aiMessage.tool_calls?.length && userId) {
       const toolCall = aiMessage.tool_calls[0]
       const toolName = toolCall.function.name
@@ -501,7 +346,7 @@ export async function POST(req: Request) {
         if (result.success) {
           actionButtons = [
             { label: `ดูประวัติน้อง${result.pet_name}`, link: '/dashboard/pets' },
-            { label: 'ตั้งแจ้งเตือนเพิ่มเติม',          link: '/dashboard/reminders' },
+            { label: 'ตั้งแจ้งเตือนเพิ่มเติมบนเว็บ',    link: '/dashboard/reminders' },
           ]
         }
       }
@@ -512,7 +357,7 @@ export async function POST(req: Request) {
 
         if (result.success) {
           actionButtons = [
-            { label: 'ดูแจ้งเตือนทั้งหมด', link: '/dashboard/reminders' },
+            { label: 'ดูแจ้งเตือนทั้งหมดบนเว็บ', link: '/dashboard/reminders' },
           ]
         }
       }
@@ -522,7 +367,6 @@ export async function POST(req: Request) {
         toolResult   = JSON.stringify(result)
       }
 
-      // ── ส่งผล tool กลับให้ AI สรุปเป็นภาษาไทย ────────────
       const finalRes = await fetch('https://api.openai.com/v1/chat/completions', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -548,11 +392,10 @@ export async function POST(req: Request) {
       reply = aiMessage.content || 'ขออภัย เกิดข้อผิดพลาด'
     }
 
-    // ── Log to Supabase ───────────────────────────────────────
+    // ── 🟢 [ปรับปรุง] เปลี่ยนมา Log ประวัติลงตารางจริง (pet_chat_histories) เพื่อความสอดคล้องตามสั่ง ──
     ;(async () => {
       try {
-        // chat_logs
-        await supabase.from('chat_logs').insert({
+        await supabase.from('pet_chat_histories').insert({
           message,
           reply,
           character_id: characterId,
@@ -560,7 +403,6 @@ export async function POST(req: Request) {
           sentiment,
           user_id:      userId,
         })
-        // chat_insights (topic tracking)
         if (userId) {
           const { topic, sub_topic } = detectTopic(message)
           await supabase.from('chat_insights').insert({
