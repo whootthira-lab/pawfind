@@ -1,5 +1,4 @@
 'use client'
-// app/login/page.tsx (V3 - Fixed Storage Bucket Allocation Route)
 
 import { useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
@@ -10,17 +9,14 @@ import {
   LogIn, Mail, Loader2, CheckCircle2, AlertCircle, 
   UserPlus, MapPin, Phone, Camera, Cake, UserCircle,
   Briefcase, Heart, Sparkles, Smile, ChevronRight, ArrowLeft,
-  Home, MessageSquare, PawPrint
+  Home, MessageSquare, PawPrint // ── 🆕 นำเข้าไอคอนอุ้งเท้าสัตว์ ──
 } from 'lucide-react'
 
+// ── ตัวเลือกบทบาทชุมชน / อาชีพ ──
 const expertiseOptions = [
   { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
-  { value: 'rescue',      label: '🆘 ค้นหาสัตว์หาย/พบสัตว์หลงหรือจร' },
-  { value: 'mating',      label: '❤️ หาคู่ผสมพันธุ์ให้น้องๆ' },
-  { value: 'showcase',    label: '📸 อวดความน่ารัก/ประกวดสัตว์เลี้ยง' },
-  { value: 'knowledge',   label: '📚 ศึกษาความรู้และการเลี้ยงดู' },
   { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
-  { value: 'petscout', label: 'PetScout (นักตามหาสัตว์หาย)' },
+  { value: 'petscout', label: 'PetScout (รับจ้างตามหาสัตว์หาย)' },
   { value: 'vet', label: 'สัตวแพทย์ / คลินิกรักษาสัตว์' },
   { value: 'groomer', label: 'บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
   { value: 'petsitter', label: 'รับฝากหรือดูแลสัตว์ที่บ้าน' },
@@ -28,6 +24,7 @@ const expertiseOptions = [
   { value: 'other', label: 'อื่นๆ (โปรดระบุ)' },
 ]
 
+// ── ตัวเลือกความสนใจ (Interests) ──
 const interestOptions = [
   { value: 'dog',         label: '🐕 สุนัข' },
   { value: 'cat',         label: '🐈 แมว' },
@@ -36,8 +33,12 @@ const interestOptions = [
   { value: 'exotic',      label: '🦎 สัตว์ Exotic' },
   { value: 'rabbit',      label: '🐰 กระต่าย / สัตว์เล็ก' },
   { value: 'adopt',       label: '🐶 หาบ้านใหม่/รับเลี้ยงสัตว์' },
+  { value: 'rescue',      label: '🆘 ช่วยเหลือสัตว์เจ็บป่วย/สัตว์จร' },
+  { value: 'mating',      label: '❤️ หาคู่ผสมพันธุ์ให้น้องๆ' },
+  { value: 'showcase',    label: '📸 อวดความน่ารัก/ประกวดสัตว์เลี้ยง' },
+  { value: 'knowledge',   label: '📚 ศึกษาความรู้และการเลี้ยงดู' },
   { value: 'health',      label: '🏥 สุขภาพสัตว์เลี้ยง' },
-  { value: 'prosthetics', label: '🦿 นวัตกรรม / DIY' },
+  { value: 'prosthetics', label: '🦿 นวัตกรรมขาเทียม / DIY' },
   { value: 'community',   label: '🤝 ชุมชนอาสาสมัคร' },
   { value: 'memorial',    label: '🕯 ของที่ระลึกสัตว์เลี้ยง' },
   { value: 'astrology',   label: '🔮 ดูดวง / โหราศาสตร์' },
@@ -45,7 +46,7 @@ const interestOptions = [
   { value: 'selfdev',     label: '📈 พัฒนาตนเอง' },
   { value: 'sport_football',  label: '⚽ ฟุตบอล' },
   { value: 'sport_badminton', label: '🏸 แบดมินตัน / เทนนิส' },
-  { value: 'sport_golf',      label: '⛳ กอล์ฟ' },
+  { value: 'sport_golf',      label: '⛳ กольф' },
   { value: 'sport_muay',      label: '🥊 ศิลปะการต่อสู้' },
   { value: 'sport_other',     label: '🏅 กีฬาประเภทอื่นๆ' },
   { value: 'fitness',     label: '💪 ฟิตเนส / ออกกำลังกาย' },
@@ -60,6 +61,7 @@ const interestOptions = [
   { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' },
 ]
 
+// ── ตัวเลือกแท็กความเชี่ยวชาญเพิ่มเติม ──
 const expertiseTagOptions = [
   { value: 'rescue_expert',     label: '🆘 ยานพาหนะช่วยชีวิตสัตว์/จับสัตว์' },
   { value: 'medical_care',      label: '💊 ปฐมพยาบาล/ให้ยาสัตว์เบื้องต้น' },
@@ -68,18 +70,16 @@ const expertiseTagOptions = [
   { value: 'craftsman_diy',     label: '🛠️ ช่างฝีมือ/ออกแบบวีลแชร์สัตว์พิการ' },
   { value: 'donation_co',       label: '📦 ประสานงานกองทุนและสิ่งของบริจาค' },
   { value: 'digital_creator',   label: '💻 ช่วยทำสื่อดิจิทัล/กราฟิกคอมมูนิตี้' },
-  { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
-  { value: 'petscout', label: 'PetScout (นักตามหาสัตว์หาย)' },
-  { value: 'none', label: 'ไม่มี' },
-  { value: 'other', label: 'อื่นๆ' },
 ]
 
+// ── ตัวเลือกสถานะ (Marital Status) ──
 const maritalStatusOptions = [
   { value: 'single', label: 'โสด' },
   { value: 'married', label: 'แต่งงานแล้ว' },
   { value: 'complicated', label: 'ไม่เปิดเผย / คลุมเครือ' },
 ]
 
+// ── ตัวเลือกอาชีพหลัก ──
 const occupationOptions = [
   { value: 'student', label: '🎓 นักเรียน / นักศึกษา' },
   { value: 'employee', label: '💼 พนักงานบริษัท / ลูกจ้าง' },
@@ -179,17 +179,16 @@ export default function LoginPage() {
       const file = e.target.files[0]
       const fileExt = file.name.split('.').pop()
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-      const filePath = `${fileName}`
+      const filePath = `avatars/${fileName}`
 
-      // 🟢 [แก้ไขสอดคล้อง] สลับเส้นทางจากบักเก็ตเดิมที่พัง มารันผ่านบักเก็ตจริงในระบบของพี่ 'profile-images'
       const { error: uploadErr } = await supabase.storage
-        .from('profile-images')
+        .from('pobpet-bucket')
         .upload(filePath, file)
 
       if (uploadErr) throw uploadErr
 
       const { data: { publicUrl } } = supabase.storage
-        .from('profile-images')
+        .from('pobpet-bucket')
         .getPublicUrl(filePath)
 
       setFormData(prev => ({ ...prev, avatar_url: publicUrl }))
@@ -308,6 +307,7 @@ export default function LoginPage() {
         
         <div className="text-center mb-8">
           <div className="inline-flex p-4 bg-wagashi-sakura/40 border-2 border-black rounded-2xl mb-4 shadow-paper-sm">
+            {/* ── 🆕 เปลี่ยนจากรูปหัวใจ <Heart> เป็นรูปอุ้งเท้าสัตว์ <PawPrint> ── */}
             <PawPrint className="w-10 h-10 text-black fill-wagashi-sakura animate-pulse" />
           </div>
           <h1 className="text-3xl md:text-4xl font-black text-black tracking-tight mb-2">
@@ -365,6 +365,7 @@ export default function LoginPage() {
             >
               <form onSubmit={handleRegisterAndLogin} className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left">
                 
+                {/* ── SUB-STEP 1: ข้อมูลประวัติ ที่อยู่ อาชีพ บทบาทชุมชน ── */}
                 {profileSubStep === 1 && (
                   <>
                     <div className="md:col-span-2 flex flex-col items-center justify-center pb-2">
@@ -470,7 +471,7 @@ export default function LoginPage() {
                         value={formData.line_id}
                         onChange={e => setFormData({...formData, line_id: e.target.value})}
                         placeholder="ใส่ไอดีไลน์เพื่อรับงาน"
-                        className="w-full border-2 border-black p-2.5 rounded-xl font-bold outline-none focus:ring-4 ring-black/5"
+                        className="w-full border-2 border-black p-2.5 rounded-xl font-boldoutline-none focus:ring-4 ring-black/5"
                       />
                     </div>
 
@@ -548,12 +549,12 @@ export default function LoginPage() {
 
                     {formData.community_role === 'other' && (
                       <div className="md:col-span-2 space-y-1">
-                        <label className="font-black text-xs text-black">โปรดระบุวัตถุประสงค์การเข้าใช้หรือบทบาทอาชีพเกี่ยวกับสัตว์</label>
+                        <label className="font-black text-xs text-black">โปรดระบุบทบาทอาชีพเพิ่มเติม</label>
                         <input 
                           type="text"
                           value={formData.community_role_custom}
                           onChange={e => setFormData({...formData, community_role_custom: e.target.value})}
-                          placeholder="เช่น ช่างภาพช่วยถ่ายรูปสัตว์พิการ, PetScout (นักตามหาสัตว์หาย) "
+                          placeholder="เช่น ช่างภาพช่วยถ่ายรูปสัตว์พิการ"
                           className="w-full border-2 border-black p-2.5 rounded-xl font-bold"
                         />
                       </div>
@@ -565,6 +566,7 @@ export default function LoginPage() {
                   </>
                 )}
 
+                {/* ── SUB-STEP 2: ความสนใจ & แท็กความเชี่ยวชาญ ── */}
                 {profileSubStep === 2 && (
                   <>
                     <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-wagashi-matcha/10 shadow-paper-sm">
@@ -580,7 +582,7 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-wagashi-sakura/10 shadow-paper-sm">
-                      <label className="font-black text-base text-black flex items-center gap-1.5"><Sparkles size={16} className="fill-black"/>ความเชี่ยวชาญหรือด้านที่ต้องการช่วยเหลือสัตว์ (Expertise Tags - เลือกได้หลายข้อ)</label>
+                      <label className="font-black text-base text-black flex items-center gap-1.5"><Sparkles size={16} className="fill-black"/> แท็กความเชี่ยวชาญเพื่อช่วยเหลือสัตว์เลี้ยง (Expertise Tags - เลือกได้หลายข้อ)</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
                         {expertiseTagOptions.map(opt => (
                           <label key={opt.value} className="flex items-center gap-2.5 bg-white border border-black p-2.5 rounded-xl cursor-pointer select-none font-bold text-xs hover:bg-gray-50 shadow-paper-sm">
