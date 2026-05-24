@@ -267,7 +267,7 @@ export default function PetAssistant() {
       }])
     } catch {
       setMessages(prev => [...prev, { role: 'bot', text: 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่นะคะ' }])
-    } evening {
+    } finally {
       setIsLoading(false)
     }
   }
