@@ -1,5 +1,5 @@
 'use client'
-// app/(main)/profile/page.tsx (V4 - ปลด Paywall เด็ดขาด, แก้บั๊ครูปภาพนุด, บันทึกรูปตำหนิ 3 รูปพร้อมรายละเอียดสอดคล้อง 100%)
+// app/(main)/profile/page.tsx (V5 - รูปโปรไฟล์ Thumbnail Neubrutalism สมบูรณ์ร้อยเปอร์เซ็นต์ ไร้การตัดทอน)
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
@@ -17,20 +17,19 @@ import { DonationModal } from '@/components/DonationModal'
 
 // ── Constants ตัวเลือกต่าง ๆ สอดคล้องทั้งระบบ ──────────────────
 const expertiseOptions = [
+  { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
   { value: 'adopt',       label: '🐶 หาบ้านใหม่ / รับเลี้ยง' },
-  { value: 'rescue',      label: '🆘 ค้นหาสัตว์หาย/ช่วยเหลือสัตว์จร' },
-  { value: 'mating',      label: '❤️ หาคู่ให้สัตว์เลี้ยง' },
-  { value: 'showcase',    label: '📸 ประกวด / อวดความน่ารัก' },
-  { value: 'knowledge',   label: '📚 ศึกษาความรู้การเลี้ยง' },
-  { value: 'general',     label: '🔍 ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
-  { value: 'volunteer',   label: '🤝 อาสาสมัคร / ศูนย์พักพิงสัตว์' },
-  { value: 'petscout',    label: '🔍 PetScout (รับจ้างตามหาสัตว์หาย)' },
+  { value: 'rescue',      label: '🆘 ค้นหาสัตว์หาย/แจ้งพบสัตว์หลงหรือจร' },
+  { value: 'mating',      label: '❤️ หาคู่ผสมพันธุ์ให้น้องๆ' },
+  { value: 'showcase',    label: '📸 อวดความน่ารัก/ประกวดสัตว์เลี้ยง' },
+  { value: 'knowledge',   label: '📚 ศึกษาความรู้และการเลี้ยงดู' },
+  { value: 'petscout', label: '🔍 สร้างรายได้จากการช่วยตามหาสัตว์หาย(PetScout)' },
   { value: 'vet', label: '🏥 ประชาสัมพันธ์ คลินิกรักษาสัตว์' },
   { value: 'groomer', label: '🪮 ประชาสัมพันธ์ บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
   { value: 'petsitter', label: '🏩 ประชาสัมพันธ์ บริการรับฝากหรือดูแลสัตว์ที่บ้าน' },
   { value: 'retailer', label: '🛍️ ประชาสัมพันธ์ ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
   { value: 'announce', label: '📢 ประชาสัมพันธ์ข่าว/กิจกรรม' },
-  { value: 'other',       label: 'อื่นๆ (โปรดระบุ)' },
+  { value: 'other', label: 'อื่นๆ (โปรดระบุ)' },
 ]
 
 const occupationOptions = [
@@ -76,7 +75,7 @@ const interestOptions = [
   { value: 'art',         label: '🎨 ศิลปะ / งานฝีมือ' },
   { value: 'music',       label: '🎵 ดนตรี' },
   { value: 'reading',     label: '📚 อ่านหนังสือ' },
-  { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' }
+  { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' },
 ]
 
 const thailandProvinces = [
@@ -84,10 +83,10 @@ const thailandProvinces = [
 ].sort()
 
 export default function ProfilePage() {
-  const supabase = createBrowserClient(
+  const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  ), [])
 
   const [activeTab,    setActiveTab]    = useState<'posts' | 'resolved' | 'settings' | 'pets'>('posts')
   const [user,         setUser]         = useState<any>(null)
@@ -191,7 +190,6 @@ export default function ProfilePage() {
     } catch (err) {
       console.error(err)
     } finally {
-      // 🟢 [แก้ไขสำเร็จ] สลับจากคำดักผิดคีย์มาใช้บล็อกมาตรฐานสากลเคลียร์สัญญาน
       setLoading(false)
     }
   }, [supabase])
@@ -321,25 +319,20 @@ export default function ProfilePage() {
     }
   }
 
-  if (loading) return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 bg-gray-50">
-      <Loader2 className="animate-spin text-black" size={60} />
-      <p className="font-black text-gray-500">กำลังเรียกข้อมูลบัญชี...</p>
-    </div>
-  )
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col gap-8 mb-20 text-black" style={{ fontFamily: "'Noto Sans Thai', sans-serif" }}>
 
-      {/* ── Profile Header ── */}
+      {/* ── 🟢 [แก้ไขสำเร็จ] ปรับโครงสร้างดึงภาพ Thumbnail ผูกกล่องขอบสไตล์ Neubrutalism รองรับรูปโปรไฟล์พ่นตรง ── */}
       <div className="bg-white border-4 border-black rounded-3xl p-8 shadow-paper
         flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
-        <div className="w-32 h-32 rounded-full border-4 border-black overflow-hidden
+        <div className="w-24 h-24 rounded-2xl border-4 border-black overflow-hidden
           bg-gray-100 shadow-paper-sm shrink-0 relative group">
           {profile.avatar_url ? (
-            <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+            <img src={profile.avatar_url} alt="Profile Thumbnail" className="w-full h-full object-cover" />
           ) : (
-            <User size={60} className="m-auto mt-6" />
+            <div className="w-full h-full flex items-center justify-center bg-wagashi-matcha/20 text-black">
+              <User size={36} />
+            </div>
           )}
           {uploading && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -413,7 +406,7 @@ export default function ProfilePage() {
             </h2>
 
             <div className="md:col-span-2 flex items-center gap-6 bg-gray-50 p-4 rounded-2xl border-2 border-dashed border-gray-300">
-              <div className="w-20 h-20 rounded-full border-2 border-black overflow-hidden bg-white shrink-0">
+              <div className="w-20 h-20 rounded-xl border-2 border-black overflow-hidden bg-white shrink-0 shadow-paper-sm">
                 <img src={profile.avatar_url || '/placeholder-user.png'} alt="Avatar" className="w-full h-full object-cover" />
               </div>
               <div className="flex flex-col gap-2 text-left">
@@ -674,7 +667,6 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* ── 🟢 ปรับเปลี่ยน Prop สู่ isOpen ตรงล็อกเพื่อผ่านการคอมไพล์ไทป์ ── */}
       <DonationModal isOpen={showDonation} onClose={() => setShowDonation(false)} />
     </div>
   )

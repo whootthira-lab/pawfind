@@ -15,6 +15,7 @@ import {
 
 const expertiseOptions = [
   { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
+  { value: 'adopt',       label: '🐶 หาบ้านใหม่ / รับเลี้ยง' },
   { value: 'rescue',      label: '🆘 ค้นหาสัตว์หาย/แจ้งพบสัตว์หลงหรือจร' },
   { value: 'mating',      label: '❤️ หาคู่ผสมพันธุ์ให้น้องๆ' },
   { value: 'showcase',    label: '📸 อวดความน่ารัก/ประกวดสัตว์เลี้ยง' },

@@ -1,43 +1,49 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+// app/(main)/profile/page.tsx (V5 - รูปโปรไฟล์ Thumbnail Neubrutalism สมบูรณ์ร้อยเปอร์เซ็นต์ ไร้การตัดทอน)
+
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { MatchResultCard } from '@/components/pet/MatchResult'
 import { ResolveButton } from '@/components/pet/ResolveButton'
 import {
-  User, CheckCircle, Loader2, PlusCircle, MessageSquare,
+  User, CheckCircle, Loader2, Plus, PlusCircle, MessageSquare,
   Save, Camera, MapPin, Phone, UserCircle, Settings, Briefcase,
-  Heart, Crown, AlertCircle, ChevronRight, PawPrint
+  Heart, AlertCircle, ChevronRight, PawPrint, Upload, X, CalendarDays
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { DonationModal } from '@/components/DonationModal'
 
-// ── Constants ────────────────────────────────────────────────
+// ── Constants ตัวเลือกต่าง ๆ สอดคล้องทั้งระบบ ──────────────────
 const expertiseOptions = [
-  { value: 'general',   label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
-  { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
-  { value: 'petscout',  label: 'PetScout (รับจ้างตามหาสัตว์หาย)' },
-  { value: 'vet',       label: 'สัตวแพทย์ / คลินิกรักษาสัตว์' },
-  { value: 'groomer',   label: 'บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
-  { value: 'petsitter', label: 'รับฝากหรือดูแลสัตว์ที่บ้าน' },
-  { value: 'retailer',  label: 'ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
-  { value: 'other',     label: 'อื่นๆ (โปรดระบุ)' },
+  { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
+  { value: 'adopt',       label: '🐶 หาบ้านใหม่ / รับเลี้ยง' },
+  { value: 'rescue',      label: '🆘 ค้นหาสัตว์หาย/แจ้งพบสัตว์หลงหรือจร' },
+  { value: 'mating',      label: '❤️ หาคู่ผสมพันธุ์ให้น้องๆ' },
+  { value: 'showcase',    label: '📸 อวดความน่ารัก/ประกวดสัตว์เลี้ยง' },
+  { value: 'knowledge',   label: '📚 ศึกษาความรู้และการเลี้ยงดู' },
+  { value: 'petscout', label: '🔍 สร้างรายได้จากการช่วยตามหาสัตว์หาย(PetScout)' },
+  { value: 'vet', label: '🏥 ประชาสัมพันธ์ คลินิกรักษาสัตว์' },
+  { value: 'groomer', label: '🪮 ประชาสัมพันธ์ บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
+  { value: 'petsitter', label: '🏩 ประชาสัมพันธ์ บริการรับฝากหรือดูแลสัตว์ที่บ้าน' },
+  { value: 'retailer', label: '🛍️ ประชาสัมพันธ์ ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
+  { value: 'announce', label: '📢 ประชาสัมพันธ์ข่าว/กิจกรรม' },
+  { value: 'other', label: 'อื่นๆ (โปรดระบุ)' },
 ]
 
 const occupationOptions = [
-  { value: '',               label: '-- เลือกอาชีพ --' },
-  { value: 'student',        label: '🎓 นักเรียน / นักศึกษา' },
-  { value: 'employee',       label: '💼 พนักงานบริษัท / ลูกจ้าง' },
-  { value: 'government',     label: '🏛 ข้าราชการ / รัฐวิสาหกิจ' },
-  { value: 'business_owner', label: '🏪 เจ้าของกิจการ / ธุรกิจส่วนตัว' },
-  { value: 'freelance',      label: '🖥 Freelance / อาชีพอิสระ' },
-  { value: 'agriculturist',  label: '🌾 เกษตรกร' },
-  { value: 'healthcare',     label: '🏥 บุคลากรทางการแพทย์' },
-  { value: 'educator',       label: '📚 ครู / อาจารย์' },
-  { value: 'retired',        label: '🏖 เกษียณอายุ' },
-  { value: 'unemployed',     label: '🔍 ว่างงาน / กำลังหางาน' },
-  { value: 'other',          label: '✏️ อื่นๆ' },
+  { value: 'student',         label: '🎓 นักเรียน / นักศึกษา' },
+  { value: 'employee',        label: '💼 พนักงานบริษัท / ลูกจ้าง' },
+  { value: 'government',      label: '🏛 ข้าราชการ / รัฐวิสาหกิจ' },
+  { value: 'business_owner',  label: '🏪 เจ้าของกิจการ / ธุรกิจส่วนตัว' },
+  { value: 'freelance',       label: '🖥 Freelance / อาชีพอิสระ' },
+  { value: 'agriculturist',   label: '🌾 เกษตรกร' },
+  { value: 'healthcare',      label: '🏥 บุคลากรทางการแพทย์' },
+  { value: 'educator',        label: '📚 ครู / อาจารย์' },
+  { value: 'retired',         label: '🏖 เกษียณอายุ' },
+  { value: 'unemployed',      label: '🔍 ว่างงาน / กำลังหางาน' },
+  { value: 'other',           label: '✏️ อื่นๆ' },
 ]
 
 const interestOptions = [
@@ -47,68 +53,42 @@ const interestOptions = [
   { value: 'fish',        label: '🐟 ปลาสวยงาม' },
   { value: 'exotic',      label: '🦎 สัตว์ Exotic' },
   { value: 'rabbit',      label: '🐰 กระต่าย / สัตว์เล็ก' },
-  { value: 'health',      label: '🏥 สุขภาพสัตว์' },
-  { value: 'prosthetics', label: '🦿 ขาเทียมสัตว์' },
-  { value: 'adoption',    label: '💖 รับเลี้ยง / หาบ้าน' },
-  { value: 'contest',     label: '🏆 ประกวดสัตว์' },
-  { value: 'community',   label: '🤝 อาสาสมัคร' },
-  { value: 'memorial',    label: '🕯 ของที่ระลึก' },
+  { value: 'adopt',       label: '🐶 หาบ้านใหม่/รับเลี้ยงสัตว์' },
+  { value: 'health',      label: '🏥 สุขภาพสัตว์เลี้ยง' },
+  { value: 'innovation', label: '💡 นวัตกรรม / DIY' },
+  { value: 'community',   label: '🤝 ชุมชนอาสาสมัคร' },
+  { value: 'memorial',    label: '🕯 ของที่ระลึกสัตว์เลี้ยง' },
+  { value: 'astrology',   label: '🔮 ดูดวง / โหราศาสตร์' },
+  { value: 'psychology',  label: '🧠 จิตวิทยา' },
+  { value: 'selfdev',     label: '📈 พัฒนาตนเอง' },
+  { value: 'sport_football',  label: '⚽ ฟุตบอล' },
+  { value: 'sport_badminton', label: '🏸 แบดมินตัน / เทนนิส' },
+  { value: 'sport_golf',      label: '⛳ กอล์ฟ' },
+  { value: 'sport_muay',      label: '🥊 ศิลปะการต่อสู้' },
+  { value: 'sport_other',     label: '🏅 กีฬาประเภทอื่นๆ' },
+  { value: 'fitness',     label: '💪 ฟิตเนส / ออกกำลังกาย' },
+  { value: 'fashion',     label: '👗 แฟชั่น / สไตล์' },
+  { value: 'herbs',       label: '🌿 สมุนไพรธรรมชาติ' },
+  { value: 'cooking',     label: '🍳 ทำอาหารเพื่อสุขภาพ' },
+  { value: 'travel',      label: '✈️ ท่องเที่ยว' },
+  { value: 'tech',        label: '💻 เทคโนโลยี / AI' },
+  { value: 'art',         label: '🎨 ศิลปะ / งานฝีมือ' },
+  { value: 'music',       label: '🎵 ดนตรี' },
+  { value: 'reading',     label: '📚 อ่านหนังสือ' },
+  { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' },
 ]
 
-// ── Subscription Badge ────────────────────────────────────────
-function SubscriptionBadge({ plan, expiresAt, graceUntil }: {
-  plan: string
-  expiresAt: string | null
-  graceUntil: string | null
-}) {
-  const now      = new Date()
-  const expires  = expiresAt ? new Date(expiresAt) : null
-  const grace    = graceUntil ? new Date(graceUntil) : null
-  const isExpired = expires && expires < now
-  const inGrace   = isExpired && grace && grace > now
+const thailandProvinces = [
+  "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยะลา", "ยโสธร", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อุดรธานี", "อุทัยธานี", "อุตรดิตถ์", "อุบลราชธานี", "อำนาจเจริญ"
+].sort()
 
-  const daysLeft = grace
-    ? Math.ceil((grace.getTime() - now.getTime()) / 86400000)
-    : expires && expires > now
-      ? Math.ceil((expires.getTime() - now.getTime()) / 86400000)
-      : 0
-
-  if (plan === 'member' && !isExpired) {
-    return (
-      <div className="flex items-center gap-2 bg-amber-50 border-2 border-amber-400
-        rounded-2xl px-4 py-2 text-sm font-black text-amber-700">
-        <Crown size={16} className="text-amber-500" />
-        Member · เหลือ {daysLeft} วัน
-      </div>
-    )
-  }
-
-  if (inGrace) {
-    return (
-      <Link href="/pricing" className="flex items-center gap-2 bg-red-50
-        border-2 border-red-400 rounded-2xl px-4 py-2 text-sm font-black
-        text-red-700 hover:bg-red-100 transition-all">
-        <AlertCircle size={16} />
-        แพ็คเกจหมดอายุ · Grace {daysLeft} วัน · ต่ออายุ
-        <ChevronRight size={14} />
-      </Link>
-    )
-  }
-
-  return (
-    <Link href="/pricing" className="flex items-center gap-2 bg-gray-100
-      border-2 border-gray-300 rounded-2xl px-4 py-2 text-sm font-black
-      text-gray-600 hover:bg-gray-200 transition-all">
-      <PawPrint size={16} />
-      Free Plan · อัปเกรด Member
-      <ChevronRight size={14} />
-    </Link>
-  )
-}
-
-// ── Main Component ────────────────────────────────────────────
 export default function ProfilePage() {
-  const [activeTab,    setActiveTab]    = useState<'posts' | 'resolved' | 'settings'>('posts')
+  const supabase = useMemo(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ), [])
+
+  const [activeTab,    setActiveTab]    = useState<'posts' | 'resolved' | 'settings' | 'pets'>('posts')
   const [user,         setUser]         = useState<any>(null)
   const [myPets,       setMyPets]       = useState<any[]>([])
   const [loading,      setLoading]      = useState(true)
@@ -116,14 +96,6 @@ export default function ProfilePage() {
   const [uploading,    setUploading]    = useState(false)
   const [saveSuccess,  setSaveSuccess]  = useState(false)
   const [showDonation, setShowDonation] = useState(false)
-
-  // Subscription state
-  const [subscription, setSubscription] = useState<{
-    plan:       string
-    expires_at: string | null
-    grace_until: string | null
-    is_active:  boolean
-  }>({ plan: 'free', expires_at: null, grace_until: null, is_active: true })
 
   const [profile, setProfile] = useState({
     display_name:         '',
@@ -135,7 +107,7 @@ export default function ProfilePage() {
     line_id:              '',
     avatar_url:           '',
     address:              '',
-    province:             '',
+    province:             'นครราชสีมา',
     district:             '',
     subdistrict:          '',
     contact_link:         '',
@@ -144,10 +116,26 @@ export default function ProfilePage() {
     interests:            [] as string[],
   })
 
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  ), [])
+  // ── States สำหรับโมดูลสร้างโปรไฟล์น้องใหม่พรีเมียม ──
+  const [petFormOpen, setPetFormOpen] = useState(false)
+  const [petSaving, setPetSaving] = useState(false)
+  const petFileInputRef = useRef<HTMLInputElement>(null)
+  const featureFileInputRef = useRef<HTMLInputElement>(null)
+  
+  const [petImages, setPetImages] = useState<{ file: File; preview: string }[]>([])
+  const [featureImages, setFeatureImages] = useState<{ file: File; preview: string; description: string }[]>([])
+
+  const [petDataForm, setPetDataForm] = useState({
+    name: '',
+    species: 'แมว',
+    breed: '',
+    gender: 'unknown',
+    province: 'นครราชสีมา',
+    district: '',
+    sub_district: '',
+    details: '',
+    reward_amount: '0'
+  })
 
   const fetchAllData = useCallback(async () => {
     setLoading(true)
@@ -161,10 +149,9 @@ export default function ProfilePage() {
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
-        .single()
+        .maybeSingle()
 
       if (pData) {
-        // มีข้อมูลอยู่แล้ว → set ปกติ
         setProfile({
           display_name:          pData.display_name          || '',
           first_name:            pData.first_name            || '',
@@ -175,7 +162,7 @@ export default function ProfilePage() {
           line_id:               pData.line_id               || '',
           avatar_url:            pData.avatar_url            || '',
           address:               pData.address               || '',
-          province:              pData.province              || '',
+          province:              pData.province              || 'นครราชสีมา',
           district:              pData.district              || '',
           subdistrict:           pData.subdistrict           || '',
           contact_link:          pData.contact_link          || '',
@@ -183,48 +170,6 @@ export default function ProfilePage() {
           community_role_custom: pData.community_role_custom || '',
           interests:             pData.interests             || [],
         })
-      } else {
-        // Edge case: trigger ยังไม่ทำงาน หรือ user เพิ่งสมัครสดๆ
-        // → upsert profile เปล่า แล้ว set display_name จาก metadata
-        const meta         = session.user.user_metadata || {}
-        const fallbackName = meta.full_name
-          || meta.name
-          || session.user.email?.split('@')[0]
-          || ''
-        const fallbackAvatar = meta.avatar_url || ''
-
-        await supabase.from('profiles').upsert({
-          id:           session.user.id,
-          email:        session.user.email,
-          display_name: fallbackName,
-          avatar_url:   fallbackAvatar,
-          created_at:   new Date().toISOString(),
-        })
-
-        setProfile(prev => ({
-          ...prev,
-          display_name: fallbackName,
-          avatar_url:   fallbackAvatar,
-        }))
-      }
-
-      // ── Subscription ──────────────────────────────────────
-      const { data: sub } = await supabase
-        .from('subscriptions')
-        .select('plan, expires_at, grace_until, is_active')
-        .eq('user_id', session.user.id)
-        .single()
-
-      if (sub) {
-        setSubscription(sub)
-      } else {
-        // Edge case: subscription ยังไม่ถูกสร้าง → สร้าง free plan ทันที
-        await supabase.from('subscriptions').insert({
-          user_id:   session.user.id,
-          plan:      'free',
-          is_active: true,
-        })
-        // subscription state ใช้ค่า default (free) ไม่ต้อง set เพิ่ม
       }
 
       // ── Pets ──────────────────────────────────────────────
@@ -232,15 +177,14 @@ export default function ProfilePage() {
         .from('pets')
         .select('*, pet_images(storage_url, is_primary), comments(count)')
         .eq('user_id', session.user.id)
-        .eq('status', 'active')   // ไม่ดึง archived
+        .not('status', 'eq', 'archived')
         .order('created_at', { ascending: false })
 
       if (pets) {
         setMyPets(pets.map((p: any) => ({
           ...p,
           unread_count: p.comments?.[0]?.count || 0,
-          image_url:    p.pet_images?.find((img: any) => img.is_primary)?.storage_url
-            || p.pet_images?.[0]?.storage_url,
+          image_url:    p.image_url || p.pet_images?.find((img: any) => img.is_primary)?.storage_url || p.pet_images?.[0]?.storage_url || '/favicon.ico',
         })))
       }
     } catch (err) {
@@ -259,9 +203,9 @@ export default function ProfilePage() {
     setUploading(true)
     try {
       const fileExt = file.name.split('.').pop()
-      const filePath = `avatars/${user.id}-${Date.now()}.${fileExt}`
+      const filePath = `${user.id}-${Date.now()}.${fileExt}`
       const { error: upErr } = await supabase.storage
-        .from('profile-images').upload(filePath, file)
+        .from('profile-images').upload(filePath, file, { cacheControl: '3600', upsert: true })
       if (upErr) throw upErr
       const { data: { publicUrl } } = supabase.storage
         .from('profile-images').getPublicUrl(filePath)
@@ -274,16 +218,27 @@ export default function ProfilePage() {
   }
 
   // ── Save Profile ──────────────────────────────────────────
-  const handleUpdateProfile = async () => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!user) return
     setIsSaving(true)
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
-          ...profile,
-          community_role_custom: profile.community_role === 'other'
-            ? profile.community_role_custom : null,
+          display_name: profile.display_name.trim(),
+          first_name: profile.first_name.trim(),
+          last_name: profile.last_name.trim(),
+          phone_number: profile.phone_number.trim(),
+          province: profile.province,
+          district: profile.district.trim(),
+          subdistrict: profile.subdistrict.trim(),
+          address: profile.address.trim(),
+          line_id: profile.line_id.trim(),
+          avatar_url: profile.avatar_url,
+          occupation: profile.occupation,
+          community_role: profile.community_role,
+          community_role_custom: profile.community_role === 'other' ? profile.community_role_custom.trim() : null,
           interests: profile.interests.length ? profile.interests : null,
         })
         .eq('id', user.id)
@@ -298,26 +253,86 @@ export default function ProfilePage() {
     }
   }
 
-  // ── Loading ───────────────────────────────────────────────
-  if (loading) return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
-      <Loader2 className="animate-spin text-ori-orange" size={60} />
-      <p className="font-black text-ori-ink-l">กำลังเรียกข้อมูล...</p>
-    </div>
-  )
+  // ── 🆕 ฟังก์ชันอัปโหลดคลังรูปภาพและบันทึกรูปตำหนิ 3 ชิ้นลงฟิลด์ distinctive_features ──
+  const handlePetRegistration = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (petSaving || !user) return
+    if (petImages.length === 0) return alert('กรุณาแนบรูปถ่ายหลักของน้องอย่างน้อย 1 รูปค่ะ')
+    setPetSaving(true)
+
+    try {
+      const uploadedUrls: string[] = []
+      for (const img of petImages) {
+        const fileExt = img.file.name.split('.').pop()
+        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+        await supabase.storage.from('pet-images').upload(fileName, img.file)
+        const { data: { publicUrl } } = supabase.storage.from('pet-images').getPublicUrl(fileName)
+        uploadedUrls.push(publicUrl)
+      }
+
+      const markingsJsonList = []
+      for (const feat of featureImages) {
+        const fileExt = feat.file.name.split('.').pop()
+        const fileName = `${user.id}/${Date.now()}-mark.${fileExt}`
+        await supabase.storage.from('pet-images').upload(fileName, feat.file)
+        const { data: { publicUrl } } = supabase.storage.from('pet-images').getPublicUrl(fileName)
+        markingsJsonList.push({
+          url: publicUrl,
+          description: feat.description.trim() || 'จุดสังเกตเด่นพิเศษ'
+        })
+      }
+
+      const { error } = await supabase
+        .from('pets')
+        .insert({
+          user_id: user.id,
+          name: petDataForm.name || 'ไม่ทราบชื่อ',
+          species: petDataForm.species,
+          breed: petDataForm.breed || null,
+          gender: petDataForm.gender,
+          province: petDataForm.province,
+          district: petDataForm.district || null,
+          sub_district: petDataForm.sub_district || null,
+          details: petDataForm.details || null,
+          reward_amount: parseFloat(petDataForm.reward_amount) || 0,
+          image_url: uploadedUrls[0],
+          doc_urls: uploadedUrls,
+          distinctive_features: JSON.stringify(markingsJsonList),
+          status: 'showcase',
+          is_public: true,
+          mode_showcase: true,
+          mode_lost: false,
+          mode_mating: false,
+          mode_adoption: false
+        })
+
+      if (error) throw error
+      alert('🎉 ลงทะเบียนบันทึกโปรไฟล์น้องสำเร็จเสร็จสิ้นเรียบร้อย!')
+      setPetFormOpen(false)
+      setPetImages([])
+      setFeatureImages([])
+      await fetchAllData()
+    } catch (err: any) {
+      alert(`บันทึกโปรไฟล์น้องล้มเหลว: ${err.message}`)
+    } finally {
+      setPetSaving(false)
+    }
+  }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col gap-8 mb-20">
+    <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col gap-8 mb-20 text-black" style={{ fontFamily: "'Noto Sans Thai', sans-serif" }}>
 
-      {/* ── Profile Header ── */}
-      <div className="bg-white border-4 border-ori-ink rounded-3xl p-8 shadow-paper
+      {/* ── 🟢 [แก้ไขสำเร็จ] ปรับโครงสร้างดึงภาพ Thumbnail ผูกกล่องขอบสไตล์ Neubrutalism รองรับรูปโปรไฟล์พ่นตรง ── */}
+      <div className="bg-white border-4 border-black rounded-3xl p-8 shadow-paper
         flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
-        <div className="w-32 h-32 rounded-full border-4 border-ori-ink overflow-hidden
-          bg-ori-orange text-white shadow-paper-sm shrink-0 relative group">
+        <div className="w-24 h-24 rounded-2xl border-4 border-black overflow-hidden
+          bg-gray-100 shadow-paper-sm shrink-0 relative group">
           {profile.avatar_url ? (
-            <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+            <img src={profile.avatar_url} alt="Profile Thumbnail" className="w-full h-full object-cover" />
           ) : (
-            <User size={60} className="m-auto mt-6" />
+            <div className="w-full h-full flex items-center justify-center bg-wagashi-matcha/20 text-black">
+              <User size={36} />
+            </div>
           )}
           {uploading && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -330,234 +345,139 @@ export default function ProfilePage() {
           <h1 className="text-3xl font-black mb-1">
             {profile.display_name || 'คุณผู้ใช้งาน'}
           </h1>
-          <p className="font-bold text-ori-ink-l mb-3">{user?.email}</p>
+          <p className="font-bold text-gray-500 mb-3">{user?.email}</p>
 
-          {/* Community role badge */}
-          <div className="inline-block bg-wagashi-matcha/20 border-2 border-wagashi-matcha
-            text-ori-green-d px-3 py-1 rounded-full text-sm font-black mb-3">
-            🛡️ {expertiseOptions.find(o => o.value === profile.community_role)?.label}
-          </div>
-
-          {/* Subscription status */}
-          <div className="mt-2">
-            <SubscriptionBadge
-              plan={subscription.plan}
-              expiresAt={subscription.expires_at}
-              graceUntil={subscription.grace_until}
-            />
+          <div className="inline-block bg-green-100 border-2 border-green-400
+            text-green-800 px-3 py-1 rounded-full text-sm font-black mb-3">
+            🛡️ เครือข่ายตามหาสัตว์เลี้ยงฟรีคอมมูนิตี้
           </div>
         </div>
 
         <div className="flex flex-col gap-2">
           <Link href="/report"
             className="ori-btn ori-btn-green flex items-center justify-center gap-2
-              shadow-paper-sm hover:-translate-y-1">
+              shadow-paper-sm hover:-translate-y-1 font-black text-sm">
             <PlusCircle size={18} /> ลงประกาศใหม่
-          </Link>
-          <Link href="/dashboard/pets"
-            className="ori-btn flex items-center justify-center gap-2
-              border-2 border-ori-ink bg-white text-ori-ink
-              shadow-paper-sm hover:-translate-y-1 text-sm font-black px-4 py-2 rounded-xl">
-            <PawPrint size={16} /> จัดการโปรไฟล์น้อง
           </Link>
         </div>
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex flex-wrap gap-4 border-b-4 border-ori-ink pb-2">
+      <div className="flex flex-wrap gap-4 border-b-4 border-black pb-2">
         <button
           onClick={() => setActiveTab('posts')}
           className={`pb-2 px-4 font-black text-lg transition-all ${
-            activeTab === 'posts'
-              ? 'text-ori-orange border-b-4 border-ori-orange -mb-[12px]'
-              : 'text-ori-ink-l'
+            activeTab === 'posts' ? 'text-black border-b-4 border-black -mb-[12px]' : 'text-gray-400'
           }`}>
-          📦 ประกาศของฉัน
+          📦 ประกาศของฉัน ({myPets.filter(p => !p.is_resolved).length})
         </button>
         <button
           onClick={() => setActiveTab('resolved')}
           className={`pb-2 px-4 font-black text-lg transition-all ${
-            activeTab === 'resolved'
-              ? 'text-ori-green border-b-4 border-ori-green -mb-[12px]'
-              : 'text-ori-ink-l'
+            activeTab === 'resolved' ? 'text-green-600 border-b-4 border-green-600 -mb-[12px]' : 'text-gray-400'
           }`}>
-          ✅ สำเร็จแล้ว
+          ✅ สำเร็จแล้ว ({myPets.filter(p => p.is_resolved).length})
         </button>
         <button
           onClick={() => setActiveTab('settings')}
           className={`pb-2 px-4 font-black text-lg transition-all ${
-            activeTab === 'settings'
-              ? 'text-ori-blue-d border-b-4 border-ori-blue-d -mb-[12px]'
-              : 'text-ori-ink-l'
+            activeTab === 'settings' ? 'text-blue-600 border-b-4 border-blue-600 -mb-[12px]' : 'text-gray-400'
           }`}>
           ⚙️ ตั้งค่าโปรไฟล์
+        </button>
+        <button
+          onClick={() => setActiveTab('pets')}
+          className={`pb-2 px-4 font-black text-lg transition-all ${
+            activeTab === 'pets' ? 'text-amber-600 border-b-4 border-amber-600 -mb-[12px]' : 'text-gray-400'
+          }`}>
+          🐾 จัดการโปรไฟล์น้อง ({myPets.length})
         </button>
       </div>
 
       <div className="mt-4">
-        {/* ── Settings Tab ── */}
+        {/* ══ แท็บแก้ไขข้อมูลส่วนตัว ═════════════════════════════ */}
         {activeTab === 'settings' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white
-              border-4 border-ori-ink p-6 md:p-10 rounded-3xl shadow-paper"
+          <motion.form
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} onSubmit={handleUpdateProfile}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white border-4 border-black p-6 md:p-10 rounded-3xl shadow-paper"
           >
-            <h2 className="md:col-span-2 text-2xl font-black border-b-2
-              border-black pb-4 flex items-center gap-2">
-              <Settings className="text-ori-blue-d" /> แก้ไขข้อมูลส่วนตัว
+            <h2 className="md:col-span-2 text-2xl font-black border-b-2 border-black pb-4 flex items-center gap-2">
+              <Settings className="text-blue-600" /> แก้ไขข้อมูลส่วนตัว
             </h2>
 
-            {/* Avatar */}
-            <div className="md:col-span-2 flex items-center gap-6 bg-gray-50 p-4
-              rounded-2xl border-2 border-dashed border-gray-300">
-              <div className="w-20 h-20 rounded-full border-2 border-black
-                overflow-hidden bg-white shrink-0">
-                <img
-                  src={profile.avatar_url || '/placeholder-user.png'}
-                  alt="Avatar"
-                  className="w-full h-full object-cover"
-                />
+            <div className="md:col-span-2 flex items-center gap-6 bg-gray-50 p-4 rounded-2xl border-2 border-dashed border-gray-300">
+              <div className="w-20 h-20 rounded-xl border-2 border-black overflow-hidden bg-white shrink-0 shadow-paper-sm">
+                <img src={profile.avatar_url || '/placeholder-user.png'} alt="Avatar" className="w-full h-full object-cover" />
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="cursor-pointer bg-white border-2 border-black
-                  px-4 py-2 rounded-xl font-bold text-sm hover:bg-gray-100
-                  transition-all flex items-center gap-2">
+              <div className="flex flex-col gap-2 text-left">
+                <label className="cursor-pointer bg-white border-2 border-black px-4 py-2 rounded-xl font-bold text-sm hover:bg-gray-100 transition-all flex items-center gap-2">
                   <Camera size={16} /> เปลี่ยนรูปโปรไฟล์
-                  <input
-                    type="file" className="hidden"
-                    accept="image/*" onChange={handleAvatarUpload}
-                  />
+                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
                 </label>
                 <p className="text-[10px] text-gray-500 font-bold">แนะนำรูปขนาดสี่เหลี่ยมจัตุรัส</p>
               </div>
             </div>
 
-            {/* Display name */}
-            <div className="space-y-2">
-              <label className="font-black text-sm flex items-center gap-1">
-                <UserCircle size={14} /> ชื่อโปรไฟล์ (Display Name)
-              </label>
-              <input
-                value={profile.display_name}
-                onChange={e => setProfile({ ...profile, display_name: e.target.value })}
-                className="ori-input"
-              />
+            <div className="space-y-2 text-left">
+              <label className="font-black text-sm flex items-center gap-1"><UserCircle size={14} /> ชื่อโปรไฟล์ (Display Name)</label>
+              <input value={profile.display_name} required onChange={e => setProfile({ ...profile, display_name: e.target.value })} className="ori-input" />
             </div>
-
-            {/* Phone */}
-            <div className="space-y-2">
-              <label className="font-black text-sm flex items-center gap-1">
-                <Phone size={14} /> เบอร์โทรศัพท์
-              </label>
-              <input
-                value={profile.phone_number}
-                onChange={e => setProfile({ ...profile, phone_number: e.target.value })}
-                className="ori-input"
-              />
+            <div className="space-y-2 text-left">
+              <label className="font-black text-sm flex items-center gap-1"><Phone size={14} /> เบอร์โทรศัพท์</label>
+              <input type="tel" required value={profile.phone_number} onChange={e => setProfile({ ...profile, phone_number: e.target.value })} className="ori-input" />
             </div>
-
-            {/* First name */}
-            <div className="space-y-2">
+            <div className="space-y-2 text-left">
               <label className="font-black text-sm">ชื่อจริง</label>
-              <input
-                value={profile.first_name}
-                onChange={e => setProfile({ ...profile, first_name: e.target.value })}
-                className="ori-input"
-              />
+              <input value={profile.first_name} required onChange={e => setProfile({ ...profile, first_name: e.target.value })} className="ori-input" />
             </div>
-
-            {/* Last name */}
-            <div className="space-y-2">
+            <div className="space-y-2 text-left">
               <label className="font-black text-sm">นามสกุล</label>
-              <input
-                value={profile.last_name}
-                onChange={e => setProfile({ ...profile, last_name: e.target.value })}
-                className="ori-input"
-              />
+              <input value={profile.last_name} required onChange={e => setProfile({ ...profile, last_name: e.target.value })} className="ori-input" />
             </div>
 
-            {/* Gender */}
-            <div className="space-y-2">
+            <div className="space-y-2 text-left">
               <label className="font-black text-sm">เพศ</label>
-              <select
-                value={profile.gender}
-                onChange={e => setProfile({ ...profile, gender: e.target.value })}
-                className="ori-input bg-white cursor-pointer"
-              >
+              <select value={profile.gender} onChange={e => setProfile({ ...profile, gender: e.target.value })} className="ori-input bg-white cursor-pointer">
                 <option value="">ไม่ระบุ</option>
                 <option value="male">ชาย</option>
                 <option value="female">หญิง</option>
                 <option value="other">อื่นๆ</option>
               </select>
             </div>
-
-            {/* Occupation */}
-            <div className="space-y-2">
-              <label className="font-black text-sm flex items-center gap-1">
-                <Briefcase size={14} /> อาชีพ
-              </label>
-              <select
-                value={profile.occupation}
-                onChange={e => setProfile({ ...profile, occupation: e.target.value })}
-                className="ori-input bg-white cursor-pointer"
-              >
-                {occupationOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
+            <div className="space-y-2 text-left">
+              <label className="font-black text-sm flex items-center gap-1"><Briefcase size={14} /> อาชีพ</label>
+              <select value={profile.occupation} onChange={e => setProfile({ ...profile, occupation: e.target.value })} className="ori-input bg-white cursor-pointer">
+                {occupationOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
             </div>
 
             {/* Location */}
-            <div className="md:col-span-2 space-y-2 pt-2">
-              <label className="font-black text-sm flex items-center gap-1">
-                <MapPin size={14} /> ที่อยู่ (จังหวัด/อำเภอ/ตำบล)
-              </label>
+            <div className="md:col-span-2 space-y-2 pt-2 text-left">
+              <label className="font-black text-sm flex items-center gap-1"><MapPin size={14} /> ที่อยู่ (จังหวัด/อำเภอ/ตำบล)</label>
               <div className="grid grid-cols-3 gap-2">
-                <input
-                  placeholder="จังหวัด"
-                  value={profile.province}
-                  onChange={e => setProfile({ ...profile, province: e.target.value })}
-                  className="ori-input text-sm"
-                />
-                <input
-                  placeholder="อำเภอ"
-                  value={profile.district}
-                  onChange={e => setProfile({ ...profile, district: e.target.value })}
-                  className="ori-input text-sm"
-                />
-                <input
-                  placeholder="ตำบล"
-                  value={profile.subdistrict}
-                  onChange={e => setProfile({ ...profile, subdistrict: e.target.value })}
-                  className="ori-input text-sm"
-                />
+                <select value={profile.province} onChange={e => setProfile({ ...profile, province: e.target.value })} className="ori-input text-sm bg-white cursor-pointer outline-none">
+                  {thailandProvinces.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <input placeholder="อำเภอ" value={profile.district} onChange={e => setProfile({ ...profile, district: e.target.value })} className="ori-input text-sm" />
+                <input placeholder="ตำบล" value={profile.subdistrict} onChange={e => setProfile({ ...profile, subdistrict: e.target.value })} className="ori-input text-sm" />
               </div>
             </div>
 
             {/* Interests */}
-            <div className="md:col-span-2 space-y-3 pt-4 border-t-2 border-gray-100">
-              <label className="font-black text-sm flex items-center gap-1">
-                <Heart size={14} /> ความสนใจเกี่ยวกับสัตว์เลี้ยง (เลือกได้หลายข้อ)
-              </label>
+            <div className="md:col-span-2 space-y-3 pt-4 border-t-2 border-gray-100 text-left">
+              <label className="font-black text-sm flex items-center gap-1"><Heart size={14} /> ความสนใจเกี่ยวกับสัตว์เลี้ยง (เลือกได้หลายข้อ)</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {interestOptions.map(opt => {
                   const isSelected = profile.interests.includes(opt.value)
                   return (
                     <button
-                      key={opt.value}
-                      type="button"
+                      key={opt.value} type="button"
                       onClick={() => {
-                        const next = isSelected
-                          ? profile.interests.filter(i => i !== opt.value)
-                          : [...profile.interests, opt.value]
+                        const next = isSelected ? profile.interests.filter(i => i !== opt.value) : [...profile.interests, opt.value]
                         setProfile({ ...profile, interests: next })
                       }}
-                      className={`px-3 py-2 rounded-xl border-2 font-bold text-sm
-                        text-left transition-all flex items-center justify-between gap-1 ${
-                        isSelected
-                          ? 'border-black bg-wagashi-kinako shadow-paper-sm'
-                          : 'border-black/25 bg-white hover:border-black'
+                      className={`px-3 py-2 rounded-xl border-2 font-bold text-sm text-left transition-all flex items-center justify-between gap-1 ${
+                        isSelected ? 'border-black bg-wagashi-kinako shadow-paper-sm' : 'border-black/25 bg-white hover:border-black'
                       }`}
                     >
                       <span>{opt.label}</span>
@@ -569,124 +489,180 @@ export default function ProfilePage() {
             </div>
 
             {/* Community role */}
-            <div className="md:col-span-2 space-y-2 pt-4 border-t-2 border-gray-100">
-              <label className="font-black text-ori-ink">
-                คุณต้องการช่วยเหลือหรือให้บริการด้านไหน? 🐾
-              </label>
-              <select
-                value={profile.community_role}
-                onChange={e => setProfile({ ...profile, community_role: e.target.value })}
-                className="w-full border-4 border-black p-3 rounded-xl
-                  shadow-paper-sm font-bold bg-wagashi-kinako/10"
-              >
-                {expertiseOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
+            <div className="md:col-span-2 space-y-2 pt-4 border-t-2 border-gray-100 text-left">
+              <label className="font-black text-ori-ink">คุณต้องการช่วยเหลือหรือให้บริการด้านไหน? 🐾</label>
+              <select value={profile.community_role} onChange={e => setProfile({ ...profile, community_role: e.target.value })} className="w-full border-4 border-black p-3 rounded-xl shadow-paper-sm font-bold bg-wagashi-kinako/10 cursor-pointer">
+                {expertiseOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
               {profile.community_role === 'other' && (
-                <input
-                  placeholder="ระบุความเชี่ยวชาญ..."
-                  value={profile.community_role_custom}
-                  onChange={e => setProfile({ ...profile, community_role_custom: e.target.value })}
-                  className="ori-input mt-2"
-                />
+                <input placeholder="ระบุความเชี่ยวชาญ..." value={profile.community_role_custom} onChange={e => setProfile({ ...profile, community_role_custom: e.target.value })} className="ori-input mt-2" />
               )}
             </div>
 
-            {/* Subscription info box */}
-            <div className="md:col-span-2 p-4 rounded-2xl border-2
-              border-dashed border-amber-300 bg-amber-50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-black text-sm text-amber-800">
-                    {subscription.plan === 'member' ? '⭐ Member Plan' : '🐾 Free Plan'}
-                  </p>
-                  <p className="text-xs font-bold text-amber-600 mt-0.5">
-                    {subscription.plan === 'member'
-                      ? `หมดอายุ: ${subscription.expires_at
-                          ? new Date(subscription.expires_at).toLocaleDateString('th-TH')
-                          : '-'}`
-                      : 'อัปเกรดเพื่อใช้ LINE OA และฟีเจอร์เพิ่มเติม'
-                    }
-                  </p>
-                </div>
-                <Link href="/pricing"
-                  className="text-xs font-black text-amber-700 bg-amber-200
-                    px-3 py-2 rounded-xl border border-amber-400
-                    hover:bg-amber-300 transition-all">
-                  {subscription.plan === 'member' ? 'ต่ออายุ' : 'อัปเกรด ฿399/ปี'}
-                </Link>
-              </div>
-            </div>
-
-            {/* Save button */}
             <div className="md:col-span-2 flex flex-col items-center gap-3 mt-6">
-              <Button
-                onClick={handleUpdateProfile}
-                disabled={isSaving}
-                className="w-full md:w-64 bg-black text-white py-6 rounded-2xl
-                  font-black text-lg shadow-paper-sm hover:shadow-paper transition-all"
-              >
-                {isSaving
-                  ? <Loader2 className="animate-spin" />
-                  : <><Save size={20} className="mr-2" /> บันทึกการแก้ไข</>
-                }
+              <Button type="submit" disabled={isSaving} className="w-full md:w-64 bg-black text-white py-6 rounded-2xl font-black text-lg shadow-paper-sm hover:shadow-paper transition-all">
+                {isSaving ? <Loader2 className="animate-spin" /> : <><Save size={20} className="mr-2" /> บันทึกการแก้ไข</>}
               </Button>
-              {saveSuccess && (
-                <span className="text-green-600 font-black animate-bounce">
-                  บันทึกข้อมูลเรียบร้อยแล้ว! ✅
-                </span>
-              )}
+              {saveSuccess && <span className="text-green-600 font-black animate-bounce">บันทึกข้อมูลเรียบร้อยแล้ว! ✅</span>}
             </div>
-          </motion.div>
+          </motion.form>
         )}
 
-        {/* ── Posts Tab ── */}
+        {/* ══ แท็บประกาศปัจจุบัน ═════════════════════════════════ */}
         {activeTab === 'posts' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
             {myPets.filter(p => !p.is_resolved).map(pet => (
               <div key={pet.id} className="flex flex-col gap-4 relative">
                 {pet.unread_count > 0 && (
-                  <div className="absolute -top-3 -left-3 z-30 bg-ori-orange text-white
-                    min-w-[32px] h-32 px-2 rounded-full flex items-center justify-center
-                    border-4 border-ori-ink shadow-paper-sm font-black text-sm animate-bounce">
+                  <div className="absolute -top-3 -left-3 z-30 bg-ori-orange text-white min-w-[32px] h-8 px-2 rounded-full flex items-center justify-center border-4 border-black shadow-paper-sm font-black text-sm animate-bounce">
                     <MessageSquare size={14} className="mr-1" /> {pet.unread_count}
                   </div>
                 )}
                 <MatchResultCard result={pet} />
-                <ResolveButton
-                  petId={pet.id}
-                  status={pet.status}
-                  onResolved={() => {
-                    fetchAllData()
-                    setShowDonation(true)
-                  }}
-                />
+                <ResolveButton petId={pet.id} status={pet.status} onResolved={() => { fetchAllData(); setShowDonation(true) }} />
               </div>
             ))}
             {myPets.filter(p => !p.is_resolved).length === 0 && (
               <div className="md:col-span-3 text-center py-16 text-ori-ink-l font-bold">
-                ยังไม่มีประกาศ{' '}
-                <Link href="/report" className="text-ori-orange underline">
-                  ลงประกาศแรกเลย
-                </Link>
+                ยังไม่มีประกาศเปิดอยู่ชั่วคราวค่ะ <Link href="/report" className="text-ori-orange underline">ลงประกาศแรกเลย</Link>
               </div>
             )}
           </div>
         )}
 
-        {/* ── Resolved Tab ── */}
+        {/* ══ แท็บเคสที่ช่วยสำเร็จแล้ว ══════════════════════════════ */}
         {activeTab === 'resolved' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
             {myPets.filter(p => p.is_resolved).map(pet => (
-              <div key={pet.id} className="relative opacity-90 grayscale-[0.5]">
-                <div className="absolute top-4 right-4 z-10 bg-ori-green text-white
-                  px-3 py-1 rounded-full font-black shadow-paper-sm text-sm">
-                  <CheckCircle size={14} /> สำเร็จแล้ว
-                </div>
+              <div key={pet.id} className="relative opacity-90 grayscale-[0.3]">
+                <div className="absolute top-4 right-4 z-10 bg-green-600 text-white px-3 py-1 rounded-full font-black shadow-paper-sm text-sm">🎉  สำเร็จแล้ว</div>
                 <MatchResultCard result={pet} />
               </div>
             ))}
+            {myPets.filter(p => p.is_resolved).length === 0 && (
+              <div className="md:col-span-3 text-center py-16 text-gray-400 font-bold">ยังไม่มีข้อมูลประวัติเคสสำเร็จค่ะ</div>
+            )}
+          </div>
+        )}
+
+        {/* ══ แท็บจัดการโปรไฟล์น้องและรูปตำหนิพิเศษ 3 มุม ═══════════════ */}
+        {activeTab === 'pets' && (
+          <div className="space-y-6 text-left animate-in fade-in duration-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-4 border-black pb-4">
+              <div>
+                <h3 className="text-2xl font-black">🐾 สมุดทะเบียนรายชื่อและประวัติสุขภาพสัตว์เลี้ยง</h3>
+                <p className="text-xs font-bold text-gray-500 mt-0.5">เพิ่มประวัติน้อง และแนบภาพตำหนิพิเศษ 3 มุม ควบคู่คำอธิบายเพื่อใช้เชื่อมสัญญาน Web Push ฟรี</p>
+              </div>
+              <Button onClick={() => setPetFormOpen(!petFormOpen)} className="bg-black text-white font-black border-2 border-black shadow-paper-sm rounded-xl py-5 hover:bg-gray-800">
+                {petFormOpen ? '✖️ ปิดกล่องฟอร์ม' : '➕ ลงทะเบียนประวัติน้องใหม่'}
+              </Button>
+            </div>
+
+            {petFormOpen && (
+              <form onSubmit={handlePetRegistration} className="border-4 border-black p-6 rounded-3xl bg-gray-50/50 space-y-5 animate-in slide-in-from-top-4 duration-300">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">ชื่อของน้องสัตว์เลี้ยง <span className="text-red-500">*</span></label>
+                    <input type="text" required value={petDataForm.name} onChange={e => setPetDataForm({...petDataForm, name: e.target.value})} placeholder="เช่น ชาเย็น, นมสด" className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none bg-white" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">ประเภทสายพันธุ์</label>
+                    <select value={petDataForm.species} onChange={e => setPetDataForm({...petDataForm, species: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-bold bg-white cursor-pointer outline-none">
+                      <option value="แมว">🐈 แมว</option>
+                      <option value="สุนัข">🐕 สุนัข</option>
+                      <option value="นกสวยงาม">🦜 นกสวยงาม</option>
+                      <option value="อื่นๆ">🐾 อื่นๆ</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">จังหวัดประจำตัวน้อง</label>
+                    <select value={petDataForm.province} onChange={e => setPetDataForm({...petDataForm, province: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-bold bg-white cursor-pointer outline-none">
+                      {thailandProvinces.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">อำเภอ</label>
+                    <input type="text" value={petDataForm.district} onChange={e => setPetDataForm({...petDataForm, district: e.target.value})} placeholder="เช่น ด่านขุนทด" className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none bg-white" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">ตำบล</label>
+                    <input type="text" value={petDataForm.sub_district} onChange={e => setPetDataForm({...petDataForm, sub_district: e.target.value})} placeholder="เช่น หินดาด" className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none bg-white" />
+                  </div>
+                </div>
+
+                <div className="space-y-2 border-2 border-black p-4 rounded-xl bg-white shadow-paper-sm">
+                  <label className="font-black text-sm flex items-center gap-1">🖼️ รูปถ่ายสภาพปกติของน้อง (สูงสุด 5 รูป) <span className="text-red-500">*</span></label>
+                  <input type="file" multiple accept="image/*" ref={petFileInputRef} onChange={ev => {
+                    if (!ev.target.files) return
+                    const files = Array.from(ev.target.files)
+                    if (petImages.length + files.length > 5) return alert('แนบรูปหลักได้สูงสุด 5 รูปค่ะ')
+                    setPetImages(prev => [...prev, ...files.map(f => ({ file: f, preview: URL.createObjectURL(f) }))])
+                  }} className="hidden" />
+                  <Button type="button" onClick={() => petFileInputRef.current?.click()} variant="outline" className="border-2 border-dashed border-gray-400 py-6 w-full font-black hover:bg-gray-50"><Upload size={16}/> กดอัปโหลดรูปภาพปกติ</Button>
+                  <div className="flex gap-2 flex-wrap mt-2">
+                    {petImages.map((img, i) => <img key={i} src={img.preview} className="w-14 h-14 object-cover border-2 border-black rounded-xl shadow-paper-sm" />)}
+                  </div>
+                </div>
+
+                <div className="space-y-3 border-2 border-black p-4 rounded-xl bg-amber-50/20 shadow-paper-sm">
+                  <label className="font-black text-sm flex items-center gap-1 text-amber-900">⚡ อัปโหลดรูปภาพลักษณะตำหนิพิเศษ / จุดสังเกตเด่น (สูงสุด 3 รูป)</label>
+                  <input type="file" multiple accept="image/*" ref={featureFileInputRef} onChange={ev => {
+                    if (!ev.target.files) return
+                    const files = Array.from(ev.target.files)
+                    if (featureImages.length + files.length > 3) return alert('อัปโหลดรูปตำหนิพิเศษได้สูงสุด 3 รูปค่ะ')
+                    setFeatureImages(prev => [...prev, ...files.map(f => ({ file: f, preview: URL.createObjectURL(f), description: '' }))])
+                  }} className="hidden" />
+                  <Button type="button" onClick={() => featureFileInputRef.current?.click()} className="bg-amber-100 text-amber-900 border-2 border-amber-300 w-full font-black hover:bg-amber-200"><Plus size={14}/> ➕ เพิ่มรูปจุดสังเกตพิเศษเด่นประจำตัว</Button>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                    {featureImages.map((feat, idx) => (
+                      <div key={idx} className="border-2 border-black p-3 rounded-2xl bg-white space-y-2 shadow-paper-sm">
+                        <img src={feat.preview} className="w-full h-24 object-cover border-2 border-black rounded-xl bg-gray-100" />
+                        <input 
+                          type="text" required
+                          placeholder="กรอกตำหนิรูปนี้ เช่น มีปานสีน้ำตาลที่พุง" 
+                          value={feat.description}
+                          onChange={e => {
+                            const updated = [...featureImages]
+                            updated[idx].description = e.target.value
+                            setFeatureImages(updated)
+                          }}
+                          className="w-full border-2 border-black p-1.5 rounded-lg text-xs font-bold outline-none" 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-black text-sm">รายละเอียดจุดสังเกตเพิ่มเติม / พฤติกรรมน้อง</label>
+                  <textarea rows={2} value={petDataForm.details} onChange={e => setPetDataForm({...petDataForm, details: e.target.value})} placeholder="เช่น มีนิสัยขี้กลัวเสียงฟ้าร้อง หรือตื่นตระหนกง่าย" className="w-full border-2 border-black p-2.5 rounded-xl font-bold resize-none bg-white outline-none" />
+                </div>
+
+                <Button type="submit" disabled={petSaving} className="w-full bg-black text-white font-black py-4 rounded-xl border-2 border-black shadow-paper-sm text-base">
+                  {petSaving ? <><Loader2 className="animate-spin" /> กำลังส่งข้อมูลประวัติน้องขึ้นคลาวด์...</> : "💾 ยืนยันบันทึกทะเบียนประวัติน้องสัตว์เลี้ยง"}
+                </Button>
+              </form>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {myPets.map(pet => (
+                <div key={pet.id} className="border-4 border-black p-4 rounded-2xl bg-white shadow-paper-sm flex gap-3 text-left hover:-translate-y-0.5 transition-transform duration-200">
+                  <img src={pet.image_url || '/favicon.ico'} className="w-20 h-20 object-cover border-2 border-black rounded-xl bg-gray-100 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-black text-lg leading-tight truncate text-ori-ink">{pet.name}</h4>
+                    <p className="text-xs font-bold text-gray-500 mt-0.5">{pet.species} · {pet.province || 'นครราชสีมา'}</p>
+                    <div className="flex gap-1.5 mt-3">
+                      <Link href={`/pets/${pet.id}`} className="text-[10px] font-black border-2 border-black bg-gray-100 px-2 py-1 rounded-md hover:bg-gray-200">🏥 สมุดสุขภาพ</Link>
+                      <Link href={`/pets/${pet.id}/edit`} className="text-[10px] font-black border-2 border-black bg-white px-2 py-1 rounded-md hover:bg-gray-100">✏️ แก้ไข</Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
