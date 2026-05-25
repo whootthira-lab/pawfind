@@ -464,7 +464,11 @@ export default function PetAssistant() {
         whileDrag={{ scale: 1.08, cursor: 'grabbing' }}
       >
         <motion.button
-          onClick={() => { if (!isDragging) { isOpen ? setIsOpen(false) : openChat() } }}
+          onClick={() => {
+            if (!isDragging) {
+              if (isOpen) { setIsOpen(false) } else { openChat() }
+            }
+          }}
           animate={{
             ...anim.animate as any,
             opacity: isIdle && !isOpen ? 0.35 : 1,
