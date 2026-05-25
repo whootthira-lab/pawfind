@@ -6,7 +6,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import { MatchResultCard } from '@/components/pet/MatchResult'
 import { ResolveButton } from '@/components/pet/ResolveButton'
 import {
-  User, CheckCircle, Loader2, PlusCircle, MessageSquare,
+  User, CheckCircle, Loader2, Plus, PlusCircle, MessageSquare,
   Save, Camera, MapPin, Phone, UserCircle, Settings, Briefcase,
   Heart, AlertCircle, ChevronRight, PawPrint, Upload, X
 } from 'lucide-react'
