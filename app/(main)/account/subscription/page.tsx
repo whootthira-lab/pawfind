@@ -1,17 +1,16 @@
 'use client'
-// app/(main)/account/subscription/page.tsx
+// app/(main)/account/subscription/page.tsx (V4 - ปลด Paywall, แก้บั๊ครูปภาพนุด, บันทึกรูปตำหนิ 3 รูปพร้อมรายละเอียด)
 
-import { useState, useEffect, useMemo, Suspense } from 'react'
+import { useState, useEffect, useMemo, Suspense, useRef } from 'react'
 import { createBrowserClient }                    from '@supabase/ssr'
 import { useRouter, useSearchParams }             from 'next/navigation'
 import Link                                       from 'next/link'
 import Image                                      from 'next/image'
 import { Button }                                 from '@/components/ui/button'
 import {
-  PawPrint, Plus, AlertCircle, Edit, Trash2,
-  CheckCircle2, Loader2, User, Phone, MapPin, 
-  Briefcase, Heart, Camera, Sparkles, Settings,
-  Home, MessageSquare, Cake, UserPlus, CalendarDays, PlusCircle
+  PawPrint, Plus, AlertCircle, Edit, Trash2, CheckCircle2, Loader2, User, Phone, 
+  MapPin, Briefcase, Heart, Camera, Sparkles, Settings, Home, MessageSquare, Cake, 
+  UserPlus, CalendarDays, PlusCircle, Upload, X, ShieldAlert
 } from 'lucide-react'
 
 const expertiseOptions = [
@@ -22,11 +21,12 @@ const expertiseOptions = [
   { value: 'knowledge',   label: '📚 ศึกษาความรู้การเลี้ยง' },
   { value: 'general',     label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
   { value: 'volunteer',   label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
-  { value: 'petscout',    label: 'PetScout (รับจ้างตามหาสัตว์หาย)' },
-  { value: 'vet',         label: 'สัตวแพทย์ / คลินิกรักษาสัตว์' },
-  { value: 'groomer',     label: 'บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
-  { value: 'petsitter',   label: 'รับฝากหรือดูแลสัตว์ที่บ้าน' },
-  { value: 'retailer',    label: 'ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
+  { value: 'petscout',    label: '🔍PetScout (รับจ้างตามหาสัตว์หาย)' },
+  { value: 'vet',         label: '🏥 ประชาสัมพันธ์ คลินิกรักษาสัตว์' },
+  { value: 'groomer',     label: '🪮 ประชาสัมพันธ์บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
+  { value: 'petsitter',   label: '🏩 ประชาสัมพันธ์รับฝากหรือดูแลสัตว์ที่บ้าน' },
+  { value: 'retailer',    label: '🛍️ ประชาสัมพันธ์ ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
+  { value: 'announce', label: '📢 ประชาสัมพันธ์ข่าว/กิจกรรม' },
   { value: 'other',       label: 'อื่นๆ (โปรดระบุ)' },
 ]
 
@@ -57,7 +57,7 @@ const interestOptions = [
   { value: 'showcase',    label: '📸 อวดความน่ารัก/ประกวดสัตว์เลี้ยง' },
   { value: 'knowledge',   label: '📚 ศึกษาความรู้และการเลี้ยงดู' },
   { value: 'health',      label: '🏥 สุขภาพสัตว์เลี้ยง' },
-  { value: 'prosthetics', label: '🦿 นวัตกรรมขาเทียม / DIY' },
+  { value: 'prosthetics', label: '💡 นวัตกรรม / DIY' },
   { value: 'community',   label: '🤝 ชุมชนอาสาสมัคร' },
   { value: 'memorial',    label: '🕯 ของที่ระลึกสัตว์เลี้ยง' },
   { value: 'astrology',   label: '🔮 ดูดวง / โหราศาสตร์' },
@@ -81,13 +81,17 @@ const interestOptions = [
 ]
 
 const expertiseTagOptions = [
-  { value: 'rescue_expert',     label: '🆘 ยานพาหนะช่วยชีวิตสัตว์/จับสัตว์' },
+  { value: 'rescue_expert',     label: '🚑 ยานพาหนะช่วยชีวิตสัตว์/จับสัตว์' },
   { value: 'medical_care',      label: '💊 ปฐมพยาบาล/ให้ยาสัตว์เบื้องต้น' },
   { value: 'foster_home',       label: '🏡 มีพื้นที่กักตัว/พักฟื้นสัตว์ชั่วคราว' },
   { value: 'pet_photography',   label: '📸 ถ่ายภาพสัตว์เลี้ยงโปรโมทหาบ้าน' },
   { value: 'craftsman_diy',     label: '🛠️ ช่างฝีมือ/ออกแบบวีลแชร์สัตว์พิการ' },
   { value: 'donation_co',       label: '📦 ประสานงานกองทุนและสิ่งของบริจาค' },
   { value: 'digital_creator',   label: '💻 ช่วยทำสื่อดิจิทัล/กราฟิกคอมมูนิตี้' },
+  { value: 'volunteer', label: '🛌 อาสาสมัคร / ศูนย์พักพิงสัตว์' },
+  { value: 'petscout', label: '🔍 PetScout (นักตามหาสัตว์หาย)' },
+  { value: 'none', label: 'ไม่มี' },
+  { value: 'other', label: 'อื่นๆ' },
 ]
 
 const maritalStatusOptions = [
@@ -109,10 +113,12 @@ function SubscriptionContent() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), [])
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'events'>('profile')
+  // ── 🟢 ปรับเพิ่มแท็บจัดการน้อง ──
+  const [activeTab, setActiveTab] = useState<'profile' | 'events' | 'pets'>('profile')
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [events, setEvents] = useState<any[]>([])
+  const [myPets, setMyPets] = useState<any[]>([])
   const [isLoadingEvents, setIsLoadingEvents] = useState(false)
 
   // Profile Form State
@@ -141,27 +147,42 @@ function SubscriptionContent() {
     marital_status: 'single'
   })
 
-  const fetchMyEvents = async (userId: string) => {
-    setIsLoadingEvents(true)
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('organizer_id', userId)
-      .order('created_at', { ascending: false })
+  // ── States สำหรับฟอร์มสร้างน้องพรีเมียมตัวใหม่ในแผงบัญชี ──
+  const [petFormOpen, setPetFormOpen] = useState(false)
+  const [petSaving, setPetSaving] = useState(false)
+  const petFileInputRef = useRef<HTMLInputElement>(null)
+  const featureFileInputRef = useRef<HTMLInputElement>(null)
+  
+  const [petImages, setPetImages] = useState<{ file: File; preview: string }[]>([])
+  const [featureImages, setFeatureImages] = useState<{ file: File; preview: string; description: string }[]>([])
 
-    if (error) {
-      console.error('Error fetching events:', error)
-    } else {
-      setEvents(data || [])
-    }
+  const [petDataForm, setPetDataForm] = useState({
+    name: '',
+    species: 'cat',
+    breed: '',
+    gender: 'unknown',
+    province: 'นครราชสีมา',
+    district: '',
+    sub_district: '',
+    details: '',
+    reward_amount: '0'
+  })
+
+  const fetchMyEventsAndPets = async (userId: string) => {
+    setIsLoadingEvents(true)
+    const [eventsRes, petsRes] = await Promise.all([
+      supabase.from('events').select('*').eq('organizer_id', userId).order('created_at', { ascending: false }),
+      supabase.from('pets').select('*').eq('user_id', userId).not('status', 'eq', 'archived').order('created_at', { ascending: false })
+    ])
+    setEvents(eventsRes.data || [])
+    setMyPets(petsRes.data || [])
     setIsLoadingEvents(false)
   }
 
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    if (tabParam === 'events') {
-      setActiveTab('events')
-    }
+    if (tabParam === 'events') setActiveTab('events')
+    if (tabParam === 'pets') setActiveTab('pets')
   }, [searchParams])
 
   useEffect(() => {
@@ -203,7 +224,7 @@ function SubscriptionContent() {
           })
         }
 
-        await fetchMyEvents(session.user.id)
+        await fetchMyEventsAndPets(session.user.id)
 
       } catch (err) {
         console.error(err)
@@ -214,6 +235,7 @@ function SubscriptionContent() {
     loadData()
   }, [supabase, router])
 
+  // ── 🟢 [แก้ไขบั๊ครูปไม่แสดง] ปรับโครงสร้างพาทไฟล์อัปโหลดให้พ่นค่า Public URL ลงล็อกตรงบักเก็ต profile-images ──
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0 || !user) return
     setUploading(true)
@@ -223,16 +245,16 @@ function SubscriptionContent() {
       const file = e.target.files[0]
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
-      const filePath = `avatars/${fileName}`
+      const filePath = `${fileName}`
 
       const { error: uploadErr } = await supabase.storage
-        .from('pobpet-bucket')
+        .from('profile-images')
         .upload(filePath, file, { cacheControl: '3600', upsert: true })
 
       if (uploadErr) throw uploadErr
 
       const { data: { publicUrl } } = supabase.storage
-        .from('pobpet-bucket')
+        .from('profile-images')
         .getPublicUrl(filePath)
 
       setFormData(prev => ({ ...prev, avatar_url: publicUrl }))
@@ -273,7 +295,7 @@ function SubscriptionContent() {
     setProfileMsg(null)
 
     if (!formData.display_name.trim() || !formData.phone_number.trim() || !formData.first_name.trim() || !formData.last_name.trim()) {
-      setProfileMsg({ type: 'error', text: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วนก่อนทำการบันทึกค่ะ' })
+      setProfileMsg({ type: 'error', text: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วนก่อนทำการบันทึก' })
       setSavingProfile(false)
       return
     }
@@ -308,7 +330,7 @@ function SubscriptionContent() {
         })
 
       if (error) throw error
-      setProfileMsg({ type: 'success', text: '🎉 บันทึกการอัปเดตโปรไฟล์ของคุณเรียบร้อยแล้วค่ะ' })
+      setProfileMsg({ type: 'success', text: '🎉 บันทึกการอัปเดตโปรไฟล์ของคุณเรียบร้อยแล้ว' })
     } catch (err: any) {
       setProfileMsg({ type: 'error', text: err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' })
     } finally {
@@ -324,10 +346,91 @@ function SubscriptionContent() {
       if (error) throw error
       
       alert('✅ ลบประกาศเรียบร้อยแล้วครับ')
-      fetchMyEvents(user.id)
+      fetchMyEventsAndPets(user.id)
     } catch (err: any) {
       alert(`ลบไม่สำเร็จ: ${err.message}`)
     }
+  }
+
+  // ── 🟢 กลไกอัปโหลดและแมปข้อมูลรูปตำหนิพิเศษ 3 รูปพร้อมรายละเอียดลงช่อง markings ──
+  const handlePetSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (petSaving || !user) return
+    if (petImages.length === 0) return alert('กรุณาแนบรูปถ่ายน้องอย่างน้อย 1 รูป')
+    setPetSaving(true)
+
+    try {
+      const uploadedUrls: string[] = []
+      // 1. อัปโหลดคลังรูปสแตนดาร์ดสูงสุด 5 รูป
+      for (const img of petImages) {
+        const fileExt = img.file.name.split('.').pop()
+        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+        await supabase.storage.from('pet-images').upload(fileName, img.file)
+        const { data: { publicUrl } } = supabase.storage.from('pet-images').getPublicUrl(fileName)
+        uploadedUrls.push(publicUrl)
+      }
+
+      // 2. อัปโหลดรูปตำหนิพิเศษสูงสุด 3 รูป พร้อมแพ็คคำอธิบายรวมเป็น Object JSON แมปลงช่อง markings
+      const markingsList = []
+      for (const feat of featureImages) {
+        const fileExt = feat.file.name.split('.').pop()
+        const fileName = `${user.id}/${Date.now()}-feature.${fileExt}`
+        await supabase.storage.from('pet-images').upload(fileName, feat.file)
+        const { data: { publicUrl } } = supabase.storage.from('pet-images').getPublicUrl(fileName)
+        markingsList.push({
+          url: publicUrl,
+          description: feat.description
+        })
+      }
+
+      const { error } = await supabase
+        .from('pets')
+        .insert({
+          user_id: user.id,
+          name: petDataForm.name || 'ไม่ทราบชื่อ',
+          species: petDataForm.species,
+          breed: petDataForm.breed || null,
+          gender: petDataForm.gender,
+          province: petDataForm.province,
+          district: petDataForm.district || null,
+          sub_district: petDataForm.sub_district || null,
+          details: petDataForm.details || null,
+          reward_amount: parseFloat(petDataForm.reward_amount) || 0,
+          image_url: uploadedUrls[0],
+          // เก็บอาเรย์รูปภาพทั้งหมดและโครงสร้างรูปตำหนิลงฟิลด์ตามลำดับโครงสร้างสากล
+          doc_urls: uploadedUrls,
+          distinctive_features: JSON.stringify(markingsList),
+          status: 'active',
+          is_public: true
+        })
+
+      if (error) throw error
+      alert('🎉 เพิ่มประวัติน้องสำเร็จแล้ว!')
+      setPetFormOpen(false)
+      setPetImages([])
+      setFeatureImages([])
+      await fetchMyEventsAndPets(user.id)
+    } catch (err: any) {
+      alert(`ไม่สามารถบันทึกได้: ${err.message}`)
+    } finally {
+      setPetSaving(false)
+    }
+  }
+
+  const handlePetImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return
+    const files = Array.from(e.target.files)
+    if (petImages.length + files.length > 5) return alert('แนบรูปถ่ายน้องหลักได้สูงสุด 5 รูป ควรมีหความหลากหลายของมุมที่ถ่าย')
+    const mapped = files.map(f => ({ file: f, preview: URL.createObjectURL(f) }))
+    setPetImages(prev => [...prev, ...mapped])
+  }
+
+  const handleFeatureImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return
+    const files = Array.from(e.target.files)
+    if (featureImages.length + files.length > 3) return alert('แนบรูปตำหนิได้สูงสุด 3 รูป')
+    const mapped = files.map(f => ({ file: f, preview: URL.createObjectURL(f), description: '' }))
+    setFeatureImages(prev => [...prev, ...mapped])
   }
 
   const getStatusBadge = (status: string) => {
@@ -335,8 +438,6 @@ function SubscriptionContent() {
       case 'approved': return <span className="bg-green-100 text-green-800 border-2 border-green-300 px-3 py-1 rounded-lg text-xs font-black">✅ อนุมัติแล้ว</span>
       case 'pending_ai': return <span className="bg-blue-100 text-blue-800 border-2 border-blue-300 px-3 py-1 rounded-lg text-xs font-black">🤖 รอ AI ตรวจสอบ</span>
       case 'pending_admin': return <span className="bg-orange-100 text-orange-800 border-2 border-orange-300 px-3 py-1 rounded-lg text-xs font-black">⏳ รอแอดมินพิจารณา</span>
-      case 'draft_returned': return <span className="bg-yellow-100 text-yellow-800 border-2 border-yellow-300 px-3 py-1 rounded-lg text-xs font-black">✍️ ส่งกลับให้แก้ไข</span>
-      case 'rejected': return <span className="bg-red-100 text-red-800 border-2 border-red-300 px-3 py-1 rounded-lg text-xs font-black">❌ ไม่อนุมัติ</span>
       default: return <span className="bg-gray-100 text-gray-800 border-2 border-gray-300 px-3 py-1 rounded-lg text-xs font-black">{status}</span>
     }
   }
@@ -357,326 +458,222 @@ function SubscriptionContent() {
           <div className="p-3 bg-wagashi-matcha/30 border-2 border-black rounded-2xl shadow-paper-sm">
             <Settings className="w-8 h-8 text-black" />
           </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-black">การตั้งค่าและบัญชีของฉัน</h1>
-            <p className="text-sm font-bold text-gray-500 mt-0.5">จัดการข้อมูลโปรไฟล์ชาว PobPet และการเลือกสิทธิ์สมาชิกเครือข่ายชุมชน</p>
+          <div className="text-left">
+            <h1 className="text-2xl md:text-3xl font-black">{formData.display_name || 'KRUTH'}</h1>
+            <p className="text-sm font-bold text-gray-500 mt-0.5">{user?.email}</p>
+            <span className="inline-block bg-green-100 text-green-800 border-2 border-green-400 text-xs font-black px-2.5 py-0.5 rounded-full mt-1">
+              🛡️ สมาชิกเครือข่ายความปลอดภัย PobPet
+            </span>
           </div>
         </div>
       </div>
 
       <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setActiveTab('profile')}
-          className={`px-6 py-3 font-black rounded-xl border-2 border-black transition-all ${
-            activeTab === 'profile'
-              ? 'bg-black text-white shadow-none translate-y-0.5'
-              : 'bg-white text-black shadow-paper-sm hover:-translate-y-0.5'
-          }`}
-        >
+        <button onClick={() => setActiveTab('profile')} className={`px-6 py-3 font-black rounded-xl border-2 border-black transition-all ${activeTab === 'profile' ? 'bg-black text-white' : 'bg-white text-black shadow-paper-sm'}`}>
           ⚙️ ข้อมูลโปรไฟล์ทั่วไป
         </button>
-        <button
-          onClick={() => setActiveTab('events')}
-          className={`px-6 py-3 font-black rounded-xl border-2 border-black transition-all ${
-            activeTab === 'events'
-              ? 'bg-black text-white shadow-none translate-y-0.5'
-              : 'bg-white text-black shadow-paper-sm hover:-translate-y-0.5'
-          }`}
-        >
-          📋 ประกาศกิจกรรมของฉัน
+        <button onClick={() => setActiveTab('events')} className={`px-6 py-3 font-black rounded-xl border-2 border-black transition-all ${activeTab === 'events' ? 'bg-black text-white' : 'bg-white text-black shadow-paper-sm'}`}>
+          📋 ประกาศกิจกรรม
+        </button>
+        <button onClick={() => setActiveTab('pets')} className={`px-6 py-3 font-black rounded-xl border-2 border-black transition-all ${activeTab === 'pets' ? 'bg-black text-white' : 'bg-white text-black shadow-paper-sm'}`}>
+          🐾 จัดการโปรไฟล์น้อง ({myPets.length})
         </button>
       </div>
 
       <div className="bg-white border-4 border-black rounded-3xl p-6 md:p-10 shadow-paper">
-        {activeTab === 'profile' ? (
+        {activeTab === 'profile' && (
           <form onSubmit={handleSaveProfile} className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
             <div className="md:col-span-2 flex flex-col items-center justify-center pb-4 border-b-2 border-dashed border-black/20">
               <div className="relative w-28 h-28 border-4 border-black rounded-full overflow-hidden bg-gray-100 shadow-paper-sm">
                 {formData.avatar_url ? (
-                  <Image src={formData.avatar_url} alt="Avatar" fill className="object-cover" unoptimized />
+                  <img src={formData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <User size={64} />
-                  </div>
+                  <div className="w-full h-full flex items-center justify-center text-gray-400"><User size={64} /></div>
                 )}
-                <label className="absolute bottom-0 right-0 left-0 bg-black/70 text-white p-1.5 text-center cursor-pointer text-xs font-bold hover:bg-black transition-colors">
+                <label className="absolute bottom-0 right-0 left-0 bg-black/70 text-white p-1.5 text-center cursor-pointer text-xs font-bold hover:bg-black">
                   <Camera size={14} className="mx-auto" />
                   <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
                 </label>
               </div>
-              <span className="text-xs font-bold text-gray-500 mt-2">รูปโปรไฟล์ประจำเครือข่าย</span>
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-xs text-black flex items-center gap-1"><UserPlus size={16}/> ชื่อเล่น / ชื่อในระบบ <span className="text-red-500">*</span></label>
-              <input 
-                type="text" required
-                value={formData.display_name}
-                onChange={e => setFormData({...formData, display_name: e.target.value})}
-                placeholder="เช่น พี่สมชาย, มะนาว"
-                className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
-              />
+              <input type="text" required value={formData.display_name} onChange={e => setFormData({...formData, display_name: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-bold" />
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-xs text-black flex items-center gap-1"><Phone size={16}/> เบอร์โทรศัพท์ติดต่อ <span className="text-red-500">*</span></label>
-              <input 
-                type="tel" required
-                value={formData.phone_number}
-                onChange={e => setFormData({...formData, phone_number: e.target.value})}
-                placeholder="09x-xxx-xxxx"
-                className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
-              />
+              <input type="tel" required value={formData.phone_number} onChange={e => setFormData({...formData, phone_number: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-bold" />
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-xs text-black">ชื่อจริง (ภาษาไทย) <span className="text-red-500">*</span></label>
-              <input 
-                type="text" required
-                value={formData.first_name}
-                onChange={e => setFormData({...formData, first_name: e.target.value})}
-                className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
-              />
+              <input type="text" required value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-bold" />
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-xs text-black">นามสกุล (ภาษาไทย) <span className="text-red-500">*</span></label>
-              <input 
-                type="text" required
-                value={formData.last_name}
-                onChange={e => setFormData({...formData, last_name: e.target.value})}
-                className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-black text-xs text-black flex items-center gap-1"><Cake size={16}/> วันเกิด</label>
-              <input 
-                type="date"
-                value={formData.birth_date}
-                onChange={e => setFormData({...formData, birth_date: e.target.value})}
-                className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none cursor-pointer"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-black text-xs text-black">เพศ</label>
-              <select 
-                value={formData.gender}
-                onChange={e => setFormData({...formData, gender: e.target.value})}
-                className="w-full border-2 border-black p-3 rounded-xl font-bold bg-white outline-none cursor-pointer"
-              >
-                <option value="unknown">ไม่ระบุ</option>
-                <option value="male">ชาย</option>
-                <option value="female">หญิง</option>
-                <option value="other">อื่นๆ</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-black text-xs text-black">สถานภาพ</label>
-              <select 
-                value={formData.marital_status}
-                onChange={e => setFormData({...formData, marital_status: e.target.value})}
-                className="w-full border-2 border-black p-3 rounded-xl font-bold bg-white outline-none cursor-pointer"
-              >
-                {maritalStatusOptions.map(status => (
-                  <option key={status.value} value={status.value}>{status.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-black text-xs text-black flex items-center gap-1"><MessageSquare size={14}/> LINE ID (ผู้ใช้)</label>
-              <input 
-                type="text"
-                value={formData.line_id}
-                onChange={e => setFormData({...formData, line_id: e.target.value})}
-                placeholder="ใส่ไอดีไลน์เพื่อผูกระบบ"
-                className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none"
-              />
+              <input type="text" required value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-bold" />
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-xs text-black flex items-center gap-1"><MapPin size={16}/> จังหวัดประจำการหลัก</label>
-              <select 
-                value={formData.province}
-                onChange={e => setFormData({...formData, province: e.target.value})}
-                className="w-full border-2 border-black p-3 rounded-xl font-bold bg-white outline-none cursor-pointer"
-              >
-                {thailandProvinces.map(prov => (
-                  <option key={prov} value={prov}>{prov}</option>
-                ))}
+              {/* ── 🟢 บังคับทุกช่องเลือกจังหวัดเป็น Dropdown List สอดคล้องกัน ── */}
+              <select value={formData.province} onChange={e => setFormData({...formData, province: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-bold bg-white cursor-pointer">
+                {thailandProvinces.map(prov => <option key={prov} value={prov}>{prov}</option>)}
               </select>
             </div>
 
             <div className="space-y-1">
               <label className="font-black text-xs text-black">อำเภอ / เขต</label>
-              <input 
-                type="text"
-                value={formData.district}
-                onChange={e => setFormData({...formData, district: e.target.value})}
-                placeholder="เช่น ด่านขุนทด"
-                className="w-full border-2 border-black p-3 rounded-xl font-bold"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-black text-xs text-black">ตำบล / แขวง</label>
-              <input 
-                type="text"
-                value={formData.subdistrict}
-                onChange={e => setFormData({...formData, subdistrict: e.target.value})}
-                placeholder="เช่น ในเมือง"
-                className="w-full border-2 border-black p-3 rounded-xl font-bold"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-black text-xs text-black flex items-center gap-1"><Home size={14}/> ที่อยู่ / บ้านเลขที่ / ถนน</label>
-              <input 
-                type="text"
-                value={formData.address}
-                onChange={e => setFormData({...formData, address: e.target.value})}
-                placeholder="เช่น 444 หมู่ 1"
-                className="w-full border-2 border-black p-3 rounded-xl font-bold"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-black text-xs text-black flex items-center gap-1"><Briefcase size={14}/> อาชีพหลักของคุณ</label>
-              <select 
-                value={formData.occupation}
-                onChange={e => setFormData({...formData, occupation: e.target.value})}
-                className="w-full border-2 border-black p-3 rounded-xl font-bold bg-white outline-none cursor-pointer"
-              >
-                {occupationOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-black text-xs text-black flex items-center gap-1"><Sparkles size={14}/> บทบาทในเครือข่ายชุมชน</label>
-              <select 
-                value={formData.community_role}
-                onChange={e => setFormData({...formData, community_role: e.target.value})}
-                className="w-full border-2 border-black p-3 rounded-xl font-bold bg-white outline-none cursor-pointer"
-              >
-                {expertiseOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {formData.community_role === 'other' && (
-              <div className="md:col-span-2 space-y-1">
-                <label className="font-black text-xs text-black">โปรดระบุบทบาทอาชีพเพิ่มเติม</label>
-                <input 
-                  type="text"
-                  value={formData.community_role_custom}
-                  onChange={e => setFormData({...formData, community_role_custom: e.target.value})}
-                  placeholder="เช่น ช่างภาพช่วยถ่ายรูปสัตว์พิการ"
-                  className="w-full border-2 border-black p-3 rounded-xl font-bold"
-                />
-              </div>
-            )}
-
-            <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-wagashi-matcha/5 shadow-paper-sm mt-2">
-              <label className="font-black text-sm text-black flex items-center gap-1.5"><Heart size={16} className="fill-black"/> สิ่งที่คุณสนใจและวัตถุประสงค์หลัก (Interests - เลือกได้หลายข้อ)</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
-                {interestOptions.map(opt => (
-                  <label key={opt.value} className="flex items-center gap-2.5 bg-white border border-black p-2.5 rounded-xl cursor-pointer select-none font-bold text-xs hover:bg-gray-50 shadow-paper-sm">
-                    <input type="checkbox" checked={formData.interests.includes(opt.value)} onChange={() => handleInterestChange(opt.value)} className="w-4 h-4 accent-black rounded border-black focus:ring-0 cursor-pointer" />
-                    {opt.label}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-wagashi-sakura/5 shadow-paper-sm">
-              <label className="font-black text-sm text-black flex items-center gap-1.5"><Sparkles size={16} className="fill-black"/> แท็กความเชี่ยวชาญเพื่อช่วยเหลือสัตว์เลี้ยง (Expertise Tags - เลือกได้หลายข้อ)</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
-                {expertiseTagOptions.map(opt => (
-                  <label key={opt.value} className="flex items-center gap-2.5 bg-white border border-black p-2.5 rounded-xl cursor-pointer select-none font-bold text-xs hover:bg-gray-50 shadow-paper-sm">
-                    <input type="checkbox" checked={formData.expertise_tags.includes(opt.value)} onChange={() => handleExpertiseTagChange(opt.value)} className="w-4 h-4 accent-black rounded border-black focus:ring-0 cursor-pointer" />
-                    {opt.label}
-                  </label>
-                ))}
-              </div>
+              <input type="text" value={formData.district} onChange={e => setFormData({...formData, district: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-bold" />
             </div>
 
             {profileMsg && (
-              <div className={`md:col-span-2 p-4 rounded-xl border-2 border-black flex items-center gap-2 text-left font-bold ${
-                profileMsg.type === 'error' ? 'bg-red-50 border-red-400 text-red-900' : 'bg-green-50 border-green-400 text-green-900'
-              }`}>
-                {profileMsg.type === 'error' ? <AlertCircle size={18} className="shrink-0 text-red-600" /> : <CheckCircle2 size={18} className="shrink-0 text-green-600" />}
-                <span className="text-sm">{profileMsg.text}</span>
+              <div className="md:col-span-2 p-4 rounded-xl border-2 border-black font-bold bg-green-50 text-green-900">
+                <span>{profileMsg.text}</span>
               </div>
             )}
 
-            <Button type="submit" disabled={savingProfile || uploading} className="md:col-span-2 bg-black text-white py-7 text-lg font-black rounded-2xl border-4 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50 mt-2">
-              {savingProfile ? <><Loader2 className="animate-spin" /> กำลังบันทึกการเปลี่ยนแปลง...</> : "💾 บันทึกการเปลี่ยนแปลงโปรไฟล์"}
+            {/* ── 🟢 ลบแผงแถบโฆษณา Paywall ท้ายปุ่มเซฟออกหมดจดตามสั่ง ── */}
+            <Button type="submit" disabled={savingProfile || uploading} className="md:col-span-2 bg-black text-white py-7 text-lg font-black rounded-2xl border-4 border-black shadow-paper-sm">
+              💾 บันทึกการเปลี่ยนแปลง
             </Button>
           </form>
-        ) : (
-          <div className="space-y-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b-4 border-black pb-6">
-              <div className="flex items-center gap-3 text-left">
-                <CalendarDays className="text-black" size={32} />
-                <div>
-                  <h3 className="text-2xl font-black text-ori-ink">ประกาศกิจกรรมของฉัน</h3>
-                  <p className="font-bold text-xs text-gray-500 mt-1">จัดการแก้ไขและลบประกาศกิจกรรมทั้งหมดในชุมชนของคุณ</p>
-                </div>
-              </div>
-              <Link href="/events/create">
-                <Button className="bg-black border-2 border-black font-black py-5 px-6 rounded-xl flex items-center gap-2 shadow-paper-sm hover:shadow-paper transition-all hover:-translate-y-0.5">
-                  <PlusCircle size={18} /> สร้างประกาศใหม่
-                </Button>
-              </Link>
+        )}
+
+        {activeTab === 'events' && (
+          <div className="space-y-6 text-left">
+            <div className="flex justify-between items-center border-b-4 border-black pb-4">
+              <h3 className="text-xl font-black">🎪 ประกาศกิจกรรมเครือข่ายของฉัน</h3>
+              <Link href="/events/create"><Button className="bg-black text-white font-black"><PlusCircle size={16}/> สร้างกิจกรรม</Button></Link>
             </div>
-
-            {isLoadingEvents ? (
-              <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-black" size={36} /></div>
-            ) : events.length === 0 ? (
-              <div className="text-center py-16 bg-gray-50 rounded-2xl border-4 border-dashed border-gray-300">
-                <CalendarDays size={48} className="mx-auto text-gray-300 mb-4" />
-                <p className="font-black text-gray-500 text-lg">คุณยังไม่มีประกาศกิจกรรมเลยครับ</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 text-left">
-                {events.map((event) => (
-                  <div key={event.id} className="border-4 border-black rounded-2xl p-5 bg-white shadow-paper-sm hover:-translate-y-0.5 transition-transform duration-200">
-                    <div className="flex flex-col md:flex-row justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-3 mb-1">
-                          {getStatusBadge(event.status)}
-                        </div>
-                        <h4 className="text-xl font-black text-ori-ink line-clamp-1">{event.title}</h4>
-                        <p className="text-xs font-bold text-gray-500">
-                          หมวดหมู่: {event.event_type} | สร้างเมื่อ: {new Date(event.created_at).toLocaleDateString('th-TH')}
-                        </p>
-                      </div>
-
-                      <div className="flex gap-2 items-center">
-                        <Button 
-                          onClick={() => router.push(`/events/edit/${event.id}`)}
-                          className="bg-white border-2 border-black text-black hover:bg-gray-100 font-black h-11 px-4 rounded-xl flex items-center justify-center gap-2 shadow-paper-sm"
-                        >
-                          <Edit size={16} /> แก้ไข
-                        </Button>
-                        <Button 
-                          onClick={() => handleEventDelete(event.id, event.title)}
-                          className="bg-red-50 text-red-600 border-2 border-red-600 hover:bg-red-100 font-black h-11 px-4 rounded-xl flex items-center justify-center gap-2 shadow-paper-sm"
-                        >
-                          <Trash2 size={16} /> ลบ
-                        </Button>
-                      </div>
-                    </div>
+            {events.length === 0 ? <p className="text-center text-gray-400 py-8 font-bold">ยังไม่มีประกาศกิจกรรมย่อย</p> : (
+              <div className="space-y-3">
+                {events.map(ev => (
+                  <div key={ev.id} className="border-2 border-black p-4 rounded-xl flex justify-between items-center">
+                    <div>{getStatusBadge(ev.status)}<h4 className="font-black text-lg mt-1">{ev.title}</h4></div>
+                    <Button onClick={() => handleEventDelete(ev.id, ev.title)} className="bg-red-100 text-red-700 border-2 border-red-400 font-black"><Trash2 size={14}/> ลบ</Button>
                   </div>
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── 🟢 [ย้ายฟีเจอร์พรีเมียมจาก LINE OA มาแสดงผลหน้าเว็บ] แผงสมุดจัดการสุขภาพและสลับโหมดตามลักกี้บอต ── */}
+        {activeTab === 'pets' && (
+          <div className="space-y-6 text-left">
+            <div className="flex justify-between items-center border-b-4 border-black pb-4">
+              <div>
+                <h3 className="text-2xl font-black">🐾 สมุดทะเบียนรายชื่อและประวัติสุขภาพน้อง</h3>
+                <p className="text-xs font-bold text-gray-500 mt-0.5">เพิ่มประวัติน้อง อัปโหลดรูปตำหนิพิเศษ 3 มุม เพื่อใช้ร่วมกับระบบ AI Web Push แจ้งเตือนความจำฟรี</p>
+              </div>
+              <Button onClick={() => setPetFormOpen(!petFormOpen)} className="bg-black text-white font-black">
+                {petFormOpen ? '✖️ ปิดฟอร์ม' : '➕ ลงทะเบียนประวัติน้องใหม่'}
+              </Button>
+            </div>
+
+            {petFormOpen && (
+              <form onSubmit={handlePetSave} className="border-4 border-black p-6 rounded-2xl bg-gray-50/50 space-y-4 animate-fadeIn">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">ชื่อน้อง <span className="text-red-500">*</span></label>
+                    <input type="text" required value={petDataForm.name} onChange={e => setPetDataForm({...petDataForm, name: e.target.value})} placeholder="เช่น ชาเย็น" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">ประเภทสายพันธุ์สัตว์</label>
+                    <select value={petDataForm.species} onChange={e => setPetDataForm({...petDataForm, species: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white">
+                      <option value="cat">🐈 แมว</option>
+                      <option value="dog">🐕 สุนัข</option>
+                      <option value="bird">🦜 นกสวยงาม</option>
+                      <option value="other">🐾 อื่นๆ</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">จังหวัดเกิดเหตุประจำตัว</label>
+                    {/* ── 🟢 ช่องเลือกจังหวัดสัตว์เลี้ยง บังคับเป็น Dropdown สอดคล้องตามสั่ง ── */}
+                    <select value={petDataForm.province} onChange={e => setPetDataForm({...petDataForm, province: e.target.value})} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
+                      {thailandProvinces.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">อำเภอ</label>
+                    <input type="text" value={petDataForm.district} onChange={e => setPetDataForm({...petDataForm, district: e.target.value})} placeholder="เช่น ด่านขุนทด" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">ตำบล</label>
+                    <input type="text" value={petDataForm.sub_district} onChange={e => setPetDataForm({...petDataForm, sub_district: e.target.value})} placeholder="เช่น ด่านขุนทด" className="w-full border-2 border-black p-2.5 rounded-xl font-bold" />
+                  </div>
+                </div>
+
+                {/* อัปโหลดคลังรูปภาพปกติสูงสุด 5 รูป */}
+                <div className="space-y-2 border-2 border-black p-4 rounded-xl bg-white">
+                  <label className="font-black text-sm flex items-center gap-1">🖼️ อัปโหลดรูปถ่ายปกติน้อง (สูงสุด 5 รูป) <span className="text-red-500">*</span></label>
+                  <input type="file" multiple accept="image/*" ref={petFileInputRef} onChange={handlePetImageChange} className="hidden" />
+                  <Button type="button" onClick={() => petFileInputRef.current?.click()} variant="outline" className="border-2 border-dashed border-gray-400 py-6 w-full font-black"><Upload size={16}/> เลือกรูปภาพประกอบ</Button>
+                  <div className="flex gap-2 flex-wrap mt-2">
+                    {petImages.map((img, i) => <img key={i} src={img.preview} className="w-14 h-14 object-cover border-2 border-black rounded-lg" />)}
+                  </div>
+                </div>
+
+                {/* ── 🟢 ส่วนอัปโหลดรูปตำหนิ/จุดสังเกตเด่น 3 รูป พร้อมช่องกรอกคำอธิบายประจำรูป ── */}
+                <div className="space-y-3 border-2 border-black p-4 rounded-xl bg-amber-50/20">
+                  <label className="font-black text-sm flex items-center gap-1 text-amber-900">⚡ อัปโหลดรูปตำหนิพิเศษหรือจุดสังเกตเด่น (สูงสุด 3 รูป)</label>
+                  <input type="file" multiple accept="image/*" ref={featureFileInputRef} onChange={handleFeatureImageChange} className="hidden" />
+                  <Button type="button" onClick={() => featureFileInputRef.current?.click()} className="bg-amber-100 text-amber-900 border-2 border-amber-300 w-full font-black"><Plus size={14}/> เพิ่มรูปจุดสังเกตเด่น</Button>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                    {featureImages.map((feat, idx) => (
+                      <div key={idx} className="border-2 border-black p-3 rounded-xl bg-white space-y-2">
+                        <img src={feat.preview} className="w-full h-24 object-cover border-2 border-black rounded-lg" />
+                        <input 
+                          type="text" required
+                          placeholder="อธิบายตำหนิรูปนี้ เช่น มีแต้มสีดำแก้มขวา" 
+                          value={feat.description}
+                          onChange={e => {
+                            const updated = [...featureImages]
+                            updated[idx].description = e.target.value
+                            setFeatureImages(updated)
+                          }}
+                          className="w-full border border-gray-400 p-1.5 rounded text-xs font-bold" 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-black text-sm">รายละเอียดลักษณะพฤติกรรมและการดูแล</label>
+                  <textarea rows={2} value={petDataForm.details} onChange={e => setPetDataForm({...petDataForm, details: e.target.value})} placeholder="เช่น ชอบกินอาหารเปียกรสปลาทู ตื่นตระหนกเสียงฟ้าร้องง่าย" className="w-full border-2 border-black p-2.5 rounded-xl font-bold resize-none" />
+                </div>
+
+                <Button type="submit" disabled={petSaving} className="w-full bg-black text-white font-black py-4 rounded-xl border-2 border-black shadow-paper-sm">
+                  {petSaving ? '⏳ กำลังส่งข้อมูลประวัติน้อง...' : '💾 ยืนยันบันทึกข้อมูล'}
+                </Button>
+              </form>
+            )}
+
+            {/* รายการแสดงรายชื่อสัตว์เลี้ยงปฐมภูมิในเครือข่าย */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {myPets.map(pet => (
+                <div key={pet.id} className="border-4 border-black p-4 rounded-2xl bg-white shadow-paper-sm flex gap-3 text-left">
+                  <img src={pet.image_url || '/favicons.ico'} className="w-20 h-20 object-cover border-2 border-black rounded-xl bg-gray-100" />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-black text-lg leading-tight truncate">{pet.name}</h4>
+                    <p className="text-xs font-bold text-gray-500 mt-0.5">{pet.species} · {pet.province}</p>
+                    <div className="flex gap-1.5 mt-3">
+                      <Link href={`/pets/${pet.id}`} className="text-[10px] font-black border-2 border-black bg-gray-100 px-2 py-1 rounded-md hover:bg-gray-200">🏥 สมุดสุขภาพ</Link>
+                      <Link href={`/pets/${pet.id}/edit`} className="text-[10px] font-black border-2 border-black bg-white px-2 py-1 rounded-md hover:bg-gray-100">✏️ แก้ไข</Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -686,12 +683,7 @@ function SubscriptionContent() {
 
 export default function AccountSubscriptionPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-2">
-        <Loader2 className="animate-spin text-black" size={40} />
-        <p className="font-bold text-gray-500">กำลังเตรียมหน้าจอข้อมูล...</p>
-      </div>
-    }>
+    <Suspense fallback={<div className="p-10 flex justify-center"><Loader2 className="animate-spin text-black" size={40} /></div>}>
       <SubscriptionContent />
     </Suspense>
   )

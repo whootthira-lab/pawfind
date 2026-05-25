@@ -193,7 +193,7 @@ export default function LoginPage() {
         .getPublicUrl(filePath)
 
       setFormData(prev => ({ ...prev, avatar_url: publicUrl }))
-      setMessage({ type: 'success', text: 'อัปโหลดรูปภาพประจำตัวสำเร็จแล้วค่ะ' })
+      setMessage({ type: 'success', text: 'อัปโหลดรูปภาพประจำตัวสำเร็จแล้ว' })
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'อัปโหลดรูปภาพไม่สำเร็จ' })
     } finally {
@@ -243,7 +243,7 @@ export default function LoginPage() {
     }
     // ── 🟢 ตรวจสอบความถูกต้องว่าต้องเลือกเป้าหมายบทบาทอย่างน้อย 1 ข้อ ──
     if (formData.community_role.length === 0) {
-      setMessage({ type: 'error', text: 'กรุณาเลือกเป้าหมายในการใช้งานอย่างน้อย 1 ข้อก่อนไปต่อค่ะ' })
+      setMessage({ type: 'error', text: 'กรุณาเลือกเป้าหมายในการใช้งานอย่างน้อย 1 ข้อก่อนไปต่อ' })
       return
     }
     setMessage(null)
@@ -401,7 +401,7 @@ export default function LoginPage() {
                           <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
                         </label>
                       </div>
-                      <span className="text-xs font-bold text-gray-500 mt-2">รูปโปรไฟล์ (ไม่จำเป็นต้องใส่ตอนนี้ก็ได้ค่ะ)</span>
+                      <span className="text-xs font-bold text-gray-500 mt-2">รูปโปรไฟล์ (ไม่จำเป็นต้องใส่ตอนนี้ก็ได้)</span>
                     </div>
 
                     <div className="space-y-1">
