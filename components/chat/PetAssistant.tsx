@@ -73,6 +73,9 @@ export default function PetAssistant() {
   const [showPicker, setShowPicker] = useState(false)
   const [speaking,   setSpeaking]   = useState(false)
   const [bounds,     setBounds]     = useState({ top: 0, left: 0, right: 0, bottom: 0 })
+  const [isDragging, setIsDragging] = useState(false)   // ← กันกด popup ตอนลาก
+  const [isIdle,     setIsIdle]     = useState(false)   // ← โปร่งแสงเหมือน AssistiveTouch
+  const [btnPos,     setBtnPos]     = useState({ x: 0, y: 0 })  // ← snap position
 
   const [attachedBase64, setAttachedBase64] = useState<string | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -83,6 +86,7 @@ export default function PetAssistant() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const idleTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
   const ch = CHARS[charId]
 
   const supabase = useMemo(() => createBrowserClient(
@@ -108,6 +112,38 @@ export default function PetAssistant() {
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
   }, [])
+
+  // ── Idle timer: โปร่งแสง 35% หลัง 4 วินาทีไม่มีการเคลื่อนไหว ──
+  const resetIdleTimer = () => {
+    setIsIdle(false)
+    if (idleTimer.current) clearTimeout(idleTimer.current)
+    if (!isOpen) {
+      idleTimer.current = setTimeout(() => setIsIdle(true), 4000)
+    }
+  }
+  useEffect(() => {
+    resetIdleTimer()
+    window.addEventListener('mousemove', resetIdleTimer)
+    window.addEventListener('touchstart', resetIdleTimer)
+    return () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current)
+      window.removeEventListener('mousemove', resetIdleTimer)
+      window.removeEventListener('touchstart', resetIdleTimer)
+    }
+  }, [isOpen])
+
+  // ── Snap to nearest edge ────────────────────────────────────
+  const snapToEdge = (offset: { x: number; y: number }) => {
+    if (typeof window === 'undefined') return
+    const btnW   = 70
+    const margin = 12
+    const winW   = window.innerWidth
+    const absX   = winW - 24 - btnW + btnPos.x + offset.x
+    const newX   = absX + btnW / 2 < winW / 2
+      ? margin - (winW - 24 - btnW)           // snap ซ้าย
+      : winW - margin - btnW - (winW - 24 - btnW)  // snap ขวา
+    setBtnPos({ x: newX, y: btnPos.y + offset.y })
+  }
 
   useEffect(() => {
     if (!isOpen) return
@@ -410,12 +446,34 @@ export default function PetAssistant() {
         )}
       </AnimatePresence>
 
-      {/* Floating Button Control */}
-      <motion.div drag dragConstraints={bounds} dragElastic={0.1} dragMomentum={false} style={{ touchAction: 'none', zIndex: 1000 }} whileDrag={{ scale: 1.05, cursor: 'grabbing' }}>
+      {/* ── iPhone AssistiveTouch Floating Button ── */}
+      <motion.div
+        drag
+        dragConstraints={bounds}
+        dragElastic={0.08}
+        dragMomentum={false}
+        animate={btnPos}
+        transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+        onDragStart={() => { setIsDragging(true); setIsIdle(false) }}
+        onDragEnd={(_, info) => {
+          setIsDragging(false)
+          snapToEdge(info.offset)
+          resetIdleTimer()
+        }}
+        style={{ touchAction: 'none', zIndex: 1000 }}
+        whileDrag={{ scale: 1.08, cursor: 'grabbing' }}
+      >
         <motion.button
-          onClick={isOpen ? () => setIsOpen(false) : openChat} animate={anim.animate as any} transition={anim.transition as any}
-          whileHover={{ scale: 1.08, y: -6, boxShadow: isOpen ? '2px 2px 0 #1A1208' : '7px 7px 0 #1A1208' }} whileTap={{ scale: 0.94 }}
-          style={{ width: 70, height: 70, background: '#FFFFFF', border: '3px solid #1A1208', borderRadius: '50%', cursor: 'grab', padding: 0, overflow: 'hidden', boxShadow: isOpen ? '2px 2px 0 #1A1208' : '5px 5px 0 #1A1208', display: 'block', position: 'relative', outline: 'none' }}
+          onClick={() => { if (!isDragging) { isOpen ? setIsOpen(false) : openChat() } }}
+          animate={{
+            ...anim.animate as any,
+            opacity: isIdle && !isOpen ? 0.35 : 1,
+            scale:   isIdle && !isOpen ? 0.88 : 1,
+          }}
+          transition={isIdle && !isOpen ? { duration: 0.6 } : anim.transition as any}
+          whileHover={{ scale: 1.1, y: -4, opacity: 1, boxShadow: isOpen ? '2px 2px 0 #1A1208' : '8px 8px 0 #1A1208' }}
+          whileTap={{ scale: 0.92 }}
+          style={{ width: 70, height: 70, background: '#FFFFFF', border: '3px solid #1A1208', borderRadius: '50%', cursor: isDragging ? 'grabbing' : 'grab', padding: 0, overflow: 'hidden', boxShadow: isOpen ? '2px 2px 0 #1A1208' : '5px 5px 0 #1A1208', display: 'block', position: 'relative', outline: 'none' }}
         >
           <Image src={ch.img} alt={ch.name} width={70} height={70} className="w-full h-full object-cover" priority />
           <div style={{ position: 'absolute', bottom: 4, right: 4, width: 12, height: 12, borderRadius: '50%', background: '#2D6A2D', border: '2px solid #FFFFFF', animation: 'onlinePulse 2s infinite' }} />

@@ -397,9 +397,36 @@ export async function POST(req: Request) {
     const sentiment = detectSentiment(message)
     const isMember = true
 
-    // แปลงเวลาปัจจุบันส่งเข้า Prompt สังเคราะห์ของ OpenAI ทันที
-    const currentNowText = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })
-    const activeSystemPrompt = getSystemPrompt(characterId, pageContext, isMember, currentNowText)
+    // ── เวลาปัจจุบัน (ละเอียดให้ AI แปล "พรุ่งนี้" ได้ถูก) ──
+    const nowBKK = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
+    const THAI_DAYS  = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์']
+    const THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                         'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
+    const pad = (n: number) => String(n).padStart(2,'0')
+    const yyyy = nowBKK.getFullYear()
+    const mm   = pad(nowBKK.getMonth() + 1)
+    const dd   = pad(nowBKK.getDate())
+    const hh   = pad(nowBKK.getHours())
+    const min  = pad(nowBKK.getMinutes())
+    const dayName = THAI_DAYS[nowBKK.getDay()]
+    const monthName = THAI_MONTHS[nowBKK.getMonth()]
+
+    const currentNowText = `วัน${dayName}ที่ ${nowBKK.getDate()} ${monthName} ${yyyy + 543} เวลา ${hh}:${min} น. (${yyyy}-${mm}-${dd} ${hh}:${min})`
+
+    // คำนวณวันอ้างอิงล่วงหน้า เผื่อ AI ต้องแปล
+    const tomorrow    = new Date(nowBKK); tomorrow.setDate(tomorrow.getDate() + 1)
+    const dayAfter    = new Date(nowBKK); dayAfter.setDate(dayAfter.getDate() + 2)
+    const nextWeek    = new Date(nowBKK); nextWeek.setDate(nextWeek.getDate() + 7)
+    const toISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+
+    const dateRef = `
+## ตารางอ้างอิงวันที่ (ใช้แปลคำพูดเป็นวันที่จริง)
+- วันนี้     = ${toISO(nowBKK)} (${dayName})
+- พรุ่งนี้   = ${toISO(tomorrow)} (${THAI_DAYS[tomorrow.getDay()]})
+- มะรืนนี้   = ${toISO(dayAfter)} (${THAI_DAYS[dayAfter.getDay()]})
+- สัปดาห์หน้า = ${toISO(nextWeek)} (${THAI_DAYS[nextWeek.getDay()]})
+`
+    const activeSystemPrompt = getSystemPrompt(characterId, pageContext, isMember, currentNowText + '\n' + dateRef)
 
     // ตรวจสอบระบบและทำการถอดรหัสอัปโหลดรูปใบเสร็จจากแชทบอตขึ้นคลาวด์บักเก็ต
     let chatbotUploadedImageUrl = null
