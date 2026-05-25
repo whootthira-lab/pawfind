@@ -7,7 +7,6 @@ import { Phone, MessageCircle, ExternalLink, UserCircle2 } from 'lucide-react'
 import type { Metadata, ResolvingMetadata } from 'next'
 import ShareButton from '@/components/pet/ShareButton'
 import { CommentSection } from '@/components/pet/CommentSection'
-import { PetActionButtons } from '@/components/pet/PetActionButtons'
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
 
@@ -155,13 +154,6 @@ export default async function PetProfilePage({ params }: Props) {
                     💰 รางวัล {pet.reward_amount.toLocaleString()} บาท
                   </span>
                 )}
-                {/* ปุ่ม Action + Donation Modal */}
-                <PetActionButtons
-                  petId={params.id}
-                  status={pet.status}
-                  petName={pet.name || 'น้อง'}
-                  ownerId={pet.user_id}
-                />
               </div>
             </div>
 
