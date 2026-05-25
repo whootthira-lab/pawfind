@@ -1,5 +1,5 @@
 'use client'
-// app/login/page.tsx (V3 - Fixed Storage Bucket Allocation Route)
+// app/login/page.tsx (V4 - Multiple Community Roles Selection Style)
 
 import { useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
@@ -15,16 +15,16 @@ import {
 
 const expertiseOptions = [
   { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
-  { value: 'rescue',      label: '🆘 ค้นหาสัตว์หาย/พบสัตว์หลงหรือจร' },
+  { value: 'rescue',      label: '🆘 ค้นหาสัตว์หาย/แจ้งพบสัตว์หลงหรือจร' },
   { value: 'mating',      label: '❤️ หาคู่ผสมพันธุ์ให้น้องๆ' },
   { value: 'showcase',    label: '📸 อวดความน่ารัก/ประกวดสัตว์เลี้ยง' },
   { value: 'knowledge',   label: '📚 ศึกษาความรู้และการเลี้ยงดู' },
-  { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
-  { value: 'petscout', label: 'PetScout (นักตามหาสัตว์หาย)' },
-  { value: 'vet', label: 'สัตวแพทย์ / คลินิกรักษาสัตว์' },
-  { value: 'groomer', label: 'บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
-  { value: 'petsitter', label: 'รับฝากหรือดูแลสัตว์ที่บ้าน' },
-  { value: 'retailer', label: 'ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
+  { value: 'petscout', label: '🔍 สร้างรายได้จากการช่วยตามหาสัตว์หาย(PetScout)' },
+  { value: 'vet', label: '🏥 ประชาสัมพันธ์ คลินิกรักษาสัตว์' },
+  { value: 'groomer', label: '🪮 ประชาสัมพันธ์ บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
+  { value: 'petsitter', label: '🏩 ประชาสัมพันธ์ บริการรับฝากหรือดูแลสัตว์ที่บ้าน' },
+  { value: 'retailer', label: '🛍️ ประชาสัมพันธ์ ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
+  { value: 'announce', label: '📢 ประชาสัมพันธ์ข่าว/กิจกรรม' },
   { value: 'other', label: 'อื่นๆ (โปรดระบุ)' },
 ]
 
@@ -37,7 +37,7 @@ const interestOptions = [
   { value: 'rabbit',      label: '🐰 กระต่าย / สัตว์เล็ก' },
   { value: 'adopt',       label: '🐶 หาบ้านใหม่/รับเลี้ยงสัตว์' },
   { value: 'health',      label: '🏥 สุขภาพสัตว์เลี้ยง' },
-  { value: 'prosthetics', label: '🦿 นวัตกรรม / DIY' },
+  { value: 'innovation', label: '💡 นวัตกรรม / DIY' },
   { value: 'community',   label: '🤝 ชุมชนอาสาสมัคร' },
   { value: 'memorial',    label: '🕯 ของที่ระลึกสัตว์เลี้ยง' },
   { value: 'astrology',   label: '🔮 ดูดวง / โหราศาสตร์' },
@@ -61,15 +61,15 @@ const interestOptions = [
 ]
 
 const expertiseTagOptions = [
-  { value: 'rescue_expert',     label: '🆘 ยานพาหนะช่วยชีวิตสัตว์/จับสัตว์' },
+  { value: 'rescue_expert',     label: '🚑 ยานพาหนะช่วยชีวิตสัตว์/จับสัตว์' },
   { value: 'medical_care',      label: '💊 ปฐมพยาบาล/ให้ยาสัตว์เบื้องต้น' },
   { value: 'foster_home',       label: '🏡 มีพื้นที่กักตัว/พักฟื้นสัตว์ชั่วคราว' },
   { value: 'pet_photography',   label: '📸 ถ่ายภาพสัตว์เลี้ยงโปรโมทหาบ้าน' },
   { value: 'craftsman_diy',     label: '🛠️ ช่างฝีมือ/ออกแบบวีลแชร์สัตว์พิการ' },
   { value: 'donation_co',       label: '📦 ประสานงานกองทุนและสิ่งของบริจาค' },
   { value: 'digital_creator',   label: '💻 ช่วยทำสื่อดิจิทัล/กราฟิกคอมมูนิตี้' },
-  { value: 'volunteer', label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
-  { value: 'petscout', label: 'PetScout (นักตามหาสัตว์หาย)' },
+  { value: 'volunteer', label: '🛌 อาสาสมัคร / ศูนย์พักพิงสัตว์' },
+  { value: 'petscout', label: '🔍 PetScout (นักตามหาสัตว์หาย)' },
   { value: 'none', label: 'ไม่มี' },
   { value: 'other', label: 'อื่นๆ' },
 ]
@@ -125,7 +125,8 @@ export default function LoginPage() {
     gender: 'unknown',
     avatar_url: '',
     occupation: 'employee',
-    community_role: 'general',
+    // ── 🟢 ปรับเปลี่ยนค่าตั้งต้นใน State หน้าบ้านให้รองรับเป็น Array เพื่อการเลือกหลายข้อ ──
+    community_role: [] as string[], 
     community_role_custom: '',
     interests: [] as string[],
     expertise_tags: [] as string[],
@@ -181,7 +182,6 @@ export default function LoginPage() {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
       const filePath = `${fileName}`
 
-      // 🟢 [แก้ไขสอดคล้อง] สลับเส้นทางจากบักเก็ตเดิมที่พัง มารันผ่านบักเก็ตจริงในระบบของพี่ 'profile-images'
       const { error: uploadErr } = await supabase.storage
         .from('profile-images')
         .upload(filePath, file)
@@ -199,6 +199,18 @@ export default function LoginPage() {
     } finally {
       setUploading(false)
     }
+  }
+
+  // ── 🟢 ฟังก์ชันคอยดักการติ๊กเลือกของเป้าหมาย/บทบาทชุมชนแบบหลายข้อ ──
+  const handleCommunityRoleChange = (value: string) => {
+    setFormData(prev => {
+      const current = [...prev.community_role]
+      if (current.includes(value)) {
+        return { ...prev, community_role: current.filter(r => r !== value) }
+      } else {
+        return { ...prev, community_role: [...current, value] }
+      }
+    })
   }
 
   const handleInterestChange = (value: string) => {
@@ -229,6 +241,11 @@ export default function LoginPage() {
       setMessage({ type: 'error', text: 'กรุณากรอกข้อมูลที่จำเป็น (ชื่อแสดงผล, เบอร์โทร, ชื่อ-นามสกุลจริง) ให้ครบถ้วนก่อนไปต่อครับ' })
       return
     }
+    // ── 🟢 ตรวจสอบความถูกต้องว่าต้องเลือกเป้าหมายบทบาทอย่างน้อย 1 ข้อ ──
+    if (formData.community_role.length === 0) {
+      setMessage({ type: 'error', text: 'กรุณาเลือกเป้าหมายในการใช้งานอย่างน้อย 1 ข้อก่อนไปต่อค่ะ' })
+      return
+    }
     setMessage(null)
     setProfileSubStep(2)
   }
@@ -240,7 +257,9 @@ export default function LoginPage() {
 
     try {
       const cleanEmail = email.trim().toLowerCase()
-      const finalCommunityRole = formData.community_role === 'other' ? formData.community_role_custom.trim() : formData.community_role
+      
+      // ── 🟢 รวมอาเรย์บทบาททั้งหมดแปลงเป็นข้อความคั่น Comma เพื่อความเข้ากันได้ 100% กับฟิลด์เดิมในฐานข้อมูล ──
+      const roleJoinedString = formData.community_role.join(',')
 
       const profileData = {
         display_name: formData.display_name.trim(),
@@ -256,8 +275,9 @@ export default function LoginPage() {
         gender: formData.gender,
         avatar_url: formData.avatar_url || null,
         occupation: formData.occupation,
-        community_role: finalCommunityRole,
-        community_role_custom: finalCommunityRole,
+        // ── บันทึก String ที่คั่นด้วย Comma เข้าสู่ระบบตารางเดิม ──
+        community_role: roleJoinedString,
+        community_role_custom: formData.community_role.includes('other') ? formData.community_role_custom.trim() : roleJoinedString,
         interests: formData.interests,
         expertise_tags: formData.expertise_tags,
         marital_status: formData.marital_status,
@@ -533,22 +553,29 @@ export default function LoginPage() {
                       </select>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="font-black text-xs text-black flex items-center gap-1"><Sparkles size={14}/> บทบาทในเครือข่ายชุมชน</label>
-                      <select 
-                        value={formData.community_role}
-                        onChange={e => setFormData({...formData, community_role: e.target.value})}
-                        className="w-full border-2 border-black p-2.5 rounded-xl font-bold focus:bg-white outline-none cursor-pointer"
-                      >
+                    {/* ── 🟢 [ปรับปรุง] เปลี่ยนรูปแบบจาก Dropdown ข้อความเดี่ยว เป็นแผงเลือกกลุ่ม Checkbox Neubrutalism หลายข้อ ── */}
+                    <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-amber-50/20 shadow-paper-sm mt-2">
+                      <label className="font-black text-base text-black flex items-center gap-1.5">
+                        <Sparkles size={16} className="fill-black"/> เป้าหมายในการใช้งาน / บทบาทในเครือข่ายชุมชน (เลือกได้มากกว่า 1 ข้อ) <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
                         {expertiseOptions.map(opt => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          <label key={opt.value} className="flex items-center gap-2.5 bg-white border border-black p-2.5 rounded-xl cursor-pointer select-none font-bold text-xs hover:bg-gray-50 transition-all shadow-paper-sm">
+                            <input 
+                              type="checkbox" 
+                              checked={formData.community_role.includes(opt.value)} 
+                              onChange={() => handleCommunityRoleChange(opt.value)} 
+                              className="w-4 h-4 accent-black rounded border-black focus:ring-0 cursor-pointer" 
+                            />
+                            {opt.label}
+                          </label>
                         ))}
-                      </select>
+                      </div>
                     </div>
 
-                    {formData.community_role === 'other' && (
-                      <div className="md:col-span-2 space-y-1">
-                        <label className="font-black text-xs text-black">โปรดระบุวัตถุประสงค์การเข้าใช้หรือบทบาทอาชีพเกี่ยวกับสัตว์</label>
+                    {formData.community_role.includes('other') && (
+                      <div className="md:col-span-2 space-y-1 animate-in fade-in duration-200">
+                        <label className="font-black text-xs text-black">โปรดระบุวัตถุประสงค์การเข้าใช้หรือบทบาทอาชีพเกี่ยวกับสัตว์เพิ่มเติม</label>
                         <input 
                           type="text"
                           value={formData.community_role_custom}
@@ -568,7 +595,7 @@ export default function LoginPage() {
                 {profileSubStep === 2 && (
                   <>
                     <div className="space-y-3 md:col-span-2 border-4 border-black p-5 rounded-2xl bg-wagashi-matcha/10 shadow-paper-sm">
-                      <label className="font-black text-base text-black flex items-center gap-1.5"><Heart size={16} className="fill-black"/> สิ่งที่คุณสนใจและวัตถุประสงค์หลัก (Interests - เลือกได้หลายข้อ)</label>
+                      <label className="font-black text-base text-black flex items-center gap-1.5"><Heart size={16} className="fill-black"/> โปรดเลือกสิ่งที่คุณสนใจเพื่อเป็นแนวทางในการพัฒนาระบบ(Interests - เลือกได้หลายข้อ)</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
                         {interestOptions.map(opt => (
                           <label key={opt.value} className="flex items-center gap-2.5 bg-white border border-black p-2.5 rounded-xl cursor-pointer select-none font-bold text-xs hover:bg-gray-50 shadow-paper-sm">
