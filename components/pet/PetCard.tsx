@@ -1,12 +1,12 @@
 'use client'
-// components/pet/PetCard.tsx — เพิ่มปุ่มสลับ 3 โหมดเชิงรุกพร้อมปุ่มปิดสถานะหยุดค้นหาฟรี
+// components/pet/PetCard.tsx 
 
 import { Pet }  from '@/types/pet'
 import Link     from 'next/link'
 import { useState, useMemo } from 'react'
-import { MapPin, Share2, AlertCircle, Heart, Search, Trophy, Check } from 'lucide-react'
-import { trackCardClick, buildShareUrl } from '@/lib/analytics'
+import { MapPin, Check, Loader2, Eye, EyeOff } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
+import { DonationModal } from '@/components/DonationModal'
 
 function speciesIcon(type: string) {
   return ({ dog:'🐕', cat:'🐈', bird:'🦜', rabbit:'🐰', fish:'🐟', other:'🐾' } as any)[type] ?? '🐾'
@@ -25,26 +25,32 @@ function statusCfg(status: string) {
 export function PetCard({ pet: initialPet }: { pet: Pet }) {
   const [pet, setPet] = useState<any>(initialPet)
   const [modeChanging, setModeChanging] = useState(false)
+  const [showDonation, setShowDonation] = useState(false)
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), [])
 
-  const imgUrl      = pet.primary_image || pet.image_url
-  const cfg         = statusCfg(pet.status || 'lost')
-  const icon        = speciesIcon(pet.species || pet.type || 'other')
+  const imgUrl = pet.primary_image || pet.image_url
+  const cfg    = statusCfg(pet.status || 'lost')
+  const icon   = speciesIcon(pet.species || pet.type || 'other')
 
-  // ── 🟢 ฟังก์ชันแก้ไขเปลี่ยนโหมดและอัปเดตสลับสายพุชบอร์ดหน้าเว็บโดยตรงฟรี ──
-  const handleChangeMode = async (targetMode: 'lost' | 'adoption' | 'mating' | 'showcase') => {
+  // ── 🟢 1. ฟังก์ชันอัปเดตสถานะพร้อมปรับการมองเห็นเป็น สาธารณะ อัตโนมัติ ──
+  const handleChangeMode = async (targetMode: 'lost' | 'found' | 'adoption' | 'mating' | 'showcase') => {
     if (modeChanging) return
     setModeChanging(true)
+
+    // เงื่อนไขอัตโนมัติ: หากเปลี่ยนสถานะเป็น หาย, หาคู่, พบสัตว์หลง ให้ปรับการมองเห็นเป็น public (สาธารณะ) ทันที
+    const shouldBePublic = ['lost', 'found', 'mating'].includes(targetMode)
+    const newVisibility = shouldBePublic ? 'public' : (pet.visibility || 'public')
 
     try {
       const { error } = await supabase
         .from('pets')
         .update({
           status: targetMode,
+          visibility: newVisibility,
           mode_lost: targetMode === 'lost',
           mode_adoption: targetMode === 'adoption',
           mode_mating: targetMode === 'mating',
@@ -53,24 +59,61 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
         .eq('id', pet.id)
 
       if (error) throw error
-      setPet((prev: any) => ({ ...prev, status: targetMode }))
-      alert(`🎉 สลับโหมดน้องเป็นกลุ่ม "${statusCfg(targetMode).label}" เรียบร้อยแล้วค่ะ! AI เริ่มตรวจข้อมูลพุชทันที`)
+      
+      setPet((prev: any) => ({ 
+        ...prev, 
+        status: targetMode,
+        visibility: newVisibility
+      }))
+      
+      alert(`🎉 สลับโหมดน้องเป็น "${statusCfg(targetMode).label}" ${shouldBePublic ? 'และปรับสถานะเป็น สาธารณะ อัตโนมัติ' : ''} เรียบร้อยแล้วค่ะ!`)
     } catch (err: any) {
       alert(`สลับโหมดไม่สำเร็จ: ${err.message}`)
-    } finally {
+    } finaly {
       setModeChanging(false)
     }
   }
 
-  // ── 🟢 ฟังก์ชันกดปิดสถานะหยุดค้นหาเมื่อเคสสำเร็จ (เจอน้อง/ได้บ้าน/ได้คู่เรียบร้อย) ──
-  const handleResolveCase = async () => {
-    if (!window.confirm('⚠️ ยืนยันการปิดประกาศเคสนี้สำเร็จเรียบร้อยแล้วใช่ไหมคะ? ระบบจะทำการหยุดแจ้งเตือนบนพุชบอร์ดทันทีค่ะ')) return
+  // ── 🟢 2. ฟังก์ชันเปลี่ยนเฉพาะสถานะการมองเห็นแมนนวล (สาธารณะ / เฉพาะฉัน) ──
+  const handleToggleVisibility = async (targetVisibility: 'public' | 'private') => {
+    if (modeChanging) return
     
+    // ดักเงื่อนไขความปลอดภัย: สัตว์ที่ประกาศหาย หาคู่ หรือพบเจอหลงทาง จะถูกบังคับเป็นเฉพาะฉันไม่ได้เพื่อประโยชน์ในการค้นหา
+    if (targetVisibility === 'private' && ['lost', 'found', 'mating'].includes(pet.status)) {
+      alert('⚠️ ไม่สามารถปรับเป็น "เฉพาะฉัน" ได้ในขณะที่น้องอยู่ในโหมด ค้นหาน้อง, หาคู่ หรือพบสัตว์หลง เพื่อให้ระบบ AI ทำการแมตช์จับคู่ข้อมูลสาธารณะค่ะ')
+      return
+    }
+
+    setModeChanging(true)
+    try {
+      const { error } = await supabase
+        .from('pets')
+        .update({ visibility: targetVisibility })
+        .eq('id', pet.id)
+
+      if (error) throw error
+      setPet((prev: any) => ({ ...prev, visibility: targetVisibility }))
+    } catch (err: any) {
+      alert(`ปรับการมองเห็นไม่สำเร็จ: ${err.message}`)
+    } finaly {
+      setModeChanging(false)
+    }
+  }
+
+  // ── 🟢 3. ฟังก์ชันปิดเคสสำเร็จร่วมกับการเด้ง Donation Pop-upบริจาค ──
+  const handleResolveCase = async () => {
+    let checkText = 'เจอน้องเรียบร้อยแล้วใช่ไหมคะ?'
+    if (pet.status === 'adoption') checkText = 'น้องได้บ้านที่อบอุ่นใหม่เรียบร้อยแล้วใช่ไหมคะ?'
+    if (pet.status === 'mating') checkText = 'น้องจับคู่แมตช์สำเร็จเรียบร้อยแล้วใช่ไหมคะ?'
+
+    if (!window.confirm(`⚠️ ยืนยันปิดประกาศสถานะเคสนี้สำเร็จ: ${checkText}`)) return
+    
+    setModeChanging(true)
     try {
       const { error } = await supabase
         .from('pets')
         .update({
-          status: 'showcase', // ปรับกลับเป็นโหมดโชว์โปรไฟล์ทั่วไป
+          status: 'showcase', 
           mode_lost: false,
           mode_adoption: false,
           mode_mating: false,
@@ -82,9 +125,11 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
 
       if (error) throw error
       setPet((prev: any) => ({ ...prev, status: 'showcase' }))
-      alert('❤️ ยินดีด้วยกับน้องด้วยนะคะ! ระบบได้ทำการเคลียร์สัญญานคิวนัดหมายบนพุชบอร์ดเสร็จสิ้นแล้วค่ะ')
+      setShowDonation(true) // เด้งหน้าต่างคลังคิวรับบริจาค
     } catch (err: any) {
       alert(`ปิดเคสไม่สำเร็จ: ${err.message}`)
+    } finaly {
+      setModeChanging(false)
     }
   }
 
@@ -97,8 +142,22 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
           <div className="w-full h-full flex items-center justify-center text-6xl">{icon}</div>
         )}
 
+        {/* แถบป้ายสถานะหลักมุมซ้าย */}
         <div className="absolute top-2.5 left-2.5 text-xs font-black px-2.5 py-1 rounded-full border-2 border-black shadow-paper-sm" style={{ background: cfg.bg, color: cfg.color }}>
           {cfg.label}
+        </div>
+
+        {/* ── 🟢 4. ไอคอนพิกัดแสดงสถานะการมองเห็น ปรากฏที่มุมขวาบนของการ์ด ── */}
+        <div className="absolute top-2.5 right-2.5 flex gap-1">
+          {pet.visibility === 'private' ? (
+            <div className="bg-red-500 text-white p-1 rounded-md border border-black shadow-paper-sm flex items-center gap-1 text-[9px] font-black" title="เฉพาะฉัน">
+              <EyeOff size={10} /> เฉพาะฉัน
+            </div>
+          ) : (
+            <div className="bg-green-500 text-white p-1 rounded-md border border-black shadow-paper-sm flex items-center gap-1 text-[9px] font-black" title="สาธารณะ">
+              <Eye size={10} /> สาธารณะ
+            </div>
+          )}
         </div>
       </div>
 
@@ -113,23 +172,35 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
           <span>{pet.province || 'ไม่ระบุพื้นที่'}</span>
         </div>
 
-        {/* ── 🟢 กล่องปุ่มกดแผงควบคุมสลับสถานะ 3 โหมดเชิงรุก และปุ่มปิดเคสสำเร็จบนตัวการ์ดโดยตรง ── */}
-        <div className="mt-3 pt-2 border-t border-dashed border-gray-200 space-y-1.5">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">🛠️ แผงควบคุมโหมดพุชบอร์ดฟรี:</p>
-          
-          <div className="grid grid-cols-3 gap-1">
-            <button onClick={() => handleChangeMode('lost')} className={`text-[9px] font-black p-1 border border-black rounded ${pet.status === 'lost' ? 'bg-blue-200' : 'bg-white hover:bg-gray-50'}`}>🚨 หาย</button>
-            <button onClick={() => handleChangeMode('adoption')} className={`text-[9px] font-black p-1 border border-black rounded ${pet.status === 'adoption' ? 'bg-green-200' : 'bg-white hover:bg-gray-50'}`}>🏡 หาบ้าน</button>
-            <button onClick={() => handleChangeMode('mating')} className={`text-[9px] font-black p-1 border border-black rounded ${pet.status === 'mating' ? 'bg-pink-200' : 'bg-white hover:bg-gray-50'}`}>❤️ หาคู่</button>
+        {/* แผงควบคุมสลับเปลี่ยนโหมดความปลอดภัยและการมองเห็น */}
+        <div className="mt-3 pt-2 border-t border-dashed border-gray-200 space-y-2">
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">🌍 ตั้งค่าสิทธิ์การมองเห็นการ์ด:</p>
+            <div className="grid grid-cols-2 gap-1">
+              <button type="button" disabled={modeChanging} onClick={() => handleToggleVisibility('public')} className={`text-[9px] font-black py-1 px-1.5 border border-black rounded flex items-center justify-center gap-1 ${pet.visibility !== 'private' ? 'bg-green-100' : 'bg-white hover:bg-gray-50'}`}><Eye size={10}/> สาธารณะ</button>
+              <button type="button" disabled={modeChanging} onClick={() => handleToggleVisibility('private')} className={`text-[9px] font-black py-1 px-1.5 border border-black rounded flex items-center justify-center gap-1 ${pet.visibility === 'private' ? 'bg-red-100' : 'bg-white hover:bg-gray-50'}`}><EyeOff size={10}/> เฉพาะฉัน</button>
+            </div>
           </div>
 
-          {/* แสดงปุ่มปิดสัญญานตามสถานะที่ผู้ใช้สลับเปิดใช้เชิงรุกค้างไว้ */}
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">🛠️ แผงควบคุมโหมดพุชบอร์ดฟรี:</p>
+            <div className="grid grid-cols-4 gap-1">
+              <button type="button" disabled={modeChanging} onClick={() => handleChangeMode('lost')} className={`text-[9px] font-black p-1 border border-black rounded ${pet.status === 'lost' ? 'bg-orange-200' : 'bg-white hover:bg-gray-50'}`}>🚨 หาย</button>
+              <button type="button" disabled={modeChanging} onClick={() => handleChangeMode('found')} className={`text-[9px] font-black p-1 border border-black rounded ${pet.status === 'found' ? 'bg-green-200' : 'bg-white hover:bg-gray-50'}`}>👀 พบสัตว์</button>
+              <button type="button" disabled={modeChanging} onClick={() => handleChangeMode('adoption')} className={`text-[9px] font-black p-1 border border-black rounded ${pet.status === 'adoption' ? 'bg-blue-200' : 'bg-white hover:bg-gray-50'}`}>🏡 หาบ้าน</button>
+              <button type="button" disabled={modeChanging} onClick={() => handleChangeMode('mating')} className={`text-[9px] font-black p-1 border border-black rounded ${pet.status === 'mating' ? 'bg-pink-200' : 'bg-white hover:bg-gray-50'}`}>❤️ หาคู่</button>
+            </div>
+          </div>
+
           {(pet.status === 'lost' || pet.status === 'adoption' || pet.status === 'mating') && (
             <button 
+              type="button"
               onClick={handleResolveCase}
+              disabled={modeChanging}
               className="w-full mt-1.5 py-1 bg-black text-white border border-black hover:bg-gray-800 text-[10px] font-black rounded flex items-center justify-center gap-1 shadow-paper-sm transition-all"
             >
-              <Check size={11}/> {pet.status === 'lost' ? 'เจอน้องเรียบร้อยแล้ว' : pet.status === 'adoption' ? 'น้องได้บ้านอบอุ่นแล้ว' : 'น้องได้คู่แมตช์แล้ว'}
+              {modeChanging ? <Loader2 className="animate-spin" size={11}/> : <Check size={11}/>} 
+              {modeChanging ? 'กำลังบันทึก...' : pet.status === 'lost' ? 'เจอน้องเรียบร้อยแล้ว' : pet.status === 'adoption' ? 'น้องได้บ้านอบอุ่นแล้ว' : 'น้องได้คู่แมตช์แล้ว'}
             </button>
           )}
         </div>
@@ -140,6 +211,8 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
           ดูรายละเอียดสมุดสุขภาพ →
         </Link>
       </div>
+
+      <DonationModal isOpen={showDonation} onClose={() => setShowDonation(false)} />
     </div>
   )
 }
