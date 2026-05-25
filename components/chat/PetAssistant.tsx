@@ -1,9 +1,9 @@
 'use client'
-// components/chat/PetAssistant.tsx (V8 - แก้ไขระบบเล่นเสียงสังเคราะห์ handleSpeakText ผ่านฉลุย 100%)
+// components/chat/PetAssistant.tsx (V9 - เคลียร์บั๊กสัญลักษณ์สไตล์ Quick Replies บิวด์ผ่านฉลุย 100%)
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { AnimatePresence, motion }      from 'framer-motion'
-import { X, Send, Loader2, ChevronDown, Volume2, VolumeX, Camera, BellRing, Image as ImageIcon } from 'lucide-react'
+import { X, Send, Loader2, ChevronDown, Volume2, VolumeX, Camera, PlusCircle } from 'lucide-react'
 import Image          from 'next/image'
 import Link           from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -220,7 +220,6 @@ export default function PetAssistant() {
     if (messages.length === 0) setMessages([{ role: 'bot', text: ch.greet }])
   }
 
-  // ── ฟังก์ชันดั้งเดิมเล่นเสียงอ่านของระบบพี่วุฒิ์ ──
   const handleSpeakText = (text: string) => {
     if (speaking) {
       stopSpeaking()
@@ -286,8 +285,11 @@ export default function PetAssistant() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 16 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }} className="mb-3 flex flex-col overflow-hidden"
+            initial={{ opacity: 0, scale: 0.9, y: 16 }} 
+            animate={{ opacity: 1, scale: 1, y: 0 }} 
+            exit={{ opacity: 0, scale: 0.9, y: 16 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }} 
+            className="mb-3 flex flex-col overflow-hidden"
             style={{ width: 340, maxWidth: 'calc(100vw - 48px)', height: 490, background: '#FFFFFF', border: '3px solid #1A1208', borderRadius: 24, boxShadow: '6px 6px 0 #1A1208' }}
           >
             {/* Header */}
@@ -348,7 +350,6 @@ export default function PetAssistant() {
                       </div>
                     </div>
                     {msg.role === 'bot' && (
-                      // ── 🟢 [แก้ไขจุดพังสำเร็จ] เปลี่ยนกลับมาเรียกตัวแปรจริง handleSpeakText ประจำไฟล์ ──
                       <button onClick={() => handleSpeakText(msg.text)} title="ฟังเสียง" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', opacity: 0.45, flexShrink: 0, color: '#1A1208' }}>
                         {speaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
                       </button>
@@ -379,7 +380,7 @@ export default function PetAssistant() {
               </div>
             )}
 
-            {/* Quick Replies */}
+            {/* Quick Replies (🟢 แก้ไข String Template ตัวขัดไวยากรณ์เรียบร้อย) */}
             <div style={{ padding: '6px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, borderTop: '2px solid #EDE0C4', background: '#F5EDD8', flexShrink: 0 }}>
               {QUICK_REPLIES.map(q => (
                 <button key={q} onClick={() => handleTranslateMessage(q)} disabled={isLoading} style={{ background: '#FFFFFF', border: '1.5px solid #1A1208', borderRadius: 20, padding: '3px 9px', fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: '#1A1208', boxShadow: `1px 1px 0 ${ch.color}` }}>
