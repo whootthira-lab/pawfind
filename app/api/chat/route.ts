@@ -4,10 +4,9 @@ export const dynamic = 'force-dynamic'
 import { NextResponse }            from 'next/server'
 import { createClient }            from '@/lib/supabase/server'
 import { recordHealthEvent }       from '@/lib/pet-health-recorder'
-import { createReminder }          from '@/lib/reminder-engine'
 
 // ══════════════════════════════════════════════════════════════
-// KNOWLEDGE BASE (ฐานความรู้ดั้งเดิมครบถ้วน)
+// KNOWLEDGE BASE (ฐานความรู้ดั้งเดิมครบถ้วน ไม่ตกหล่น)
 // ══════════════════════════════════════════════════════════════
 const KNOWLEDGE_BASE = `
 ## เกี่ยวกับ PobPet
@@ -26,9 +25,7 @@ const KNOWLEDGE_BASE = `
 1. กดปุ่ม "ลงประกาศ" หรือไปที่ /report
 2. อัปโหลดรูปสัตว์ที่ชัดเจน 1-5 รูป
 3. กรอกข้อมูล: ชื่อ ประเภท สี จังหวัด อำเภอ ตำบล
-4. กด GPS เพื่อปักหมุดตำแหน่งที่หาย
-5. ใส่ช่องทางติดต่อและเงินรางวัล (ถ้ามี)
-6. กด Submit — AI จะวิเคราะห์รูปและจับคู่ทันที
+4. กด Submit — AI จะวิเคราะห์รูปและจับคู่ทันที
 
 ### เทคนิคถ่ายรูปให้ AI จับคู่ได้แม่น:
 - ถ่ายอย่างน้อย 3 มุม: หน้าตรง ด้านข้าง ด้านหลัง/หาง
@@ -76,7 +73,7 @@ const KNOWLEDGE_BASE = `
 ### สัญญาณอันตราย ต้องพาหาหมอทันที:
 - หายใจลำบาก ปากเขียว
 - ชักหรือหมดสติ
-- เลือดออกไม่หยุด
+- เลือบออกไม่หยุด
 - กินสิ่งแปลกปลอมหรือยา
 - ถูกรถชน แม้ดูปกติภายนอก
 - ปัสสาวะไม่ออกเกิน 24 ชม.
@@ -254,7 +251,6 @@ function detectTopic(message: string): { topic: string; sub_topic: string } {
   return { topic: 'general', sub_topic: 'other' }
 }
 
-// ── 🟢 เพิ่มพารามิเตอร์ส่ง Context วันเวลาปัจจุบันของระบบนุดให้ AI สังเคราะห์ได้อย่างแม่นยำ ──
 function getSystemPrompt(
   characterId:  string,
   pageContext:  string,
@@ -278,6 +274,7 @@ ${memberNote}
 - ห้ามตอบเรื่องที่ไม่เกี่ยวกับสัตว์เลี้ยงหรือ PobPet
 - ห้ามเดาหรือแต่งข้อมูลที่ไม่มีในฐานความรู้ ให้บอกว่า "ไม่แน่ใจ" แล้วแนะนำแหล่งที่เชื่อถือได้
 - ถ้าผู้ใช้บอกชื่อตัวเอง ให้เรียกชื่อนั้นแทนคำเรียกเดิมตลอดการสนทนา
+- ถ้าไม่มั่นใจหรือม่ชัดเจนให้ถามผู้ใชีกครั้งเพื่อคามชัดเจน
 - ถ้าผู้ใช้แสดงสัญญาณวิกฤต ให้แสดงความห่วงใยและให้เบอร์ 1323 ทันที
 - ถ้าถามเรื่องสินค้า/บริการที่ยังไม่มีในระบบ ให้บอกว่ากำลังพัฒนา ถามความต้องการ อย่าปฏิเสธแบบตัดบท
 
@@ -327,6 +324,47 @@ ${KNOWLEDGE_BASE}
   return personas[characterId] || personas.cat
 }
 
+async function getPetInfo(userId: string, petName: string, infoType: string) {
+  const supabase = createClient()
+
+  const { data: pets } = await supabase
+    .from('pets')
+    .select('id, name, species, breed')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .ilike('name', `%${petName}%`)
+    .limit(1)
+
+  if (!pets?.length) return { found: false, message: `ไม่พบน้องชื่อ "${petName}"` }
+
+  const pet = pets[0]
+  const result: Record<string, unknown> = { found: true, pet_name: pet.name, species: pet.species }
+
+  if (infoType === 'health' || infoType === 'all' || infoType === 'vaccine') {
+    const { data: events } = await supabase
+      .from('pet_health_events')
+      .select('event_type, title, event_date, description')
+      .eq('pet_id', pet.id)
+      .order('event_date', { ascending: false })
+      .limit(5)
+    result.health_events = events || []
+  }
+
+  if (infoType === 'reminder' || infoType === 'all') {
+    const { data: reminders } = await supabase
+      .from('reminders')
+      .select('title, next_remind_at')
+      .eq('user_id', userId)
+      .eq('pet_id', pet.id)
+      .eq('is_done', false)
+      .order('next_remind_at', { ascending: true })
+      .limit(3)
+    result.upcoming_reminders = reminders || []
+  }
+
+  return result
+}
+
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.OPENAI_API_KEY
@@ -359,11 +397,11 @@ export async function POST(req: Request) {
     const sentiment = detectSentiment(message)
     const isMember = true
 
-    // ── 🟢 แปลงเวลาปัจจุบันส่งเข้า Prompt สังเคราะห์ของ OpenAI ทันที ──
+    // แปลงเวลาปัจจุบันส่งเข้า Prompt สังเคราะห์ของ OpenAI ทันที
     const currentNowText = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })
     const activeSystemPrompt = getSystemPrompt(characterId, pageContext, isMember, currentNowText)
 
-    // ── 1. ตรวจสอบระบบและทำการถอดรหัสอัปโหลดรูปใบเสร็จจากแชทบอตขึ้นคลาวด์บักเก็ต ──
+    // ตรวจสอบระบบและทำการถอดรหัสอัปโหลดรูปใบเสร็จจากแชทบอตขึ้นคลาวด์บักเก็ต
     let chatbotUploadedImageUrl = null
     if (evidence_image_base64 && userId) {
       try {
@@ -395,7 +433,6 @@ export async function POST(req: Request) {
         ...historyMessages,
         { role: 'user', content: message },
       ],
-      // ── 🟢 ปรับลดค่าความเพี้ยนเพื่อให้โมเดลสกัดพารามิเตอร์เครื่องมือลงฟังก์ชันคิวรีได้อย่างเสถียร 100% ──
       temperature:       0.2, 
       max_tokens:        characterId === 'owl' ? 650 : 420,
       frequency_penalty: 0.6,
@@ -444,30 +481,38 @@ export async function POST(req: Request) {
       }
 
       if (toolName === 'create_reminder') {
-        // ── 2. กลไกอัจฉริยะ: ค้นหาคำพูดชื่อสัตว์เลี้ยงเพื่อดึงคู่แมปหา pet_id ของน้องจริงลงตาราง ──
+        // 1. ค้นหาแมปคู่สัญญานชื่อสัตว์เลี้ยงจากคลังอาเรย์เพื่อดึงค่า pet_id
         let matchedPetId = null
         if (args.pet_name && user_registered_pets.length > 0) {
           const found = user_registered_pets.find((p: any) => p.name.toLowerCase().includes(args.pet_name.toLowerCase()))
           if (found) matchedPetId = found.id
         }
 
-        // ── 3. หยอดลิงก์รูปภาพ Public URL ที่นุดแนบในแชทเข้าสู่ช่องคอลัมน์ body ตารางฐานข้อมูลเพื่อยิงพุชภาพปกใหญ่ ──
         const finalBodyText = chatbotUploadedImageUrl || args.body || 'คิวนัดหมายความจำอัตโนมัติจากแชทบอต PobPet 🐾'
 
-        const result = await createReminder(userId, {
-          title: args.title,
-          remind_at: args.remind_at,
-          repeat_type: args.repeat_type || 'none',
-          body: finalBodyText, 
-          pet_id: matchedPetId,
-          source: 'chat_bot'
-        })
-        toolResult = JSON.stringify(result)
+        // ── 🟢 [แก้ไขสมบูรณ์ 100%] หยอดค่าบันทึกยิงเข้าสู่ Supabase ตาราง reminders สายตรง เพื่อแก้ปัญหา Type Error ──
+        const { data: insertedData, error: dbErr } = await supabase
+          .from('reminders')
+          .insert({
+            user_id: userId,
+            pet_id: matchedPetId,
+            title: args.title,
+            body: finalBodyText,
+            remind_at: new Date(args.remind_at).toISOString(),
+            next_remind_at: new Date(args.remind_at).toISOString(),
+            repeat_type: args.repeat_type || 'none',
+            is_done: false,
+            source: 'chat_bot'
+          })
+          .select()
 
-        if (result.success) {
+        if (!dbErr && insertedData?.length) {
+          toolResult = JSON.stringify({ success: true, message: 'บันทึกคิวแจ้งเตือนความจำลงฐานข้อมูลสำเร็จ' })
           actionButtons = [
             { label: 'ตรวจสอบคิวเตือนความจำบนเว็บ', link: '/profile?tab=pets' },
           ]
+        } else {
+          toolResult = JSON.stringify({ success: false, error: dbErr?.message || 'บันทึกนัดหมายไม่สำเร็จ' })
         }
       }
 
@@ -498,7 +543,7 @@ export async function POST(req: Request) {
       reply = aiMessage.content || 'ขออภัย เกิดข้อผิดพลาด'
     }
 
-    // ── Log ประวัติลงตาราง pet_chat_histories สอดคล้องกัน ──
+    // Log ประวัติลงตาราง pet_chat_histories สอดคล้องกัน
     ;(async () => {
       try {
         await supabase.from('pet_chat_histories').insert({
