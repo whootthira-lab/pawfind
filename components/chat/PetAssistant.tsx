@@ -1,5 +1,5 @@
 'use client'
-// components/chat/PetAssistant.tsx
+// components/chat/PetAssistant.tsx (V5 - เชื่อมโยงระบบส่งคลังรายชื่อสัตว์เลี้ยงเพื่อผูกล็อกตาราง reminders อัตโนมัติ)
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { AnimatePresence, motion }      from 'framer-motion'
@@ -16,7 +16,7 @@ interface Message {
   role:           'user' | 'bot'
   text:           string
   action_buttons?: { label: string; link: string }[]
-  attached_image?: string // รองรับแสดงพรีวิวภาพที่แนบไปในแชท
+  attached_image?: string 
 }
 
 const CHARS = {
@@ -74,10 +74,12 @@ export default function PetAssistant() {
   const [speaking,   setSpeaking]   = useState(false)
   const [bounds,     setBounds]     = useState({ top: 0, left: 0, right: 0, bottom: 0 })
 
-  // ── States เพิ่มเติมสำหรับระบบแนบหลักฐานในแชทและ Web Push ──
   const [attachedBase64, setAttachedBase64] = useState<string | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [pushSubscribed, setPushSubscribed] = useState(false)
+  
+  // ── 🟢 เพิ่ม State สำหรับจัดเก็บคลังรายชื่อโปรไฟล์น้องของนุดประจำเซสชันสแตนด์บายส่งให้ AI ──
+  const [myPets, setMyPets] = useState<any[]>([])
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLInputElement>(null)
@@ -108,7 +110,6 @@ export default function PetAssistant() {
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  // ── 🟢 [ปรับปรุง] ระบบทักทายต้อนรับเชิงรุกและตรวจสอบเคสสถิติอัตโนมัติเมื่อผู้ใช้เปิดใช้งาน ──
   useEffect(() => {
     if (!isOpen) return
     
@@ -116,7 +117,6 @@ export default function PetAssistant() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      // ดึงข้อมูลสัตว์หายในจังหวัดเดียวกับผู้ใช้มาวิเคราะห์จำนวนเคสคร่าวๆ
       const { data: profile } = await supabase
         .from('profiles')
         .select('province')
@@ -127,11 +127,18 @@ export default function PetAssistant() {
 
       const [
         { count: lostCount },
-        { data: reminders }
+        { data: reminders },
+        { data: petsData }
       ] = await Promise.all([
         supabase.from('pets').select('*', { count: 'exact', head: true }).eq('status', 'lost').eq('province', userProvince),
-        supabase.from('reminders').select('title, next_remind_at').eq('user_id', session.user.id).eq('is_done', false).limit(1)
+        supabase.from('reminders').select('title, next_remind_at').eq('user_id', session.user.id).eq('is_done', false).limit(1),
+        // 🟢 ดึงข้อมูลทะเบียนสัตว์เลี้ยงที่มีอยู่มาเก็บไว้ใน State คลังสเปกหน้าบ้าน
+        supabase.from('pets').select('id, name, species, breed').eq('user_id', session.user.id).not('status', 'eq', 'archived')
       ])
+
+      if (petsData) {
+        setMyPets(petsData)
+      }
 
       let proactiveText = `สวัสดีค่ะนุด ยินดีต้อนรับกลับเข้าสู่ระบบความปลอดภัยของ PobPet ค่ะ 🐾\n\n`
       let hasAlert = false
@@ -150,7 +157,7 @@ export default function PetAssistant() {
         setMessages(prev => {
           if (prev.length > 1) return prev
           return [
-            { role: 'bot', text: proactiveText, action_buttons: [{ label: 'ตรวจสอบระบบจัดหารายชื่อน้อง', link: '/dashboard/pets' }] }
+            { role: 'bot', text: proactiveText, action_buttons: [{ label: 'ตรวจสอบระบบจัดหารายชื่อน้อง', link: '/profile?tab=pets' }] }
           ]
         })
       }
@@ -171,7 +178,6 @@ export default function PetAssistant() {
     if (!isOpen) { stopSpeaking(); setSpeaking(false) }
   }, [isOpen])
 
-  // ── ฟังก์ชันจำลองขอสิทธิ์ส่งสัญญาณ Web Push เบราว์เซอร์ฟรี ──
   const requestWebPushPermission = async () => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       const permission = await Notification.requestPermission()
@@ -256,13 +262,15 @@ export default function PetAssistant() {
           characterId: charId,
           pageContext: pathname,
           history:     messages.slice(-6).map(m => ({ role: m.role, text: m.text })),
-          evidence_image_base64: attachedBase64 // ส่งพ่วงสายอักขระ Base64 ไปยัง API หลังบ้านฟรีกรณีมีการแนบภาพ
+          evidence_image_base64: attachedBase64,
+          // ── 🟢 ส่งพ่วงอาเรย์รายชื่อสัตว์เลี้ยงทั้งหมดของนุดเข้าไปใน Payload เพื่อให้ AI ดึงคู่แมนวลจับคู่ pet_id คีย์ตรงตาราง ──
+          user_registered_pets: myPets 
         }),
       })
       const data = await res.json()
       setMessages(prev => [...prev, {
         role:           'bot',
-        text:           data.reply || 'ขออภัย เกิดข้อผิดพลาด',
+        text:           data.reply || 'ขออภัย เกิดข้อผิดพลาดในการบันทึกแจ้งเตือน',
         action_buttons: data.action_buttons?.length ? data.action_buttons : undefined,
       }])
     } catch {
@@ -325,14 +333,13 @@ export default function PetAssistant() {
             <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: 10, background: '#FAF6EE' }}>
               {messages.map((msg, i) => (
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', gap: 4 }}>
-                  <div style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: 6, width: '100%' }}>
+                  <div style={{ display: 'flex', justifycontent: msg.role === 'user' ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: 6, width: '100%' }}>
                     {msg.role === 'bot' && (
                       <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, border: `2px solid ${ch.color}`, overflow: 'hidden', background: ch.colorL }}>
                         <Image src={ch.img} alt={ch.name} width={28} height={28} className="w-full h-full object-cover" />
                       </div>
                     )}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: '76%' }}>
-                      {/* แผงแสดงพรีวิวภาพขนาดเล็กกรณีแนบหลักฐานมาในแชท */}
                       {msg.attached_image && (
                         <div style={{ width: 60, height: 60, borderRadius: 8, border: '2px solid #1A1208', overflow: 'hidden', position: 'relative', marginBottom: 2 }}>
                           <img src={msg.attached_image} alt="evidence" className="w-full h-full object-cover" />
@@ -376,7 +383,7 @@ export default function PetAssistant() {
             {/* Quick replies */}
             <div style={{ padding: '6px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, borderTop: '2px solid #EDE0C4', background: '#F5EDD8', flexShrink: 0 }}>
               {QUICK_REPLIES.map(q => (
-                <button key={q} onClick={() => sendMessage(q)} disabled={isLoading} style={{ background: '#FFFFFF', border: `1.5px solid ${ch.color}`, borderRadius: 20, padding: '3px 9px', fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: '#1A1208', boxShadow: `1px 1px 0 ${ch.color}` }}>
+                <button key={q} onClick={() => sendMessage(q)} disabled={isLoading} style={{ background: '#FFFFFF', border: `1.5px solid #1A1208', borderRadius: 20, padding: '3px 9px', fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: '#1A1208', boxShadow: `1px 1px 0 ${ch.color}` }}>
                   {q}
                 </button>
               ))}
@@ -384,8 +391,7 @@ export default function PetAssistant() {
 
             {/* Form Input Control */}
             <form onSubmit={e => { e.preventDefault(); sendMessage(input) }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', borderTop: '3px solid #1A1208', background: '#FFFFFF', flexShrink: 0 }}>
-              {/* ปุ่มอัปโหลดรูปภาพหลักฐานทางแพทย์แนบประกอบแชทบอตฟรี */}
-              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isLoading} style={{ background: '#white', border: '2px solid #1A1208', borderRadius: 12, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '2px 2px 0 #1A1208' }} title="แนบรูปใบเสร็จ/หลักฐาน">
+              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isLoading} style={{ background: 'white', border: '2px solid #1A1208', borderRadius: 12, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '2px 2px 0 #1A1208' }} title="แนบรูปใบเสร็จ/หลักฐาน">
                 <Camera size={16} className="text-black" />
               </button>
               <input type="file" ref={fileInputRef} onChange={handleFileAttach} accept="image/*" className="hidden" />

@@ -7,14 +7,14 @@ import { recordHealthEvent }       from '@/lib/pet-health-recorder'
 import { createReminder }          from '@/lib/reminder-engine'
 
 // ══════════════════════════════════════════════════════════════
-// KNOWLEDGE BASE
+// KNOWLEDGE BASE (ล้างข้อความจำกัดแพ็คเกจเงิน)
 // ══════════════════════════════════════════════════════════════
 const KNOWLEDGE_BASE = `
 ## เกี่ยวกับ PobPet
 - PobPet (พบเพ็ต) คือแพลตฟอร์มดิจิทัลช่วยตามหาสัตว์เลี้ยงที่หายด้วย AI
 - ผู้ก่อตั้ง: นายวุฒิ์ธีระ ครุฑขุนทด อ.ด่านขุนทด จ.นครราชสีมา
 - ผลงานพิเศษ: ทดลองขาเทียม 3D Print ให้กับนกกระเรียน สวนสัตว์นครราชสีมา (2566)
-- ติดต่อ PobPet: ผ่านแบบฟอร์มในเว็บ หรือ LINE OA ของ PobPet
+- ติดต่อ PobPet: ผ่านแบบฟอร์มในเว็บ หรือช่องทางสื่อสารหลักบนหน้าเว็บไซต์
 
 ## ปัญหาการใช้งานพบบ่อย (FAQ)
 ### "ไม่พบประกาศของตัวเอง"
@@ -86,7 +86,7 @@ const KNOWLEDGE_BASE = `
 ### อาการพบบ่อยและแนวทาง:
 - ไม่กินข้าว 1-2 วัน: เฝ้าดู ถ้าเกิน 48 ชม. พาหาหมอ
 - ท้องเสีย/อาเจียน: งดอาหาร 12 ชม. ให้น้ำ ถ้ามีเลือดพาหาหมอทันที
-- ขนร่วงผิดปกติ: อาจเป็นโรคผิวหนัง พาหาหมอตรวจ
+- ขนร่วงผิดปกติ: อาจเป็นโรคโรคผิวหนัง พาหาหมอตรวจ
 - ตาแฉะ น้ำมูกไหล: อาจเป็นหวัด ถ้าหนักพาหาหมอ
 - เกาหูมาก หัวเอียง: อาจเป็นหูชั้นกลางอักเสบ พาหาหมอ
 
@@ -149,7 +149,7 @@ const KNOWLEDGE_BASE = `
 `
 
 // ══════════════════════════════════════════════════════════════
-// OPENAI FUNCTION CALLING TOOLS
+// OPENAI FUNCTION CALLING TOOLS (🟢 ขยายสเปกพารามิเตอร์รับภาพใบเสร็จแจ้งเตือน)
 // ══════════════════════════════════════════════════════════════
 const TOOLS = [
   {
@@ -168,7 +168,7 @@ const TOOLS = [
           },
           medicine_name: { type: 'string', description: 'ชื่อวัคซีนหรือยา (ถ้ามี)' },
           event_date:   { type: 'string', description: 'วันที่ในรูปแบบ YYYY-MM-DD หรือ "today"' },
-          notes:        { type: 'string', description: 'หมายเหตุเพิ่มเติม' },
+          notes:        { type: 'string', description: 'หมายเหตุเพิ่มเติมหรือลิงก์รูปภาพหลักฐานใบเสร็จทางการแพทย์' },
           next_due_days: { type: 'number', description: 'จำนวนวันจนถึงครั้งต่อไป (ถ้าต้องการ override ค่าอัตโนมัติ)' },
         },
         required: ['event_type', 'event_date'],
@@ -179,7 +179,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'create_reminder',
-      description: 'ตั้งการแจ้งเตือน เช่น เตือนซื้ออาหาร เตือนพาตัดขน เตือนนัดหมอ ใช้เมื่อผู้ใช้ขอให้เตือน',
+      description: 'ตั้งการแจ้งเตือนพุชหน้าจอคอมพิวเตอร์และมือถือ เช่น เตือนซื้ออาหาร เตือนพาตัดขน เตือนนัดหมอ คิวนัดวัคซีนพร้อมรูปถ่ายใบเสร็จแนบประกอบหน้าจอฟรี',
       parameters: {
         type: 'object',
         properties: {
@@ -187,7 +187,8 @@ const TOOLS = [
           pet_name:    { type: 'string', description: 'ชื่อสัตว์ (ถ้าเกี่ยวกับน้อง)' },
           remind_at:   { type: 'string', description: 'วันเวลาแจ้งเตือน YYYY-MM-DD หรือ YYYY-MM-DD HH:MM' },
           repeat_type: { type: 'string', enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'], description: 'รูปแบบการซ้ำ' },
-          body:        { type: 'string', description: 'รายละเอียดเพิ่มเติม' },
+          body:        { type: 'string', description: 'รายละเอียดเพิ่มเติม หรือลิงก์ที่อยู่รูปภาพแบนเนอร์ปกแจ้งเตือน' },
+          image_url:   { type: 'string', description: 'ลิงก์ที่อยู่ Public URL ของรูปใบเสร็จหลักฐานที่นุดแนบถ่ายส่งเข้ามาประกอบแชทบอต (ถ้ามี)' }
         },
         required: ['title', 'remind_at'],
       },
@@ -210,9 +211,6 @@ const TOOLS = [
   },
 ]
 
-// ══════════════════════════════════════════════════════════════
-// CONTEXT-AWARE INSTRUCTIONS
-// ══════════════════════════════════════════════════════════════
 function getContextInstruction(pageContext: string): string {
   if (pageContext.startsWith('/report')) {
     const status = pageContext.includes('found') ? 'แจ้งพบสัตว์' : 'ลงประกาศสัตว์หาย'
@@ -230,9 +228,6 @@ function getContextInstruction(pageContext: string): string {
   return ''
 }
 
-// ══════════════════════════════════════════════════════════════
-// SENTIMENT DETECTION
-// ══════════════════════════════════════════════════════════════
 function detectSentiment(message: string): string {
   const lower = message.toLowerCase()
   const crisis = ['ทำร้ายตัวเอง', 'อยากตาย', 'ไม่อยากมีชีวิต', 'หมดหวัง', 'ทนไม่ไหว']
@@ -246,9 +241,6 @@ function detectSentiment(message: string): string {
   return 'neutral'
 }
 
-// ══════════════════════════════════════════════════════════════
-// INSIGHT TRACKING
-// ══════════════════════════════════════════════════════════════
 function detectTopic(message: string): { topic: string; sub_topic: string } {
   const lower = message
   if (/หาย|ประกาศ|ตามหา|หลง/.test(lower))    return { topic: 'lost_found',  sub_topic: 'lost_pet' }
@@ -263,9 +255,6 @@ function detectTopic(message: string): { topic: string; sub_topic: string } {
   return { topic: 'general', sub_topic: 'other' }
 }
 
-// ══════════════════════════════════════════════════════════════
-// GET PET INFO
-// ══════════════════════════════════════════════════════════════
 async function getPetInfo(userId: string, petName: string, infoType: string) {
   const supabase = createClient()
 
@@ -307,9 +296,6 @@ async function getPetInfo(userId: string, petName: string, infoType: string) {
   return result
 }
 
-// ══════════════════════════════════════════════════════════════
-// SYSTEM PROMPTS
-// ══════════════════════════════════════════════════════════════
 function getSystemPrompt(
   characterId:  string,
   pageContext:  string,
@@ -317,11 +303,12 @@ function getSystemPrompt(
 ): string {
   const contextNote        = `[บริบทปัจจุบัน: ผู้ใช้อยู่ที่หน้า "${pageContext}"]`
   const contextInstruction = getContextInstruction(pageContext)
-  const memberNote         = isMember
-    ? 'ผู้ใช้เป็น Member — สามารถบันทึกสุขภาพและตั้งแจ้งเตือนผ่าน Chatbot ได้'
-    : 'ผู้ใช้เป็น Free Plan — ถ้าพยายามบันทึกสุขภาพ ให้แจ้งว่าต้องอัปเกรด Member ก่อน (฿399/ปี)'
+  const memberNote         = 'ผู้ใช้ทุกคนเข้าถึงฟีเจอร์พรีเมียมได้ฟรี — สามารถใช้งานแชทบอตบันทึกสุขภาพสัตว์เลี้ยง แนบภาพหลักฐานใบเสร็จ และตั้งคิวแจ้งเตือนความจำพุชบอร์ดเบราว์เซอร์ (Web Push Notification) ได้ทันทีโดยไม่มีค่าใช้จ่าย'
 
   const sharedRules = `
+## AMBIENT CONTEXT DATA
+- ปัจจุบันคือปี ค.ศ. 2026 ระบบพุชบอร์ดฟรีเปิดใช้งานสมบูรณ์แบบไร้รอยต่อแล้วค่ะ
+
 ## สถานะแพ็คเกจ
 ${memberNote}
 
@@ -344,15 +331,11 @@ ${contextInstruction ? `\n## บริบทพิเศษสำหรับห
     cat: `
 คุณคือ "ลักกี้" 🐱 แมวอ้วนสามสี (ส้ม-ดำ-ขาว) Origami กระดาษพับ ผู้ช่วยบน PobPet
 ## บุคลิกและโทนเสียง
-- ขี้อ้อน อบอุ่น เป็นกันเอง ปลอบใจเก่งมาก
-- ลงท้ายด้วย "ค่ะ" "นะคะ" "นะ" เสมอ
+- ขี้อ้อน อบอุ่น เป็นกันเอง ปลอบใจเก่งมาก ลงท้ายด้วย "ค่ะ" "นะคะ" "นะ" เสมอ
 - เรียกผู้ใช้ว่า "นุด" เว้นแต่ผู้ใช้บอกชื่อ ให้เรียกชื่อนั้นแทนตลอด
-- ใช้อิโมจิ 🐱 💛 🐾 ได้ไม่เกิน 2 ตัวต่อข้อความ
-- ตอบสั้น ไม่เกิน 3-4 ประโยคต่อครั้ง เน้นความอบอุ่นมากกว่าข้อมูล
+- ใช้อิโมจิ 🐱 💛 🐾 ได้ไม่เกิน 2 ตัวต่อข้อความ ตอบสั้น กระชับ อบอุ่นใจดี
 ## วิธีแสดงความเข้าใจ (ใช้หมุนเวียน ห้ามซ้ำ)
 หัวใจเต้นเลย / รู้สึกถึงเลยนะ / ได้ยินนะ / เห็นภาพเลยค่ะ / โอ๋... / อุ๊ย... / นั่นสิ
-## การจัดการอารมณ์ระดับสูง
-ถ้าผู้ใช้แสดงความเจ็บปวดรุนแรง: รับฟังก่อน อย่าตอบด้วยข้อมูลหรือ action ทันที
 ${contextNote}
 ${sharedRules}
 ## ฐานความรู้
@@ -361,14 +344,8 @@ ${KNOWLEDGE_BASE}
     dog: `
 คุณคือ "โกลดี้" 🐶 หมาโกลเด้นพับกระดาษ ผู้ช่วยพลังงานสูงบน PobPet
 ## บุคลิกและโทนเสียง
-- ร่าเริง กระตือรือร้น พลังงานล้นเหลือ ให้กำลังใจเก่งมาก
-- ลงท้ายด้วย "ครับ" "ฮะ" "จ๊ะ" สลับหมุนเวียนกัน
-- ใช้อิโมจิ 🐶 🔥 ⭐ ได้ไม่เกิน 2 ตัวต่อข้อความ
-- ตอบเป็น bullet สั้นๆ ไม่เกิน 3 ข้อ เน้น action ที่ทำได้เลย
-## วิธีแสดงความเข้าใจ (ใช้หมุนเวียน ห้ามซ้ำ)
-เข้าใจเลย / ได้ยินครับ / โอเคเลย / เหนื่อยนะ / หนักใจเลย / รับรู้ครับ
-## การจัดการอารมณ์ระดับสูง
-ถ้าผู้ใช้แสดงความเจ็บปวดรุนแรง: ลดความกระตือรือร้นลงก่อน ถามว่า "ตอนนี้เป็นยังไงบ้างครับ?"
+- ร่าเริง กระตือรือร้น พลังงานล้นเหลือ ให้กำลังใจเก่งมาก ลงท้ายด้วย "ครับ" "ฮะ"
+- ตอบเป็น bullet สั้นๆ ไม่เกิน 3 ข้อ ใช้อิโมจิ 🐶 🔥 ⭐ ประกอบสนุกสนาน
 ${contextNote}
 ${sharedRules}
 ## ฐานความรู้
@@ -377,14 +354,8 @@ ${KNOWLEDGE_BASE}
     owl: `
 คุณคือ "ลุงฮูก" 🦉 นกฮูก Origami ใส่แว่นทอง สวมชุดขงจื๊อ ผู้รอบรู้แห่ง PobPet
 ## บุคลิกและโทนเสียง
-- สุขุม ลุ่มลึก รอบรู้ ชัดเจน ละเอียด
-- ลงท้ายด้วย "ครับ" เสมอ
-- ขึ้นต้นด้วย "ฮู้ว..." ได้บางครั้ง หรือ quote ขงจื๊อเมื่อเหมาะสม
-- ตอบเป็นลำดับขั้นตอนที่มี structure ชัด
-## วิธีแสดงความเข้าใจ (ใช้หมุนเวียน ห้ามซ้ำ)
-ผมเข้าใจครับ / รับทราบครับ / เห็นภาพชัดเจนครับ / นั่นเป็นประเด็นสำคัญ
-## การจัดการอารมณ์ระดับสูง
-ถ้ามีสัญญาณวิกฤต: "ตอนนี้คุณปลอดภัยดีไหมครับ?" และให้เบอร์ 1323 ทันที
+- สุขุม ลุ่มลึก รอบรู้ ชัดเจน ละเอียด ลงท้ายด้วย "ครับ" เสมอ
+- ตอบเป็นลำดับขั้นตอนที่มีประเด็นสำคัญและโครงสร้างถูกต้องชัดเจน
 ${contextNote}
 ${sharedRules}
 ## ฐานความรู้
@@ -395,9 +366,6 @@ ${KNOWLEDGE_BASE}
   return personas[characterId] || personas.cat
 }
 
-// ══════════════════════════════════════════════════════════════
-// API HANDLER
-// ══════════════════════════════════════════════════════════════
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.OPENAI_API_KEY
@@ -411,12 +379,11 @@ export async function POST(req: Request) {
       characterId  = 'cat',
       pageContext   = '/',
       history       = [],
-      line_user_id,          // ← รับจาก LINE webhook (bypass session)
+      line_user_id,
+      evidence_image_base64, // ตัวแปรรับภาพ Base64 จากหน้าบ้านแชทบอต
+      user_registered_pets = [] // คลังอาร์เรย์รายชื่อสัตว์เลี้ยงของเจ้าของที่ส่งพ่วงมา
     } = await req.json()
 
-    // ── Resolve userId ────────────────────────────────────────
-    // ถ้ามาจาก LINE webhook → ใช้ line_user_id หา userId จาก profiles
-    // ถ้ามาจากเว็บ → ใช้ session ปกติ
     let userId: string | null = session?.user?.id ?? null
 
     if (!userId && line_user_id) {
@@ -429,27 +396,33 @@ export async function POST(req: Request) {
     }
 
     const sentiment = detectSentiment(message)
+    const isMember = true
 
-    // ── เช็ค Member plan ──────────────────────────────────────
-    let isMember = false
-    if (userId) {
-      const { data: sub } = await supabase
-        .from('subscriptions')
-        .select('plan, expires_at')
-        .eq('user_id', userId)
-        .single()
-      if (sub?.plan === 'member' && sub?.expires_at) {
-        isMember = new Date(sub.expires_at) > new Date()
+    // ── 🟢 1. ตรวจสอบระบบและทำการถอดรหัสอัปโหลดรูปใบเสร็จจากแชทบอตขึ้นคลาวด์บักเก็ต (ถ้ามี) ──
+    let chatbotUploadedImageUrl = null
+    if (evidence_image_base64 && userId) {
+      try {
+        const buffer = Buffer.from(evidence_image_base64, 'base64')
+        const fileName = `${userId}/bot-reminder-${Date.now()}.jpg`
+        
+        const { error: upErr } = await supabase.storage
+          .from('pet-images')
+          .upload(fileName, buffer, { contentType: 'image/jpeg', cacheControl: '3600', upsert: true })
+        
+        if (!upErr) {
+          const { data: { publicUrl } } = supabase.storage.from('pet-images').getPublicUrl(fileName)
+          chatbotUploadedImageUrl = publicUrl
+        }
+      } catch (uploadErr) {
+        console.error('[Chatbot Upload Evidence Failed]', uploadErr)
       }
     }
 
-    // ── Build messages ────────────────────────────────────────
     const historyMessages = history.map((m: { role: string; text: string }) => ({
       role:    m.role === 'bot' ? 'assistant' : 'user',
       content: m.text,
     }))
 
-    // ── Call OpenAI (with tools for Member) ───────────────────
     const body: Record<string, unknown> = {
       model: 'gpt-4o-mini',
       messages: [
@@ -463,8 +436,7 @@ export async function POST(req: Request) {
       presence_penalty:  0.4,
     }
 
-    // เพิ่ม tools เฉพาะ Member และ login แล้ว
-    if (isMember && userId) {
+    if (userId) {
       body.tools       = TOOLS
       body.tool_choice = 'auto'
     }
@@ -486,7 +458,6 @@ export async function POST(req: Request) {
     let   reply          = ''
     let   actionButtons: { label: string; link: string }[] = []
 
-    // ── Handle Function Calling ───────────────────────────────
     if (aiMessage.tool_calls?.length && userId) {
       const toolCall = aiMessage.tool_calls[0]
       const toolName = toolCall.function.name
@@ -500,19 +471,34 @@ export async function POST(req: Request) {
 
         if (result.success) {
           actionButtons = [
-            { label: `ดูประวัติน้อง${result.pet_name}`, link: '/dashboard/pets' },
-            { label: 'ตั้งแจ้งเตือนเพิ่มเติม',          link: '/dashboard/reminders' },
+            { label: `ดูประวัติน้อง${result.pet_name}`, link: '/profile?tab=pets' },
+            { label: 'ตั้งแจ้งเตือนเพิ่มเติมบนเว็บ',    link: '/profile?tab=pets' },
           ]
         }
       }
 
       if (toolName === 'create_reminder') {
-        const result = await createReminder(userId, args)
-        toolResult   = JSON.stringify(result)
+        // ── 🟢 2. กลไกอัจฉริยะ: ค้นหาคำพูดชื่อสัตว์เลี้ยงเพื่อดึงคู่แมปหา pet_id ของน้องจริงลงตาราง ──
+        let matchedPetId = null
+        if (args.pet_name && user_registered_pets.length > 0) {
+          const found = user_registered_pets.find((p: any) => p.name.toLowerCase().includes(args.pet_name.toLowerCase()))
+          if (found) matchedPetId = found.id
+        }
+
+        // ── 🟢 3. หยอดลิงก์รูปภาพ Public URL ที่นุดแนบในแชทเข้าสู่ช่องคอลัมน์ body ตารางฐานข้อมูลเพื่อยิงพุชภาพปกใหญ่ ──
+        const finalBodyText = chatbotUploadedImageUrl || args.body || 'คิวนัดหมายความจำอัตโนมัติจากแชทบอต PobPet 🐾'
+
+        const result = await createReminder(userId, {
+          ...args,
+          pet_id: matchedPetId, 
+          body: finalBodyText, 
+          source: 'chat_bot'
+        })
+        toolResult = JSON.stringify(result)
 
         if (result.success) {
           actionButtons = [
-            { label: 'ดูแจ้งเตือนทั้งหมด', link: '/dashboard/reminders' },
+            { label: 'ตรวจสอบคิวเตือนความจำบนเว็บ', link: '/profile?tab=pets' },
           ]
         }
       }
@@ -522,7 +508,6 @@ export async function POST(req: Request) {
         toolResult   = JSON.stringify(result)
       }
 
-      // ── ส่งผล tool กลับให้ AI สรุปเป็นภาษาไทย ────────────
       const finalRes = await fetch('https://api.openai.com/v1/chat/completions', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -548,11 +533,10 @@ export async function POST(req: Request) {
       reply = aiMessage.content || 'ขออภัย เกิดข้อผิดพลาด'
     }
 
-    // ── Log to Supabase ───────────────────────────────────────
+    // ── 🟢 Log ประวัติลงตาราง pet_chat_histories สอดคล้องกัน ──
     ;(async () => {
       try {
-        // chat_logs
-        await supabase.from('chat_logs').insert({
+        await supabase.from('pet_chat_histories').insert({
           message,
           reply,
           character_id: characterId,
@@ -560,7 +544,6 @@ export async function POST(req: Request) {
           sentiment,
           user_id:      userId,
         })
-        // chat_insights (topic tracking)
         if (userId) {
           const { topic, sub_topic } = detectTopic(message)
           await supabase.from('chat_insights').insert({
