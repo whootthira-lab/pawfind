@@ -587,7 +587,7 @@ export default function LoginPage() {
                     )}
 
                     <Button type="button" onClick={handleNextSubStep} className="md:col-span-2 mt-4 bg-black text-white py-6 text-lg font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-2">
-                      เลือกความสนใจและแท็กความเชี่ยวชาญต่อ ➔
+                      หน้าถัดไป ➔
                     </Button>
                   </>
                 )}
@@ -621,7 +621,7 @@ export default function LoginPage() {
                     <div className="md:col-span-2 grid grid-cols-3 gap-3 mt-2">
                       <Button type="button" onClick={() => setProfileSubStep(1)} variant="outline" className="col-span-1 border-2 border-black py-7 font-black rounded-2xl bg-white hover:bg-gray-100 text-black flex items-center justify-center gap-1"><ArrowLeft size={14} /> ย้อนกลับ</Button>
                       <Button type="submit" disabled={loading || uploading} className="col-span-2 bg-black text-white py-7 text-lg font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50">
-                        {loading || uploading ? <Loader2 className="animate-spin mx-auto" /> : "💾 ยืนยันข้อมูลสำเร็จ & รับ Magic Link"}
+                        {loading || uploading ? <Loader2 className="animate-spin mx-auto" /> : "💾 ยืนยันและบันทึกข้อมูล"}
                       </Button>
                     </div>
                   </>
