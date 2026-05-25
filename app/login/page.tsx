@@ -535,7 +535,7 @@ export default function LoginPage() {
                         type="text"
                         value={formData.address}
                         onChange={e => setFormData({...formData, address: e.target.value})}
-                        placeholder="เช่น 444 หมู่ 1"
+                        placeholder="บ้านเลขที่,ซอย,หมู่"
                         className="w-full border-2 border-black p-2.5 rounded-xl font-bold"
                       />
                     </div>
