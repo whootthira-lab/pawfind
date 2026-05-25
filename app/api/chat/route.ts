@@ -7,7 +7,7 @@ import { recordHealthEvent }       from '@/lib/pet-health-recorder'
 import { createReminder }          from '@/lib/reminder-engine'
 
 // ══════════════════════════════════════════════════════════════
-// KNOWLEDGE BASE (ล้างข้อความจำกัดแพ็คเกจเงิน)
+// KNOWLEDGE BASE (ฐานความรู้ดั้งเดิมครบถ้วน)
 // ══════════════════════════════════════════════════════════════
 const KNOWLEDGE_BASE = `
 ## เกี่ยวกับ PobPet
@@ -105,7 +105,7 @@ const KNOWLEDGE_BASE = `
 - รายงานสัตว์ป่าคุ้มครอง: โทร 1362
 
 ## เรื่องที่ยังไม่มีในระบบ
-- ถ้าผู้ใช้ถามเรื่องสินค้า บริการ หรือฟีเจอร์ที่ยังไม่มี ให้บอกว่ากำลังพัฒนา
+- ถ้าผู้ใช้ถามเรื่องสินค้า บริการ หรือฟีเจอร์ที่ยังไม่มี ในระบบ ให้บอกว่ากำลังพัฒนา
 - ถามความต้องการเพื่อเก็บข้อมูล อย่าปฏิเสธแบบตัดบท
 
 ## อาหารและสิ่งที่ควรหลีกเลี่ยง
@@ -149,7 +149,7 @@ const KNOWLEDGE_BASE = `
 `
 
 // ══════════════════════════════════════════════════════════════
-// OPENAI FUNCTION CALLING TOOLS (🟢 ขยายสเปกพารามิเตอร์รับภาพใบเสร็จแจ้งเตือน)
+// OPENAI FUNCTION CALLING TOOLS
 // ══════════════════════════════════════════════════════════════
 const TOOLS = [
   {
@@ -183,12 +183,11 @@ const TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          title:       { type: 'string', description: 'หัวข้อแจ้งเตือน' },
+          title:       { type: 'string', description: 'หัวข้อแจ้งเตือนสั้นกระชับ' },
           pet_name:    { type: 'string', description: 'ชื่อสัตว์ (ถ้าเกี่ยวกับน้อง)' },
-          remind_at:   { type: 'string', description: 'วันเวลาแจ้งเตือน YYYY-MM-DD หรือ YYYY-MM-DD HH:MM' },
+          remind_at:   { type: 'string', description: 'วันเวลาแจ้งเตือน ต้องแปลงคำพูดเวลาของนุดให้กลายเป็นรูปแบบสากล YYYY-MM-DD HH:MM เท่านั้น ห้ามส่งภาษาพูดมาเด็ดขาด' },
           repeat_type: { type: 'string', enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'], description: 'รูปแบบการซ้ำ' },
-          body:        { type: 'string', description: 'รายละเอียดเพิ่มเติม หรือลิงก์ที่อยู่รูปภาพแบนเนอร์ปกแจ้งเตือน' },
-          image_url:   { type: 'string', description: 'ลิงก์ที่อยู่ Public URL ของรูปใบเสร็จหลักฐานที่นุดแนบถ่ายส่งเข้ามาประกอบแชทบอต (ถ้ามี)' }
+          body:        { type: 'string', description: 'รายละเอียดเพิ่มเติม หรือลิงก์ที่อยู่รูปภาพแบนเนอร์ปกแจ้งเตือน' }
         },
         required: ['title', 'remind_at'],
       },
@@ -255,59 +254,21 @@ function detectTopic(message: string): { topic: string; sub_topic: string } {
   return { topic: 'general', sub_topic: 'other' }
 }
 
-async function getPetInfo(userId: string, petName: string, infoType: string) {
-  const supabase = createClient()
-
-  const { data: pets } = await supabase
-    .from('pets')
-    .select('id, name, species, breed')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .ilike('name', `%${petName}%`)
-    .limit(1)
-
-  if (!pets?.length) return { found: false, message: `ไม่พบน้องชื่อ "${petName}"` }
-
-  const pet = pets[0]
-  const result: Record<string, unknown> = { found: true, pet_name: pet.name, species: pet.species }
-
-  if (infoType === 'health' || infoType === 'all' || infoType === 'vaccine') {
-    const { data: events } = await supabase
-      .from('pet_health_events')
-      .select('event_type, title, event_date, description')
-      .eq('pet_id', pet.id)
-      .order('event_date', { ascending: false })
-      .limit(5)
-    result.health_events = events || []
-  }
-
-  if (infoType === 'reminder' || infoType === 'all') {
-    const { data: reminders } = await supabase
-      .from('reminders')
-      .select('title, next_remind_at')
-      .eq('user_id', userId)
-      .eq('pet_id', pet.id)
-      .eq('is_done', false)
-      .order('next_remind_at', { ascending: true })
-      .limit(3)
-    result.upcoming_reminders = reminders || []
-  }
-
-  return result
-}
-
+// ── 🟢 เพิ่มพารามิเตอร์ส่ง Context วันเวลาปัจจุบันของระบบนุดให้ AI สังเคราะห์ได้อย่างแม่นยำ ──
 function getSystemPrompt(
   characterId:  string,
   pageContext:  string,
-  isMember:     boolean
+  isMember:     boolean,
+  currentTimeContext: string
 ): string {
   const contextNote        = `[บริบทปัจจุบัน: ผู้ใช้อยู่ที่หน้า "${pageContext}"]`
   const contextInstruction = getContextInstruction(pageContext)
   const memberNote         = 'ผู้ใช้ทุกคนเข้าถึงฟีเจอร์พรีเมียมได้ฟรี — สามารถใช้งานแชทบอตบันทึกสุขภาพสัตว์เลี้ยง แนบภาพหลักฐานใบเสร็จ และตั้งคิวแจ้งเตือนความจำพุชบอร์ดเบราว์เซอร์ (Web Push Notification) ได้ทันทีโดยไม่มีค่าใช้จ่าย'
 
   const sharedRules = `
-## AMBIENT CONTEXT DATA
-- ปัจจุบันคือปี ค.ศ. 2026 ระบบพุชบอร์ดฟรีเปิดใช้งานสมบูรณ์แบบไร้รอยต่อแล้วค่ะ
+## วันเวลาปัจจุบันสากลของระบบ (CRITICAL POINT)
+- วันและเวลาปัจจุบันของนุดในเขตเวลาเอเชีย/กรุงเทพฯ คือ: ${currentTimeContext}
+- ห้ามสุ่มเดาวันที่เด็ดขาด! ถ้าผู้ใช้บอกว่า "พรุ่งนี้", "มะรืนนี้", "สัปดาห์หน้า" หรือบอกช่วงเวลา ให้แปลงเทียบจากวันเวลาปัจจุบันนี้ออกมาเป็นค่าวันที่จริงในฟอร์แมต YYYY-MM-DD HH:MM เสมอเพื่อใช้ส่งลงตาราง reminders ได้สมบูรณ์
 
 ## สถานะแพ็คเกจ
 ${memberNote}
@@ -334,7 +295,7 @@ ${contextInstruction ? `\n## บริบทพิเศษสำหรับห
 - ขี้อ้อน อบอุ่น เป็นกันเอง ปลอบใจเก่งมาก ลงท้ายด้วย "ค่ะ" "นะคะ" "นะ" เสมอ
 - เรียกผู้ใช้ว่า "นุด" เว้นแต่ผู้ใช้บอกชื่อ ให้เรียกชื่อนั้นแทนตลอด
 - ใช้อิโมจิ 🐱 💛 🐾 ได้ไม่เกิน 2 ตัวต่อข้อความ ตอบสั้น กระชับ อบอุ่นใจดี
-## วิธีแสดงความเข้าใจ (ใช้หมุนเวียน ห้ามซ้ำ)
+## วิธีแสดงความเข้าใจ (ใช้หมวนเวียน ห้ามซ้ำ)
 หัวใจเต้นเลย / รู้สึกถึงเลยนะ / ได้ยินนะ / เห็นภาพเลยค่ะ / โอ๋... / อุ๊ย... / นั่นสิ
 ${contextNote}
 ${sharedRules}
@@ -380,8 +341,8 @@ export async function POST(req: Request) {
       pageContext   = '/',
       history       = [],
       line_user_id,
-      evidence_image_base64, // ตัวแปรรับภาพ Base64 จากหน้าบ้านแชทบอต
-      user_registered_pets = [] // คลังอาร์เรย์รายชื่อสัตว์เลี้ยงของเจ้าของที่ส่งพ่วงมา
+      evidence_image_base64, 
+      user_registered_pets = [] 
     } = await req.json()
 
     let userId: string | null = session?.user?.id ?? null
@@ -398,7 +359,11 @@ export async function POST(req: Request) {
     const sentiment = detectSentiment(message)
     const isMember = true
 
-    // ── 🟢 1. ตรวจสอบระบบและทำการถอดรหัสอัปโหลดรูปใบเสร็จจากแชทบอตขึ้นคลาวด์บักเก็ต (ถ้ามี) ──
+    // ── 🟢 แปลงเวลาปัจจุบันส่งเข้า Prompt สังเคราะห์ของ OpenAI ทันที ──
+    const currentNowText = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })
+    const activeSystemPrompt = getSystemPrompt(characterId, pageContext, isMember, currentNowText)
+
+    // ── 1. ตรวจสอบระบบและทำการถอดรหัสอัปโหลดรูปใบเสร็จจากแชทบอตขึ้นคลาวด์บักเก็ต ──
     let chatbotUploadedImageUrl = null
     if (evidence_image_base64 && userId) {
       try {
@@ -426,11 +391,12 @@ export async function POST(req: Request) {
     const body: Record<string, unknown> = {
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: getSystemPrompt(characterId, pageContext, isMember) },
+        { role: 'system', content: activeSystemPrompt },
         ...historyMessages,
         { role: 'user', content: message },
       ],
-      temperature:       characterId === 'owl' ? 0.55 : characterId === 'dog' ? 0.8 : 0.72,
+      // ── 🟢 ปรับลดค่าความเพี้ยนเพื่อให้โมเดลสกัดพารามิเตอร์เครื่องมือลงฟังก์ชันคิวรีได้อย่างเสถียร 100% ──
+      temperature:       0.2, 
       max_tokens:        characterId === 'owl' ? 650 : 420,
       frequency_penalty: 0.6,
       presence_penalty:  0.4,
@@ -478,20 +444,22 @@ export async function POST(req: Request) {
       }
 
       if (toolName === 'create_reminder') {
-        // ── 🟢 2. กลไกอัจฉริยะ: ค้นหาคำพูดชื่อสัตว์เลี้ยงเพื่อดึงคู่แมปหา pet_id ของน้องจริงลงตาราง ──
+        // ── 2. กลไกอัจฉริยะ: ค้นหาคำพูดชื่อสัตว์เลี้ยงเพื่อดึงคู่แมปหา pet_id ของน้องจริงลงตาราง ──
         let matchedPetId = null
         if (args.pet_name && user_registered_pets.length > 0) {
           const found = user_registered_pets.find((p: any) => p.name.toLowerCase().includes(args.pet_name.toLowerCase()))
           if (found) matchedPetId = found.id
         }
 
-        // ── 🟢 3. หยอดลิงก์รูปภาพ Public URL ที่นุดแนบในแชทเข้าสู่ช่องคอลัมน์ body ตารางฐานข้อมูลเพื่อยิงพุชภาพปกใหญ่ ──
+        // ── 3. หยอดลิงก์รูปภาพ Public URL ที่นุดแนบในแชทเข้าสู่ช่องคอลัมน์ body ตารางฐานข้อมูลเพื่อยิงพุชภาพปกใหญ่ ──
         const finalBodyText = chatbotUploadedImageUrl || args.body || 'คิวนัดหมายความจำอัตโนมัติจากแชทบอต PobPet 🐾'
 
         const result = await createReminder(userId, {
-          ...args,
-          pet_id: matchedPetId, 
+          title: args.title,
+          remind_at: args.remind_at,
+          repeat_type: args.repeat_type || 'none',
           body: finalBodyText, 
+          pet_id: matchedPetId,
           source: 'chat_bot'
         })
         toolResult = JSON.stringify(result)
@@ -514,16 +482,13 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           model:    'gpt-4o-mini',
           messages: [
-            { role: 'system', content: getSystemPrompt(characterId, pageContext, isMember) },
+            { role: 'system', content: activeSystemPrompt },
             ...historyMessages,
             { role: 'user',      content: message },
             aiMessage,
             { role: 'tool', tool_call_id: toolCall.id, content: toolResult },
           ],
-          temperature:       characterId === 'owl' ? 0.55 : characterId === 'dog' ? 0.8 : 0.72,
-          max_tokens:        350,
-          frequency_penalty: 0.6,
-          presence_penalty:  0.4,
+          temperature:       0.4,
         }),
       })
       const finalData = await finalRes.json()
@@ -533,7 +498,7 @@ export async function POST(req: Request) {
       reply = aiMessage.content || 'ขออภัย เกิดข้อผิดพลาด'
     }
 
-    // ── 🟢 Log ประวัติลงตาราง pet_chat_histories สอดคล้องกัน ──
+    // ── Log ประวัติลงตาราง pet_chat_histories สอดคล้องกัน ──
     ;(async () => {
       try {
         await supabase.from('pet_chat_histories').insert({
