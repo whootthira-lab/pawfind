@@ -1,5 +1,5 @@
 'use client'
-// app/(main)/profile/page.tsx (V3 - ปลด Paywall เด็ดขาด, แก้บั๊ครูปภาพนุด, บันทึกรูปตำหนิ 3 รูปพร้อมรายละเอียดสอดคล้อง 100%)
+// app/(main)/profile/page.tsx (V4 - ปลด Paywall เด็ดขาด, แก้บั๊ครูปภาพนุด, บันทึกรูปตำหนิ 3 รูปพร้อมรายละเอียดสอดคล้อง 100%)
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
@@ -22,13 +22,13 @@ const expertiseOptions = [
   { value: 'mating',      label: '❤️ หาคู่ให้สัตว์เลี้ยง' },
   { value: 'showcase',    label: '📸 ประกวด / อวดความน่ารัก' },
   { value: 'knowledge',   label: '📚 ศึกษาความรู้การเลี้ยง' },
-  { value: 'general',     label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
-  { value: 'volunteer',   label: 'อาสาสมัคร / ศูนย์พักพิงสัตว์' },
-  { value: 'petscout',    label: '🔍 สร้างรายได้จากการช่วยตามหาสัตว์หาย(PetScout)' },
-  { value: 'vet',         label: '🏥 ประชาสัมพันธ์ คลินิกรักษาสัตว์' },
-  { value: 'groomer',     label: '🪮 ประชาสัมพันธ์ บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
-  { value: 'petsitter',   label: '🏩 ประชาสัมพันธ์ รับฝากหรือดูแลสัตว์ที่บ้าน' },
-  { value: 'retailer',    label: '🛍️ ประชาสัมพันธ์ ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
+  { value: 'general',     label: '🔍 ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
+  { value: 'volunteer',   label: '🤝 อาสาสมัคร / ศูนย์พักพิงสัตว์' },
+  { value: 'petscout',    label: '🔍 PetScout (รับจ้างตามหาสัตว์หาย)' },
+  { value: 'vet', label: '🏥 ประชาสัมพันธ์ คลินิกรักษาสัตว์' },
+  { value: 'groomer', label: '🪮 ประชาสัมพันธ์ บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
+  { value: 'petsitter', label: '🏩 ประชาสัมพันธ์ บริการรับฝากหรือดูแลสัตว์ที่บ้าน' },
+  { value: 'retailer', label: '🛍️ ประชาสัมพันธ์ ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
   { value: 'announce', label: '📢 ประชาสัมพันธ์ข่าว/กิจกรรม' },
   { value: 'other',       label: 'อื่นๆ (โปรดระบุ)' },
 ]
@@ -76,7 +76,7 @@ const interestOptions = [
   { value: 'art',         label: '🎨 ศิลปะ / งานฝีมือ' },
   { value: 'music',       label: '🎵 ดนตรี' },
   { value: 'reading',     label: '📚 อ่านหนังสือ' },
-  { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' },
+  { value: 'meditation',  label: '🧘 ทำสมาธิ / ธรรมะ' }
 ]
 
 const thailandProvinces = [
@@ -190,7 +190,8 @@ export default function ProfilePage() {
       }
     } catch (err) {
       console.error(err)
-    } refinement {
+    } finally {
+      // 🟢 [แก้ไขสำเร็จ] สลับจากคำดักผิดคีย์มาใช้บล็อกมาตรฐานสากลเคลียร์สัญญาน
       setLoading(false)
     }
   }, [supabase])
@@ -258,12 +259,11 @@ export default function ProfilePage() {
   const handlePetRegistration = async (e: React.FormEvent) => {
     e.preventDefault()
     if (petSaving || !user) return
-    if (petImages.length === 0) return alert('กรุณาแนบรูปถ่ายหลักของน้องอย่างน้อย 1 รูป')
+    if (petImages.length === 0) return alert('กรุณาแนบรูปถ่ายหลักของน้องอย่างน้อย 1 รูปค่ะ')
     setPetSaving(true)
 
     try {
       const uploadedUrls: string[] = []
-      // อัปโหลดรูปภาพปกติสูงสุด 5 รูป
       for (const img of petImages) {
         const fileExt = img.file.name.split('.').pop()
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
@@ -272,7 +272,6 @@ export default function ProfilePage() {
         uploadedUrls.push(publicUrl)
       }
 
-      // อัปโหลดรูปตำหนิพิเศษสูงสุด 3 รูป พ่วงรายละเอียดแมปลงช่อง distinctive_features รูปแบบ JSON
       const markingsJsonList = []
       for (const feat of featureImages) {
         const fileExt = feat.file.name.split('.').pop()
@@ -332,7 +331,7 @@ export default function ProfilePage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col gap-8 mb-20 text-black" style={{ fontFamily: "'Noto Sans Thai', sans-serif" }}>
 
-      {/* ── Profile Header (ลบท่อน Paywall เกลี้ยงตับ แก้ไขรูปใบหน้านุดขึ้นคมชัด) ── */}
+      {/* ── Profile Header ── */}
       <div className="bg-white border-4 border-black rounded-3xl p-8 shadow-paper
         flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
         <div className="w-32 h-32 rounded-full border-4 border-black overflow-hidden
@@ -370,7 +369,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* ── Tabs (เพิ่มสิทธิ์สลับแท็บพรีเมียมอันที่ 4 บนหน้าเว็บฟรี) ── */}
+      {/* ── Tabs ── */}
       <div className="flex flex-wrap gap-4 border-b-4 border-black pb-2">
         <button
           onClick={() => setActiveTab('posts')}
@@ -463,7 +462,6 @@ export default function ProfilePage() {
             <div className="md:col-span-2 space-y-2 pt-2 text-left">
               <label className="font-black text-sm flex items-center gap-1"><MapPin size={14} /> ที่อยู่ (จังหวัด/อำเภอ/ตำบล)</label>
               <div className="grid grid-cols-3 gap-2">
-                {/* ── 🟢 ปรับฟิลด์กรอกจังหวัดนุดเจ้าของให้กลายเป็น Dropdown List ยึดรายชื่อสากลสอดคล้องกัน ── */}
                 <select value={profile.province} onChange={e => setProfile({ ...profile, province: e.target.value })} className="ori-input text-sm bg-white cursor-pointer outline-none">
                   {thailandProvinces.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
@@ -508,7 +506,6 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* ── 🟢 [แก้ไขสำเร็จ] ลบแถบเตือนสีเหลือง Free Plan อัปเกรด 399/ปี บริเวณด้านล่างนี้ออกถาวรเรียบร้อย ── */}
             <div className="md:col-span-2 flex flex-col items-center gap-3 mt-6">
               <Button type="submit" disabled={isSaving} className="w-full md:w-64 bg-black text-white py-6 rounded-2xl font-black text-lg shadow-paper-sm hover:shadow-paper transition-all">
                 {isSaving ? <Loader2 className="animate-spin" /> : <><Save size={20} className="mr-2" /> บันทึกการแก้ไข</>}
@@ -518,7 +515,7 @@ export default function ProfilePage() {
           </motion.form>
         )}
 
-        {/* ══ แท็บที่ 2: รายการประกาศตามหาปัจจุบัน ═════════════════ */}
+        {/* ══ แท็บประกาศปัจจุบัน ═════════════════════════════════ */}
         {activeTab === 'posts' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
             {myPets.filter(p => !p.is_resolved).map(pet => (
@@ -534,28 +531,28 @@ export default function ProfilePage() {
             ))}
             {myPets.filter(p => !p.is_resolved).length === 0 && (
               <div className="md:col-span-3 text-center py-16 text-ori-ink-l font-bold">
-                ยังไม่มีประกาศเปิดอยู่ชั่วคราว <Link href="/report" className="text-ori-orange underline">ลงประกาศแรกเลย</Link>
+                ยังไม่มีประกาศเปิดอยู่ชั่วคราวค่ะ <Link href="/report" className="text-ori-orange underline">ลงประกาศแรกเลย</Link>
               </div>
             )}
           </div>
         )}
 
-        {/* ══ แท็บที่ 3: เคสที่ช่วยสำเร็จแล้ว ═══════════════════════ */}
+        {/* ══ แท็บเคสที่ช่วยสำเร็จแล้ว ══════════════════════════════ */}
         {activeTab === 'resolved' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
             {myPets.filter(p => p.is_resolved).map(pet => (
               <div key={pet.id} className="relative opacity-90 grayscale-[0.3]">
-                <div className="absolute top-4 right-4 z-10 bg-green-600 text-white px-3 py-1 rounded-full font-black shadow-paper-sm text-sm">🎉 สำเร็จแล้ว</div>
+                <div className="absolute top-4 right-4 z-10 bg-green-600 text-white px-3 py-1 rounded-full font-black shadow-paper-sm text-sm">🎉  สำเร็จแล้ว</div>
                 <MatchResultCard result={pet} />
               </div>
             ))}
             {myPets.filter(p => p.is_resolved).length === 0 && (
-              <div className="md:col-span-3 text-center py-16 text-gray-400 font-bold">ยังไม่มีข้อมูลประวัติเคสสำเร็จ</div>
+              <div className="md:col-span-3 text-center py-16 text-gray-400 font-bold">ยังไม่มีข้อมูลประวัติเคสสำเร็จค่ะ</div>
             )}
           </div>
         )}
 
-        {/* ── 🟢 [ย้ายฟีเจอร์พรีเมียมจาก LINE OA] แท็บที่ 4: สมุดทะเบียนจัดการโปรไฟล์น้องและรูปตำหนิพิเศษ 3 มุม ── */}
+        {/* ══ แท็บจัดการโปรไฟล์น้องและรูปตำหนิพิเศษ 3 มุม ═══════════════ */}
         {activeTab === 'pets' && (
           <div className="space-y-6 text-left animate-in fade-in duration-300">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-4 border-black pb-4">
@@ -568,7 +565,6 @@ export default function ProfilePage() {
               </Button>
             </div>
 
-            {/* ฟอร์มสร้างน้องพรีเมียมเวอร์ชันหน้าเว็บ */}
             {petFormOpen && (
               <form onSubmit={handlePetRegistration} className="border-4 border-black p-6 rounded-3xl bg-gray-50/50 space-y-5 animate-in slide-in-from-top-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -590,7 +586,6 @@ export default function ProfilePage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <label className="font-black text-sm">จังหวัดประจำตัวน้อง</label>
-                    {/* ── 🟢 ช่องเลือกจังหวัดสัตว์เลี้ยง บังคับใช้ Dropdown List ยึดรายชื่อสากลสอดคล้องกัน ── */}
                     <select value={petDataForm.province} onChange={e => setPetDataForm({...petDataForm, province: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-bold bg-white cursor-pointer outline-none">
                       {thailandProvinces.map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
@@ -605,13 +600,12 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* ส่วนอัปโหลดรูปภาพปกติหลักสูงสุด 5 รูป */}
                 <div className="space-y-2 border-2 border-black p-4 rounded-xl bg-white shadow-paper-sm">
                   <label className="font-black text-sm flex items-center gap-1">🖼️ รูปถ่ายสภาพปกติของน้อง (สูงสุด 5 รูป) <span className="text-red-500">*</span></label>
                   <input type="file" multiple accept="image/*" ref={petFileInputRef} onChange={ev => {
                     if (!ev.target.files) return
                     const files = Array.from(ev.target.files)
-                    if (petImages.length + files.length > 5) return alert('แนบรูปหลักได้สูงสุด 5 รูป')
+                    if (petImages.length + files.length > 5) return alert('แนบรูปหลักได้สูงสุด 5 รูปค่ะ')
                     setPetImages(prev => [...prev, ...files.map(f => ({ file: f, preview: URL.createObjectURL(f) }))])
                   }} className="hidden" />
                   <Button type="button" onClick={() => petFileInputRef.current?.click()} variant="outline" className="border-2 border-dashed border-gray-400 py-6 w-full font-black hover:bg-gray-50"><Upload size={16}/> กดอัปโหลดรูปภาพปกติ</Button>
@@ -620,13 +614,12 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* ── 🟢 ฟีเจอร์เด่น: แนบรูปภาพตำหนิ/จุดสังเกตเด่น 3 รูป พร้อมช่องกรอกคำอธิบายประจำภาพ ── */}
                 <div className="space-y-3 border-2 border-black p-4 rounded-xl bg-amber-50/20 shadow-paper-sm">
                   <label className="font-black text-sm flex items-center gap-1 text-amber-900">⚡ อัปโหลดรูปภาพลักษณะตำหนิพิเศษ / จุดสังเกตเด่น (สูงสุด 3 รูป)</label>
                   <input type="file" multiple accept="image/*" ref={featureFileInputRef} onChange={ev => {
                     if (!ev.target.files) return
                     const files = Array.from(ev.target.files)
-                    if (featureImages.length + files.length > 3) return alert('อัปโหลดรูปตำหนิพิเศษได้สูงสุด 3 รูป')
+                    if (featureImages.length + files.length > 3) return alert('อัปโหลดรูปตำหนิพิเศษได้สูงสุด 3 รูปค่ะ')
                     setFeatureImages(prev => [...prev, ...files.map(f => ({ file: f, preview: URL.createObjectURL(f), description: '' }))])
                   }} className="hidden" />
                   <Button type="button" onClick={() => featureFileInputRef.current?.click()} className="bg-amber-100 text-amber-900 border-2 border-amber-300 w-full font-black hover:bg-amber-200"><Plus size={14}/> ➕ เพิ่มรูปจุดสังเกตพิเศษเด่นประจำตัว</Button>
@@ -634,7 +627,7 @@ export default function ProfilePage() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
                     {featureImages.map((feat, idx) => (
                       <div key={idx} className="border-2 border-black p-3 rounded-2xl bg-white space-y-2 shadow-paper-sm">
-                        <img src={feat.preview} className="w-full h-24 object-cover border-2 border-black rounded-xl bg-gray-50" />
+                        <img src={feat.preview} className="w-full h-24 object-cover border-2 border-black rounded-xl bg-gray-100" />
                         <input 
                           type="text" required
                           placeholder="กรอกตำหนิรูปนี้ เช่น มีปานสีน้ำตาลที่พุง" 
@@ -662,7 +655,6 @@ export default function ProfilePage() {
               </form>
             )}
 
-            {/* การ์ดรายชื่อสัตว์เลี้ยงผูกบัญชีในหน้าตั้งค่าโปรไฟล์ */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {myPets.map(pet => (
                 <div key={pet.id} className="border-4 border-black p-4 rounded-2xl bg-white shadow-paper-sm flex gap-3 text-left hover:-translate-y-0.5 transition-transform duration-200">
@@ -682,7 +674,7 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* ── 🟢 [แก้ไขสำเร็จ] ปรับโครงสร้างพาสข้อมูล Props จาก open สลับมาใช้สัญลักษณ์ควบคุมสเตตเปิด-ปิดแมตช์ตรงล็อกของโปรเจกต์ ── */}
+      {/* ── 🟢 ปรับเปลี่ยน Prop สู่ isOpen ตรงล็อกเพื่อผ่านการคอมไพล์ไทป์ ── */}
       <DonationModal isOpen={showDonation} onClose={() => setShowDonation(false)} />
     </div>
   )
