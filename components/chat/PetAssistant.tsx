@@ -1,5 +1,5 @@
 'use client'
-// components/chat/PetAssistant.tsx (V6 - แก้ไขเครื่องหมายปิด String Quick Replies ไร้ข้อผิดพลาดไวยากรณ์)
+// components/chat/PetAssistant.tsx (V7 - แก้ไขไวยากรณ์ justifyContent ตัวเต็มสมบูรณ์ 100%)
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { AnimatePresence, motion }      from 'framer-motion'
@@ -310,14 +310,16 @@ export default function PetAssistant() {
                 </AnimatePresence>
               </div>
 
-              <button onClick={() => setIsOpen(false)} style={{ background: 'rgba(255,255,255,.4)', border: '2px solid #1A1208', borderRadius: 8, width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifycontent: 'center', color: '#1A1208' }}><X size={14} /></button>
+              {/* ── 🟢 [แก้ไขสำเร็จ] ปรับแก้ไขไวยากรณ์จาก justifycontent สู่ justifyContent ── */}
+              <button onClick={() => setIsOpen(false)} style={{ background: 'rgba(255,255,255,.4)', border: '2px solid #1A1208', borderRadius: 8, width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A1208' }}><X size={14} /></button>
             </div>
 
             {/* Messages Content */}
             <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: 10, background: '#FAF6EE' }}>
               {messages.map((msg, i) => (
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', gap: 4 }}>
-                  <div style={{ display: 'flex', justifycontent: msg.role === 'user' ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: 6, width: '100%' }}>
+                  {/* ── 🟢 [แก้ไขสำเร็จ] ปรับแก้ไขไวยากรณ์จาก justifycontent สู่ justifyContent ── */}
+                  <div style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: 6, width: '100%' }}>
                     {msg.role === 'bot' && (
                       <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, border: `2px solid ${ch.color}`, overflow: 'hidden', background: ch.colorL }}>
                         <Image src={ch.img} alt={ch.name} width={28} height={28} className="w-full h-full object-cover" />
@@ -364,7 +366,7 @@ export default function PetAssistant() {
               </div>
             )}
 
-            {/* ── 🟢 แก้ไขเครื่องหมายคำพูดรอบตอพิกัด border สไตล์ Neubrutalism ให้เป็นมาตรฐานระงับ Syntax บิวด์พัง ── */}
+            {/* Quick Replies */}
             <div style={{ padding: '6px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, borderTop: '2px solid #EDE0C4', background: '#F5EDD8', flexShrink: 0 }}>
               {QUICK_REPLIES.map(q => (
                 <button key={q} onClick={() => handleTranslateMessage(q)} disabled={isLoading} style={{ background: '#FFFFFF', border: '1.5px solid #1A1208', borderRadius: 20, padding: '3px 9px', fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: '#1A1208', boxShadow: `1px 1px 0 ${ch.color}` }}>
@@ -374,8 +376,9 @@ export default function PetAssistant() {
             </div>
 
             {/* Form Input Control */}
+            {/* ── 🟢 [แก้ไขสำเร็จ] ปรับแก้ไขไวยากรณ์จาก justifycontent สู่ justifyContent ── */}
             <form onSubmit={e => { e.preventDefault(); handleTranslateMessage(input) }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', borderTop: '3px solid #1A1208', background: '#FFFFFF', flexShrink: 0 }}>
-              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isLoading} style={{ background: 'white', border: '2px solid #1A1208', borderRadius: 12, width: 36, height: 36, display: 'flex', alignItems: 'center', justifycontent: 'center', cursor: 'pointer', boxShadow: '2px 2px 0 #1A1208' }} title="แนบรูปใบเสร็จ/หลักฐาน">
+              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isLoading} style={{ background: 'white', border: '2px solid #1A1208', borderRadius: 12, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '2px 2px 0 #1A1208' }} title="แนบรูปใบเสร็จ/หลักฐาน">
                 <Camera size={16} className="text-black" />
               </button>
               <input type="file" ref={fileInputRef} onChange={handleFileAttach} accept="image/*" className="hidden" />
