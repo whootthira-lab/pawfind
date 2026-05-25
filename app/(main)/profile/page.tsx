@@ -1,5 +1,5 @@
 'use client'
-// app/(main)/profile/page.tsx (V5 - รูปโปรไฟล์ Thumbnail Neubrutalism สมบูรณ์ร้อยเปอร์เซ็นต์ ไร้การตัดทอน)
+// app/(main)/profile/page.tsx (V6 - ปรับพาทเชื่อมโฟลเดอร์ avatars บนคลาวด์ Supabase สำเร็จรูป Thumbnail คมชัด 100%)
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
@@ -196,19 +196,24 @@ export default function ProfilePage() {
 
   useEffect(() => { fetchAllData() }, [fetchAllData])
 
-  // ── Avatar Upload ─────────────────────────────────────────
+  // ── Avatar Upload (🟢 แก้ไขให้ต่อสายพาทเข้าโฟลเดอร์ avatars บนคลาวด์สอดคล้องกันตรงตัว) ──
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user) return
     setUploading(true)
     try {
       const fileExt = file.name.split('.').pop()
-      const filePath = `${user.id}-${Date.now()}.${fileExt}`
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+      
+      // 🟢 เติม 'avatars/' นำหน้าพาทอัปโหลดเพื่อให้ลงล็อกถังเดียวกับระบบคลาวด์ของพี่วุฒิ์
+      const filePath = `avatars/${fileName}`
+
       const { error: upErr } = await supabase.storage
         .from('profile-images').upload(filePath, file, { cacheControl: '3600', upsert: true })
       if (upErr) throw upErr
       const { data: { publicUrl } } = supabase.storage
         .from('profile-images').getPublicUrl(filePath)
+      
       setProfile(prev => ({ ...prev, avatar_url: publicUrl }))
     } catch {
       alert('อัปโหลดรูปไม่สำเร็จ')
@@ -319,16 +324,36 @@ export default function ProfilePage() {
     }
   }
 
+  if (loading) return (
+    <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 bg-gray-50">
+      <Loader2 className="animate-spin text-black" size={60} />
+      <p className="font-black text-gray-500">กำลังเรียกข้อมูลบัญชี...</p>
+    </div>
+  )
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col gap-8 mb-20 text-black" style={{ fontFamily: "'Noto Sans Thai', sans-serif" }}>
 
-      {/* ── 🟢 [แก้ไขสำเร็จ] ปรับโครงสร้างดึงภาพ Thumbnail ผูกกล่องขอบสไตล์ Neubrutalism รองรับรูปโปรไฟล์พ่นตรง ── */}
+      {/* ── Profile Header (กล่องบนสุดดึงรูปมาวาดลงโครงสร้างการ์ด Thumbnail ทรงเหลี่ยม) ── */}
       <div className="bg-white border-4 border-black rounded-3xl p-8 shadow-paper
         flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
         <div className="w-24 h-24 rounded-2xl border-4 border-black overflow-hidden
           bg-gray-100 shadow-paper-sm shrink-0 relative group">
           {profile.avatar_url ? (
-            <img src={profile.avatar_url} alt="Profile Thumbnail" className="w-full h-full object-cover" />
+            <img 
+              src={profile.avatar_url} 
+              alt="Profile Thumbnail" 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // 🟢 Fallback เช็คกรณีฐานข้อมูลมีพาทเก่าที่ขาดโฟลเดอร์ นำมาต่อเชื่อมพาท avatars ให้ทำงานได้ลื่นไหลอัตโนมัติ
+                if (profile.avatar_url && !profile.avatar_url.includes('/avatars/')) {
+                  const parts = profile.avatar_url.split('/profile-images/');
+                  if (parts.length === 2) {
+                    (e.target as HTMLImageElement).src = `${parts[0]}/profile-images/avatars/${parts[1]}`;
+                  }
+                }
+              }}
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-wagashi-matcha/20 text-black">
               <User size={36} />
@@ -407,7 +432,19 @@ export default function ProfilePage() {
 
             <div className="md:col-span-2 flex items-center gap-6 bg-gray-50 p-4 rounded-2xl border-2 border-dashed border-gray-300">
               <div className="w-20 h-20 rounded-xl border-2 border-black overflow-hidden bg-white shrink-0 shadow-paper-sm">
-                <img src={profile.avatar_url || '/placeholder-user.png'} alt="Avatar" className="w-full h-full object-cover" />
+                <img 
+                  src={profile.avatar_url || '/placeholder-user.png'} 
+                  alt="Avatar" 
+                  className="w-full h-full object-cover" 
+                  onError={(e) => {
+                    if (profile.avatar_url && !profile.avatar_url.includes('/avatars/')) {
+                      const parts = profile.avatar_url.split('/profile-images/');
+                      if (parts.length === 2) {
+                        (e.target as HTMLImageElement).src = `${parts[0]}/profile-images/avatars/${parts[1]}`;
+                      }
+                    }
+                  }}
+                />
               </div>
               <div className="flex flex-col gap-2 text-left">
                 <label className="cursor-pointer bg-white border-2 border-black px-4 py-2 rounded-xl font-bold text-sm hover:bg-gray-100 transition-all flex items-center gap-2">
