@@ -1,5 +1,5 @@
 'use client'
-// components/chat/PetAssistant.tsx (V5 - เชื่อมโยงระบบส่งคลังรายชื่อสัตว์เลี้ยงเพื่อผูกล็อกตาราง reminders อัตโนมัติ)
+// components/chat/PetAssistant.tsx (V6 - แก้ไขเครื่องหมายปิด String Quick Replies ไร้ข้อผิดพลาดไวยากรณ์)
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { AnimatePresence, motion }      from 'framer-motion'
@@ -78,7 +78,6 @@ export default function PetAssistant() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [pushSubscribed, setPushSubscribed] = useState(false)
   
-  // ── 🟢 เพิ่ม State สำหรับจัดเก็บคลังรายชื่อโปรไฟล์น้องของนุดประจำเซสชันสแตนด์บายส่งให้ AI ──
   const [myPets, setMyPets] = useState<any[]>([])
 
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -132,7 +131,6 @@ export default function PetAssistant() {
       ] = await Promise.all([
         supabase.from('pets').select('*', { count: 'exact', head: true }).eq('status', 'lost').eq('province', userProvince),
         supabase.from('reminders').select('title, next_remind_at').eq('user_id', session.user.id).eq('is_done', false).limit(1),
-        // 🟢 ดึงข้อมูลทะเบียนสัตว์เลี้ยงที่มีอยู่มาเก็บไว้ใน State คลังสเปกหน้าบ้าน
         supabase.from('pets').select('id, name, species, breed').eq('user_id', session.user.id).not('status', 'eq', 'archived')
       ])
 
@@ -222,20 +220,7 @@ export default function PetAssistant() {
     if (messages.length === 0) setMessages([{ role: 'bot', text: ch.greet }])
   }
 
-  const handleSpeak = (text: string) => {
-    if (speaking) {
-      stopSpeaking()
-      setSpeaking(false)
-    } else {
-      speakText(text)
-      setSpeaking(true)
-      const checkInterval = setInterval(() => {
-        if (!isSpeaking()) { setSpeaking(false); clearInterval(checkInterval) }
-      }, 500)
-    }
-  }
-
-  const sendMessage = async (text: string) => {
+  const handleTranslateMessage = async (text: string) => {
     if (!text.trim() && !attachedBase64) return
     if (isLoading) return
 
@@ -263,7 +248,6 @@ export default function PetAssistant() {
           pageContext: pathname,
           history:     messages.slice(-6).map(m => ({ role: m.role, text: m.text })),
           evidence_image_base64: attachedBase64,
-          // ── 🟢 ส่งพ่วงอาเรย์รายชื่อสัตว์เลี้ยงทั้งหมดของนุดเข้าไปใน Payload เพื่อให้ AI ดึงคู่แมนวลจับคู่ pet_id คีย์ตรงตาราง ──
           user_registered_pets: myPets 
         }),
       })
@@ -326,7 +310,7 @@ export default function PetAssistant() {
                 </AnimatePresence>
               </div>
 
-              <button onClick={() => setIsOpen(false)} style={{ background: 'rgba(255,255,255,.4)', border: '2px solid #1A1208', borderRadius: 8, width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A1208' }}><X size={14} /></button>
+              <button onClick={() => setIsOpen(false)} style={{ background: 'rgba(255,255,255,.4)', border: '2px solid #1A1208', borderRadius: 8, width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifycontent: 'center', color: '#1A1208' }}><X size={14} /></button>
             </div>
 
             {/* Messages Content */}
@@ -369,7 +353,7 @@ export default function PetAssistant() {
               ))}
             </div>
 
-            {/* พรีวิวรูปภาพก่อนกดยิงส่งขึ้นระบบ */}
+            {/* Preview */}
             {imagePreview && (
               <div style={{ padding: '6px 12px', background: '#FFF3EC', borderTop: '2px solid #EDE0C4', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 6, border: '1.5px solid #1A1208', overflow: 'hidden' }}>
@@ -380,18 +364,18 @@ export default function PetAssistant() {
               </div>
             )}
 
-            {/* Quick replies */}
+            {/* ── 🟢 แก้ไขเครื่องหมายคำพูดรอบตอพิกัด border สไตล์ Neubrutalism ให้เป็นมาตรฐานระงับ Syntax บิวด์พัง ── */}
             <div style={{ padding: '6px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, borderTop: '2px solid #EDE0C4', background: '#F5EDD8', flexShrink: 0 }}>
               {QUICK_REPLIES.map(q => (
-                <button key={q} onClick={() => sendMessage(q)} disabled={isLoading} style={{ background: '#FFFFFF', border: `1.5px solid #1A1208', borderRadius: 20, padding: '3px 9px', fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: '#1A1208', boxShadow: `1px 1px 0 ${ch.color}` }}>
+                <button key={q} onClick={() => handleTranslateMessage(q)} disabled={isLoading} style={{ background: '#FFFFFF', border: '1.5px solid #1A1208', borderRadius: 20, padding: '3px 9px', fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: '#1A1208', boxShadow: `1px 1px 0 ${ch.color}` }}>
                   {q}
                 </button>
               ))}
             </div>
 
             {/* Form Input Control */}
-            <form onSubmit={e => { e.preventDefault(); sendMessage(input) }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', borderTop: '3px solid #1A1208', background: '#FFFFFF', flexShrink: 0 }}>
-              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isLoading} style={{ background: 'white', border: '2px solid #1A1208', borderRadius: 12, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '2px 2px 0 #1A1208' }} title="แนบรูปใบเสร็จ/หลักฐาน">
+            <form onSubmit={e => { e.preventDefault(); handleTranslateMessage(input) }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', borderTop: '3px solid #1A1208', background: '#FFFFFF', flexShrink: 0 }}>
+              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isLoading} style={{ background: 'white', border: '2px solid #1A1208', borderRadius: 12, width: 36, height: 36, display: 'flex', alignItems: 'center', justifycontent: 'center', cursor: 'pointer', boxShadow: '2px 2px 0 #1A1208' }} title="แนบรูปใบเสร็จ/หลักฐาน">
                 <Camera size={16} className="text-black" />
               </button>
               <input type="file" ref={fileInputRef} onChange={handleFileAttach} accept="image/*" className="hidden" />
