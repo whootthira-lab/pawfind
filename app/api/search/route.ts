@@ -21,14 +21,15 @@ export async function POST(req: NextRequest) {
     const analysis = await analyzePetImages([imageBase64])
 
     // 3. ค้นหาข้อมูล (Hybrid Search + Species Boost)
+    // ── 🟢 [แก้ไขสำเร็จ] ครอบประเภทโมเดลด้วย (analysis as any) เพื่อเปิดทางดึงฟิลด์ข้อมูลสับคิวน้ำหนักสัตว์หลัก ──
     const { results, radiusUsed, expanded } = await hybridSearch({
       queryText: analysis?.full_description || 'สัตว์เลี้ยง หมา แมว',
       lat:       lat ?? 14.8799,
       lng:       lng ?? 102.0167,
       type:      type || analysis?.breed || 'ไม่ระบุ',
       marking:   marking || false,
-      // ← ส่ง species จาก AI analysis เพื่อ boost สัตว์ชนิดเดียวกันขึ้นก่อน
-      species:   analysis?.species || '',
+      // ส่งค่าชนิดสัตว์หลักจากผลวิเคราะห์เข้าไปจัดคิวค่าน้ำหนักอาเรย์เด้งประเภทเดียวกันขึ้นก่อนแถวแรกสุด
+      species:   (analysis as any)?.species || '',
     })
 
     // 4. ส่งข้อมูลกลับ
