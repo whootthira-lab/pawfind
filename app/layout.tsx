@@ -6,9 +6,9 @@ import { Suspense } from 'react'
 import { Navbar } from '@/components/layout/Navbar'
 import { WelcomePopup } from '@/components/WelcomePopup'
 import { GlobalTicker } from '@/components/layout/GlobalTicker'
-import PetAssistant from '@/components/chat/PetAssistant' // 💡 1. นำเข้าคอมโพเนนต์ AI Chatbot
+import PetAssistant from '@/components/chat/PetAssistant' // นำเข้าคอมโพเนนต์ AI Chatbot
 
-// 💡 ปรับ URL ให้ชี้ไปที่โดเมนจริง pobpet.com
+// URL ปรับชี้ไปที่โดเมนจริง pobpet.com
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pobpet.com'
 
 export const metadata: Metadata = {
@@ -17,8 +17,20 @@ export const metadata: Metadata = {
     default: 'PobPet · ตามหาน้อง 🐾',
     template: '%s | PobPet ตามหาน้อง',
   },
-  // 💡 เพิ่มข้อความเรื่อง "ข่าวสารกิจกรรม" เข้าไปให้ครอบคลุมฟีเจอร์ใหม่
   description: 'แพลตฟอร์มตามหาสัตว์เลี้ยงด้วย AI ช่วยกันส่งน้องกลับบ้าน แจ้งพบสัตว์หลง หาบ้านให้สัตว์เลี้ยง และศูนย์รวมข่าวสารกิจกรรมเพื่อชุมชนคนรักสัตว์',
+  
+  // ── 🟢 เพิ่มชุดคำสั่งกำหนดค่าไอคอนหัวแท็บเบราว์เซอร์ และระบุสิทธิ์ PWA ชอร์ตคัดมือถือดักสัญญานสากล ──
+  icons: {
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' } // รองรับหัวแท็บ Google Chrome/Safari บนคอมพิวเตอร์ทั่วไป
+    ],
+    shortcut: '/icon-192.png',
+    apple: [
+      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' } // ดักระบบ Shortcut หน้าจอโฮมของ iPhone
+    ],
+  },
+  manifest: '/manifest.json', // ผูกสิทธิ์ Manifest ของทางระบบฝั่ง Android
   
   openGraph: {
     title: 'PobPet · แพลตฟอร์มเพื่อคนรักสัตว์',
@@ -27,7 +39,6 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'th_TH',
     siteName: 'PobPet · ตามหาน้อง',
-    // 💡 2. แก้ไขรูปภาพให้เป็น Absolute URL (ใส่ ${BASE_URL} นำหน้า)
     images: [
       { 
         url: `${BASE_URL}/og-pobpet.png`, 
@@ -38,12 +49,10 @@ export const metadata: Metadata = {
     ],
   },
   
-  // 💡 เผื่อการแชร์ลง X (Twitter) ให้แสดงรูปภาพแบบเต็มตา
   twitter: { 
     card: 'summary_large_image',
     title: 'PobPet · แพลตฟอร์มเพื่อชุมชนคนรักสัตว์',
     description: 'แจ้งสัตว์เลี้ยงสูญหาย ประกาศพบสัตว์หลงทาง หาบ้านให้น้องๆ และติดตามข่าวสารกิจกรรมชุมชนคนรักสัตว์',
-    // 💡 แก้เป็น Absolute URL ที่นี่ด้วยเช่นกัน
     images: [`${BASE_URL}/og-pobpet.png`],
   },
 }
@@ -78,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <p>© {new Date().getFullYear()} PobPet · พบเพ็ท · Community for Pets 🐾</p>
         </footer>
 
-        {/* 💡 วางร่างสถิตของ AI Chatbot ไว้ตรงนี้ เพื่อให้ปรากฏทุกหน้าของเว็บ */}
+        {/* วางร่างสถิตของ AI Chatbot ไว้ตรงนี้ เพื่อให้ปรากฏทุกหน้าของเว็บ */}
         <PetAssistant />
       </body>
     </html>
