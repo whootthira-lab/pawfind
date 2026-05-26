@@ -36,12 +36,12 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
   const cfg    = statusCfg(pet.status || 'lost')
   const icon   = speciesIcon(pet.species || pet.type || 'other')
 
-  // ── 🟢 1. ฟังก์ชันอัปเดตสถานะพร้อมปรับการมองเห็นเป็น "สาธารณะ" อัตโนมัติ (Constraint Mapping) ──
+  // ── 🟢 ฟังก์ชันสลับโหมดพร้อมปรับค่าการมองเห็นเป็น สาธารณะ อัตโนมัติ (Constraint Mapping) ──
   const handleChangeMode = async (targetMode: 'lost' | 'found' | 'adoption' | 'mating' | 'showcase') => {
     if (modeChanging) return
     setModeChanging(true)
 
-    // บังคับสิทธิ์อัตโนมัติ: ค้นหาน้อง (lost), หาคู่ให้น้อง (mating), พบสัตว์หลง (found) ปรับเป็น "public" ทันที
+    // บังคับสิทธิ์อัตโนมัติ: ค้นหาน้อง (lost), พบสัตว์หลง (found), หาคู่ให้น้อง (mating) ต้องเป็น "public"
     const shouldBePublic = ['lost', 'found', 'mating'].includes(targetMode)
     const newVisibility = shouldBePublic ? 'public' : (pet.visibility || 'public')
 
@@ -66,20 +66,20 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
         visibility: newVisibility
       }))
       
-      alert(`🎉 สลับโหมดน้องเป็น "${statusCfg(targetMode).label}" ${shouldBePublic ? 'และระบบปรับสถานะการมองเห็นเป็น สาธารณะ อัตโนมัติเรียบร้อยค่ะ' : ''}`)
+      alert(`🎉 สลับโหมดน้องเป็น "${statusCfg(targetMode).label}" ${shouldBePublic ? 'และระบบสลับการมองเห็นเป็น สาธารณะ อัตโนมัติเรียบร้อยค่ะ' : ''}`)
     } catch (err: any) {
       alert(`สลับโหมดไม่สำเร็จ: ${err.message}`)
-    } finally { // 🟢 แก้ไขคำสะกดผิดไวยากรณ์ (Typo) เรียบร้อยครับ
+    } finally {
       setModeChanging(false)
     }
   }
 
-  // ── 🟢 2. ฟังก์ชันเปลี่ยนเฉพาะสถานะการมองเห็นแมนนวล (ดักไม่ให้ซ่อนถ้าอยู่ในโหมดประกาศหลัก) ──
+  // ── 🟢 ฟังก์ชันเปลี่ยนเฉพาะสถานะการมองเห็นแมนนวล (ดักความปลอดภัยไม่ให้ซ่อนถ้าประกาศงานสำคัญค้างอยู่) ──
   const handleToggleVisibility = async (targetVisibility: 'public' | 'private') => {
     if (modeChanging) return
     
     if (targetVisibility === 'private' && ['lost', 'found', 'mating'].includes(pet.status)) {
-      alert('⚠️ ไม่สามารถปรับเป็น "เฉพาะฉัน" ได้ในขณะที่น้องอยู่ในโหมด ค้นหาน้อง, หาคู่ หรือพบสัตว์หลง เพื่อให้ระบบ AI ทำการคัดกรองข้อมูลสาธารณะพุชบอร์ดได้ปกติค่ะ')
+      alert('⚠️ ประกาศนี้ไม่สามารถปรับเป็น "เฉพาะฉัน" ได้ชั่วคราวเนื่องจากน้องอยู่ในโหมด ค้นหาน้อง, หาคู่ หรือพบสัตว์หลง เพื่อให้ระบบการค้นหาและแมตช์จับคู่ AI ทำงานได้ปกติสาธารณะค่ะ')
       return
     }
 
@@ -94,12 +94,12 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
       setPet((prev: any) => ({ ...prev, visibility: targetVisibility }))
     } catch (err: any) {
       alert(`ปรับการมองเห็นไม่สำเร็จ: ${err.message}`)
-    } finally { // 🟢 แก้ไขคำสะกดผิดไวยากรณ์ (Typo) เรียบร้อยครับ
+    } finally {
       setModeChanging(false)
     }
   }
 
-  // ── 🟢 3. ฟังก์ชันปิดเคสสำเร็จร่วมกับการเด้ง Donation Pop-up บริจาคส่งต่อสิ่งดีๆ ──
+  // ── 🟢 ฟังก์ชันปิดเคสสำเร็จพ่วงเปิดการเด้งป๊อปอัป DonationModal บริจาค ──
   const handleResolveCase = async () => {
     let checkText = 'เจอน้องเรียบร้อยแล้วใช่ไหมคะ?'
     if (pet.status === 'adoption') checkText = 'น้องได้บ้านที่อบอุ่นใหม่เรียบร้อยแล้วใช่ไหมคะ?'
@@ -125,11 +125,11 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
       if (error) throw error
       setPet((prev: any) => ({ ...prev, status: 'showcase' }))
       
-      // เปิดป๊อปอัปภาพขอรับบริจาคที่พี่วุฒิ์ทำไว้ค้างก่อนหน้าทันที
+      // สั่งเปิดหน้าต่างภาพรับบริจาคที่พี่วุฒิ์ดีไซน์ไว้
       setShowDonation(true)
     } catch (err: any) {
       alert(`ปิดเคสไม่สำเร็จ: ${err.message}`)
-    } finally { // 🟢 แก้ไขคำสะกดผิดไวยากรณ์ (Typo) เรียบร้อยครับ
+    } finally {
       setModeChanging(false)
     }
   }
@@ -147,7 +147,7 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
           {cfg.label}
         </div>
 
-        {/* แผงสถานะป้ายบอกการมองเห็นที่มุมขวาบนของการ์ด */}
+        {/* แผงป้ายแสดงสถานะการมองเห็น ปรากฏที่มุมขวาบนของการ์ด */}
         <div className="absolute top-2.5 right-2.5 flex gap-1">
           {pet.visibility === 'private' ? (
             <div className="bg-red-500 text-white p-1 rounded-md border border-black shadow-paper-sm flex items-center gap-1 text-[9px] font-black">
@@ -172,7 +172,7 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
           <span>{pet.province || 'ไม่ระบุพื้นที่'}</span>
         </div>
 
-        {/* แผงปุ่มสลับการมองเห็นและโหมดใช้งาน */}
+        {/* แผงปุ่มตั้งค่า */}
         <div className="mt-3 pt-2 border-t border-dashed border-gray-200 space-y-2">
           <div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">🌍 ตั้งค่าสิทธิ์การมองเห็นการ์ด:</p>

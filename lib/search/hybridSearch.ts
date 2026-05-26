@@ -21,13 +21,13 @@ function getTier(score: number): MatchTier {
 }
 
 export interface HybridSearchOptions {
-  queryText: string   
+  queryText: string   // full_description จาก Gemini
   lat: number
   lng: number
-  type: string        
+  type: string        // ค่าสายพันธุ์ย่อย (breed)
   marking?: string
   initialRadiusKm?: number
-  species?: string    // 🟢 รองรับการรับค่าชนิดสัตว์หลักจาก API Route เช่น dog, cat, bird
+  species?: string    // 🟢 ค่าประเภทหลักเช่น dog, cat, bird, fish ส่งพ่วงมาจาก API Route
 }
 
 export interface HybridSearchResult {
@@ -49,6 +49,8 @@ export async function hybridSearch(
 
   for (const radius of RADIUS_STEPS) {
     const threshold = getThreshold(radius)
+    
+    // ── 🟢 ส่งพารามิเตอร์เข้า RPC สอดคล้องครบถ้วนตามสเปกสากล ──
     const { data, error } = await supabase.rpc('hybrid_search', {
       query_vector: vectorStr,
       search_lat: opts.lat,
@@ -57,7 +59,7 @@ export async function hybridSearch(
       radius_meters: radius ? radius * 1000 : null,
       similarity_threshold: threshold,
       marking_filter: opts.marking ?? '',
-      result_limit: 40 // ขยายจำนวนโควตาเพื่อให้ครอบคลุมการสลับน้ำหนัก
+      result_limit: 40 // ปรับ Limit โควตาให้กว้างขึ้นเพื่อนำผลลัพธ์มาสับคิวน้ำหนักหน้าบ้านได้นิ่งขึ้น
     })
     
     if (error) throw error
@@ -67,16 +69,17 @@ export async function hybridSearch(
       tier: getTier(r.similarity)
     }))
 
-    // ── 🟢 [ฟังก์ชันสับน้ำหนัก] จัดคิวให้ประเภทสัตว์เดียวกันขึ้นก่อนอย่างสมบูรณ์แบบ ──
+    // ── 🟢 [ฟังก์ชันสับน้ำหนักอันดับความสำคัญ] คัดกรองประเภทสัตว์ตรงกันเด้งขึ้นแถวหน้าสุด ──
     if (opts.species && results.length > 0) {
       results.sort((a: any, b: any) => {
-        const aMatch = String(a.species).toLowerCase() === String(opts.species).toLowerCase() ? 1 : 0
-        const bMatch = String(b.species).toLowerCase() === String(opts.species).toLowerCase() ? 1 : 0
+        // ดึงฟิลด์ตรวจสอบชนิดสัตว์หลัก (เช่น ดักคำว่า cat หรือ dog)
+        const aMatch = String(a.species || '').toLowerCase() === String(opts.species).toLowerCase() ? 1 : 0
+        const bMatch = String(b.species || '').toLowerCase() === String(opts.species).toLowerCase() ? 1 : 0
         
-        // หากชนิดนึงตรงเงื่อนไข แต่อีกชนิดไม่ตรง ให้ดันตัวที่ตรงขึ้นก่อนทันที
+        // กฎเหล็ก: ถ้าตัวนึงตรงประเภท แต่อีกตัวไม่ตรง สับตัวที่ตรงขึ้นก่อนทันที
         if (aMatch !== bMatch) return bMatch - aMatch
         
-        // หากชนิดสัตว์เดียวกัน ให้จัดลำดับตามระดับคะแนนความเหมือนเวกเตอร์ (Similarity Score) ปกติ
+        // หากสัตว์ทั้งสองตัวเป็นประเภทเดียวกัน ให้เรียงลำดับตามคะแนนความคล้ายคลึงเวกเตอร์ AI (Similarity) สูงไปต่ำปกติ
         return (b.similarity || 0) - (a.similarity || 0)
       })
     }
@@ -88,6 +91,6 @@ export async function hybridSearch(
     expanded = true
   }
   
-  // ส่งคืนค่าตัดผลลัพธ์เอาเฉพาะกลุ่ม Top 10 แถวหน้าสุดที่เรียงน้ำหนักชนิดสัตว์เดียวกันเรียบร้อยแล้ว
+  // คืนค่าตัดเอาเฉพาะผลลัพธ์สุดยอดกลุ่ม Top 10 แถวหน้าสุดที่สับคิวน้ำหนักเรียบร้อยแล้ว
   return { results: results.slice(0, 10), radiusUsed, expanded }
 }
