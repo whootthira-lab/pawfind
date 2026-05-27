@@ -10,7 +10,7 @@ import {
   LogIn, Mail, Loader2, CheckCircle2, AlertCircle, 
   UserPlus, MapPin, Phone, Camera, Cake, UserCircle,
   Briefcase, Heart, Sparkles, Smile, ChevronRight, ArrowLeft,
-  Home, MessageSquare, PawPrint, Lock, Eye, EyeOff, Chrome
+  Home, MessageSquare, PawPrint, Lock, Eye, EyeOff
 } from 'lucide-react'
 
 const expertiseOptions = [
