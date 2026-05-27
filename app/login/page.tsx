@@ -10,7 +10,7 @@ import {
   LogIn, Mail, Loader2, CheckCircle2, AlertCircle, 
   UserPlus, MapPin, Phone, Camera, Cake, UserCircle,
   Briefcase, Heart, Sparkles, Smile, ChevronRight, ArrowLeft,
-  Home, MessageSquare, PawPrint
+  Home, MessageSquare, PawPrint, Lock, Eye, EyeOff, Chrome
 } from 'lucide-react'
 
 const expertiseOptions = [
@@ -99,18 +99,43 @@ const thailandProvinces = [
   "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยะลา", "ยโสธร", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อุดรธานี", "อุทัยธานี", "อุตรดิตถ์", "อุบลราชธานี", "อำนาจเจริญ"
 ].sort()
 
+// ── Generation Calculator ─────────────────────────────────────
+function getGeneration(birthDate: string): { gen: string; emoji: string; age: number } | null {
+  if (!birthDate) return null
+  const birth = new Date(birthDate)
+  const today = new Date()
+  const year  = birth.getFullYear()
+  let age = today.getFullYear() - year
+  if (today < new Date(today.getFullYear(), birth.getMonth(), birth.getDate())) age--
+
+  let gen = '', emoji = ''
+  if (year >= 1928 && year <= 1945) { gen = 'Silent Generation'; emoji = '🎖' }
+  else if (year >= 1946 && year <= 1964) { gen = 'Baby Boomer'; emoji = '🌸' }
+  else if (year >= 1965 && year <= 1979) { gen = 'Gen X'; emoji = '📼' }
+  else if (year >= 1980 && year <= 1994) { gen = 'Millennials (Gen Y)'; emoji = '💻' }
+  else if (year >= 1995 && year <= 2009) { gen = 'Gen Z'; emoji = '📱' }
+  else if (year >= 2010) { gen = 'Gen Alpha'; emoji = '🤖' }
+  else return null
+
+  return { gen, emoji, age }
+}
+
 export default function LoginPage() {
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  const [step, setStep] = useState<'email' | 'profile' | 'success'>('email')
+  const [step,           setStep]           = useState<'email' | 'profile' | 'success'>('email')
+  const [loginMode,      setLoginMode]      = useState<'otp' | 'password'>('password')  // ← default: password
   const [profileSubStep, setProfileSubStep] = useState<1 | 2>(1)
-  const [email, setEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [email,          setEmail]          = useState('')
+  const [password,       setPassword]       = useState('')
+  const [showPassword,   setShowPassword]   = useState(false)
+  const [isNewUser,      setIsNewUser]      = useState(false)
+  const [loading,        setLoading]        = useState(false)
+  const [uploading,      setUploading]      = useState(false)
+  const [message,        setMessage]        = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const [formData, setFormData] = useState({
     display_name: '',
@@ -134,39 +159,97 @@ export default function LoginPage() {
     marital_status: 'single'
   })
 
+  // ── Google Login ──────────────────────────────────────────────
+  const handleGoogleLogin = async () => {
+    setLoading(true)
+    setMessage(null)
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: { access_type: 'offline', prompt: 'consent' },
+        },
+      })
+      if (error) throw error
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Google Login ไม่สำเร็จ' })
+      setLoading(false)
+    }
+  }
+
+  // ── Email + Password / OTP ────────────────────────────────────
   const handleCheckEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
-
     setLoading(true)
     setMessage(null)
 
     try {
       const cleanEmail = email.trim().toLowerCase()
-      const { data: profile, error } = await supabase
+
+      // ── Password mode ─────────────────────────────────────────
+      if (loginMode === 'password') {
+        if (!password.trim()) {
+          setMessage({ type: 'error', text: 'กรุณากรอกรหัสผ่าน' })
+          setLoading(false)
+          return
+        }
+
+        // เช็คว่า user มีอยู่แล้วไหม
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', cleanEmail)
+          .maybeSingle()
+
+        if (profile) {
+          // Login ด้วย password
+          const { error: signInErr } = await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password,
+          })
+          if (signInErr) {
+            // Password ผิด → แนะนำ OTP
+            if (signInErr.message.includes('Invalid login credentials')) {
+              setMessage({ type: 'error', text: 'รหัสผ่านไม่ถูกต้อง หรือยังไม่ได้ตั้งรหัสผ่าน ลอง "ส่ง Magic Link" แทนได้ครับ' })
+            } else {
+              throw signInErr
+            }
+            return
+          }
+          // Login สำเร็จ → redirect
+          window.location.href = '/auth/callback?next=/'
+        } else {
+          // User ใหม่ → สร้าง account ด้วย password
+          setIsNewUser(true)
+          setStep('profile')
+          setProfileSubStep(1)
+        }
+        return
+      }
+
+      // ── OTP mode ──────────────────────────────────────────────
+      const { data: profile } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', cleanEmail)
         .maybeSingle()
 
-      if (error) throw error
-
       if (profile) {
         const { error: signInErr } = await supabase.auth.signInWithOtp({
           email: cleanEmail,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          }
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` }
         })
-
         if (signInErr) throw signInErr
         setStep('success')
       } else {
+        setIsNewUser(true)
         setStep('profile')
         setProfileSubStep(1)
       }
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'เกิดข้อผิดพลาดในการตรวจสอบอีเมล' })
+      setMessage({ type: 'error', text: err.message || 'เกิดข้อผิดพลาด' })
     } finally {
       setLoading(false)
     }
@@ -256,53 +339,70 @@ export default function LoginPage() {
     setLoading(true)
     setMessage(null)
 
+    // ── ตรวจสอบ birth_date บังคับ ─────────────────────────────
+    if (!formData.birth_date) {
+      setMessage({ type: 'error', text: 'กรุณากรอกวันเดือนปีเกิด (บังคับ)' })
+      setLoading(false)
+      return
+    }
+
     try {
       const cleanEmail = email.trim().toLowerCase()
-      
-      // ── 🟢 รวมอาเรย์บทบาททั้งหมดแปลงเป็นข้อความคั่น Comma เพื่อความเข้ากันได้ 100% กับฟิลด์เดิมในฐานข้อมูล ──
       const roleJoinedString = formData.community_role.join(',')
+      const genInfo = getGeneration(formData.birth_date)
 
       const profileData = {
-        display_name: formData.display_name.trim(),
-        first_name: formData.first_name.trim(),
-        last_name: formData.last_name.trim(),
-        birth_date: formData.birth_date || null,
-        phone_number: formData.phone_number.trim(),
-        province: formData.province,
-        district: formData.district.trim() || null,
-        subdistrict: formData.subdistrict.trim() || null,
-        address: formData.address.trim() || null,
-        line_id: formData.line_id.trim() || null,
-        gender: formData.gender,
-        avatar_url: formData.avatar_url || null,
-        occupation: formData.occupation,
-        // ── บันทึก String ที่คั่นด้วย Comma เข้าสู่ระบบตารางเดิม ──
-        community_role: roleJoinedString,
+        display_name:          formData.display_name.trim(),
+        first_name:            formData.first_name.trim(),
+        last_name:             formData.last_name.trim(),
+        birth_date:            formData.birth_date,
+        age:                   genInfo?.age || null,
+        generation:            genInfo?.gen || null,
+        phone_number:          formData.phone_number.trim(),
+        province:              formData.province,
+        district:              formData.district.trim() || null,
+        subdistrict:           formData.subdistrict.trim() || null,
+        address:               formData.address.trim() || null,
+        line_id:               formData.line_id.trim() || null,
+        gender:                formData.gender,
+        avatar_url:            formData.avatar_url || null,
+        occupation:            formData.occupation,
+        community_role:        roleJoinedString,
         community_role_custom: formData.community_role.includes('other') ? formData.community_role_custom.trim() : roleJoinedString,
-        interests: formData.interests,
-        expertise_tags: formData.expertise_tags,
-        marital_status: formData.marital_status,
-        line_user_id: null,
-        current_cooldown_until: null
+        interests:             formData.interests,
+        expertise_tags:        formData.expertise_tags,
+        marital_status:        formData.marital_status,
+        line_user_id:          null,
+        current_cooldown_until: null,
       }
 
       localStorage.setItem('pobpet_pending_registration', JSON.stringify(profileData))
 
-      const { error: authErr } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            pobpet_custom_registration: true,
-            ...profileData
-          }
-        }
-      })
-
-      if (authErr) throw authErr
-      setStep('success')
+      // ── Password signup หรือ OTP signup ───────────────────────
+      if (loginMode === 'password' && password.trim()) {
+        const { error: signUpErr } = await supabase.auth.signUp({
+          email:    cleanEmail,
+          password: password.trim(),
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: { pobpet_custom_registration: true, ...profileData },
+          },
+        })
+        if (signUpErr) throw signUpErr
+        setStep('success')
+      } else {
+        const { error: authErr } = await supabase.auth.signInWithOtp({
+          email: cleanEmail,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: { pobpet_custom_registration: true, ...profileData },
+          },
+        })
+        if (authErr) throw authErr
+        setStep('success')
+      }
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลโปรไฟล์' })
+      setMessage({ type: 'error', text: err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' })
     } finally {
       setLoading(false)
     }
@@ -351,30 +451,106 @@ export default function LoginPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               onSubmit={handleCheckEmail} 
-              className="space-y-6"
+              className="space-y-4"
             >
+              {/* ── Google Login ── */}
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 border-4 border-black
+                  bg-white py-4 rounded-2xl font-black text-lg shadow-paper-sm
+                  hover:shadow-paper hover:-translate-y-1 transition-all disabled:opacity-50"
+              >
+                {loading
+                  ? <Loader2 size={22} className="animate-spin" />
+                  : <>
+                      <svg width="22" height="22" viewBox="0 0 48 48">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                      </svg>
+                      เข้าสู่ระบบด้วย Google
+                    </>
+                }
+              </button>
+
+              {/* ── Divider ── */}
+              <div className="flex items-center gap-3 text-gray-400 font-bold text-sm">
+                <div className="flex-1 h-0.5 bg-gray-200" />
+                หรือใช้อีเมล
+                <div className="flex-1 h-0.5 bg-gray-200" />
+              </div>
+
+              {/* ── Email ── */}
               <div className="space-y-2">
-                <label className="block font-black text-lg text-black flex items-center gap-2">
-                  <Mail size={18} /> อีเมลของคุณ
+                <label className="block font-black text-sm text-black flex items-center gap-2">
+                  <Mail size={16} /> อีเมล
                 </label>
                 <input 
                   type="email" required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={e => setEmail(e.target.value)}
                   placeholder="yourname@example.com"
-                  className="w-full border-4 border-black p-4 rounded-2xl font-bold text-lg outline-none bg-white focus:ring-4 ring-black/5 placeholder:text-gray-400 transition-all"
+                  className="w-full border-4 border-black p-4 rounded-2xl font-bold text-lg
+                    outline-none bg-white focus:ring-4 ring-black/5 placeholder:text-gray-400"
                 />
               </div>
+
+              {/* ── Password (ถ้าเลือก mode password) ── */}
+              {loginMode === 'password' && (
+                <div className="space-y-2">
+                  <label className="block font-black text-sm text-black flex items-center gap-2">
+                    <Lock size={16} /> รหัสผ่าน
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="รหัสผ่านอย่างน้อย 6 ตัวอักษร"
+                      className="w-full border-4 border-black p-4 rounded-2xl font-bold text-lg
+                        outline-none bg-white focus:ring-4 ring-black/5 pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(p => !p)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Toggle mode ── */}
+              <div className="flex items-center justify-between text-sm font-bold">
+                <button
+                  type="button"
+                  onClick={() => { setLoginMode(m => m === 'password' ? 'otp' : 'password'); setMessage(null) }}
+                  className="text-gray-500 hover:text-black underline underline-offset-2 transition-colors"
+                >
+                  {loginMode === 'password'
+                    ? '📧 ใช้ Magic Link แทน (ไม่ต้องจำรหัสผ่าน)'
+                    : '🔑 ใช้รหัสผ่านแทน'
+                  }
+                </button>
+              </div>
+
               <Button 
                 type="submit" 
                 disabled={loading} 
-                className="w-full bg-black text-white py-8 text-xl font-black rounded-2xl border-2 border-black shadow-paper-sm hover:shadow-paper hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50"
+                className="w-full bg-black text-white py-7 text-xl font-black rounded-2xl
+                  border-2 border-black shadow-paper-sm hover:shadow-paper
+                  hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50"
               >
-                {loading ? <Loader2 className="animate-spin" /> : (
-                  <span className="flex items-center gap-2 justify-center">
-                    ดำเนินการต่อ ➔
-                  </span>
-                )}
+                {loading
+                  ? <Loader2 className="animate-spin mx-auto" />
+                  : loginMode === 'password'
+                    ? <span className="flex items-center gap-2 justify-center"><LogIn size={20} /> เข้าสู่ระบบ</span>
+                    : <span className="flex items-center gap-2 justify-center"><Mail size={20} /> ส่ง Magic Link</span>
+                }
               </Button>
             </motion.form>
           ) : (
@@ -447,14 +623,35 @@ export default function LoginPage() {
                       />
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="font-black text-xs text-black flex items-center gap-1"><Cake size={16}/> วันเกิด</label>
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="font-black text-xs text-black flex items-center gap-1">
+                        <Cake size={16}/> วันเกิด <span className="text-red-500">*</span>
+                        <span className="text-gray-400 font-bold">(บังคับ — ใช้คำนวณอายุและ Generation)</span>
+                      </label>
                       <input 
                         type="date"
+                        required
                         value={formData.birth_date}
+                        max={new Date().toISOString().split('T')[0]}
                         onChange={e => setFormData({...formData, birth_date: e.target.value})}
                         className="w-full border-2 border-black p-2.5 rounded-xl font-bold outline-none cursor-pointer"
                       />
+                      {/* ── Auto-calculate age + generation ── */}
+                      {formData.birth_date && (() => {
+                        const info = getGeneration(formData.birth_date)
+                        if (!info) return null
+                        return (
+                          <div className="mt-1.5 flex items-center gap-2 p-2.5 bg-wagashi-matcha/20
+                            border-2 border-black rounded-xl font-bold text-sm">
+                            <span className="text-xl">{info.emoji}</span>
+                            <div>
+                              <span className="text-black">อายุ {info.age} ปี</span>
+                              <span className="mx-2 text-gray-400">|</span>
+                              <span className="text-ori-orange">{info.gen}</span>
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
 
                     <div className="space-y-1">
