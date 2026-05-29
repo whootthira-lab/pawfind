@@ -1,4 +1,5 @@
 'use client'
+// app/(main)/dashboard/pets/page.tsx (V3 - หน้าจัดการโปรไฟล์คลังสัตว์เลี้ยง แสดงเพศ ทำหมัน คำนวณอายุอัตโนมัติสมบูรณ์ 100%)
 
 import { useState, useEffect, useMemo } from 'react'
 import { createBrowserClient }          from '@supabase/ssr'
@@ -39,6 +40,29 @@ export default function DashboardPetsPage() {
   const [loading,   setLoading]   = useState(true)
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
 
+  // ── 🟢 ฟังก์ชันคำนวณอายุอัตโนมัติสำหรับพ่นแสดงผลบนตัวการ์ดจัดการรายตัว ──
+  const calculateAge = (birthdayString: string | null) => {
+    if (!birthdayString) return 'ไม่ระบุอายุ'
+    const birth = new Date(birthdayString)
+    const today = new Date()
+    
+    let years = today.getFullYear() - birth.getFullYear()
+    let months = today.getMonth() - birth.getMonth()
+    
+    if (months < 0 || (months === 0 && today.getDate() < birth.getDate())) {
+      years--
+      months += 12
+    }
+    if (today.getDate() < birth.getDate()) {
+      months--
+    }
+
+    if (years <= 0) {
+      return months <= 0 ? 'วัยแรกเกิด' : `${months} เดือน`
+    }
+    return months <= 0 ? `${years} ขวบ` : `${years} ขวบ ${months} เดือน`
+  }
+
   useEffect(() => {
     const load = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -54,7 +78,7 @@ export default function DashboardPetsPage() {
       const limit = plan === 'member' ? 3 : 1
       setSub({ plan, limit })
 
-      // 🟢 [แก้ไขสอดคล้อง] คิวรีแบบ Relation ดึงข้อมูลรูปภาพ และประวัติสุขภาพตัวล่าสุดพ่วงออกมาพร้อมกัน
+      // คิวรีแบบ Relation ดึงข้อมูลรูปภาพ และประวัติสุขภาพตัวล่าสุดพ่วงออกมาพร้อมกัน
       const { data: activePets } = await supabase
         .from('pets')
         .select(`
@@ -66,7 +90,6 @@ export default function DashboardPetsPage() {
         .eq('status', 'active')
         .order('created_at', { ascending: false })
 
-      // นำข้อมูลประวัติสุขภาพกลุ่มวัคซีนตัวที่ใหม่ที่สุดมาแมปแปลงชื่อเป็นฟิลด์ last_vaccine_date เพื่อให้ PetCard ดึงไปแสดง Badge อัตโนมัติ
       const mappedPets = (activePets || []).map(pet => {
         const vaccineEvents = (pet.pet_health_events || [])
           .filter((e: any) => e.event_type === 'vaccine' || e.event_type === 'rabies_vaccine')
@@ -118,7 +141,6 @@ export default function DashboardPetsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 mb-20" onClick={() => setActiveMenu(null)}>
-      {/* ส่วนโครงสร้าง HTML แสดงการ์ดทำงานเหมือนเดิมทุกประการ */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-black flex items-center gap-2">
@@ -194,11 +216,12 @@ export default function DashboardPetsPage() {
             const thumb     = getThumb(pet)
             const actModes  = getActiveModes(pet)
             const menuOpen  = activeMenu === pet.id
+            const petAge    = calculateAge(pet.birthday || pet.birthdate)
 
             return (
               <div key={pet.id} className="bg-white border-4 border-ori-ink rounded-3xl overflow-hidden shadow-paper">
                 <div className="flex items-stretch">
-                  <div className="w-28 shrink-0 bg-gray-100">
+                  <div className="w-28 shrink-0 bg-gray-100 relative border-r-2 border-ori-ink">
                     {thumb ? (
                       <img src={thumb} alt={pet.name} className="w-full h-full object-cover" />
                     ) : (
@@ -211,16 +234,29 @@ export default function DashboardPetsPage() {
                   <div className="flex-1 p-4">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="font-black text-lg leading-tight">{pet.name}</p>
-                        <p className="text-sm font-bold text-ori-ink-l">
-                          {[pet.species, pet.breed].filter(Boolean).join(' · ')}
+                        <div className="flex items-center gap-2">
+                          <p className="font-black text-lg leading-tight">{pet.name}</p>
+                          {/* 🟢 บล็อกป้ายเพศขนาดเล็กเด่นหราสไตล์ Origami */}
+                          <span className={`text-[10px] font-black px-1.5 py-0.2 rounded border border-black ${pet.gender === 'male' ? 'bg-blue-100 text-blue-700' : pet.gender === 'female' ? 'bg-pink-100 text-pink-700' : 'bg-gray-100 text-gray-600'}`}>
+                            {pet.gender === 'male' ? '♂ ผู้' : pet.gender === 'female' ? '♀ เมีย' : '❓ ไม่ระบุ'}
+                          </span>
+                        </div>
+                        
+                        <p className="text-sm font-bold text-ori-ink-l mt-0.5">
+                          {[pet.species, pet.breed].filter(Boolean).join(' · ')} • <span className="text-ori-ink font-extrabold">{petAge}</span>
                         </p>
-                        {/* 🟢 แสดงผลสถานะ Badge สุขภาพสั้นในหน้า Dashboard ย่อย */}
-                        {pet.last_vaccine_date && (
-                          <p className="text-xs font-bold text-green-600 mt-1">
-                            🛡️ ฉีดวัคซีนแล้วล่าสุดเมื่อเร็วๆ นี้
-                          </p>
-                        )}
+
+                        {/* 🟢 แสดงสถานะการทำหมันร่วมสัญญาน Badge สมุดสุขภาพ */}
+                        <div className="flex gap-1.5 items-center mt-1.5 flex-wrap">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${pet.is_sterilized ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+                            {pet.is_sterilized ? '🩺 ทำหมันแล้ว' : '❌ ยังไม่ทำหมัน'}
+                          </span>
+                          {pet.last_vaccine_date && (
+                            <span className="text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-md">
+                              🛡️ มีประวัติวัคซีนล่าสุด
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <div className="relative">
@@ -243,7 +279,7 @@ export default function DashboardPetsPage() {
                     </div>
 
                     {actModes.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-2">
+                      <div className="flex flex-wrap gap-1.5 mt-3">
                         {actModes.map(k => {
                           const Icon = MODE_ICONS[k]
                           return (
@@ -256,11 +292,11 @@ export default function DashboardPetsPage() {
                     )}
 
                     <div className="flex gap-2 mt-3">
-                      <Link href={`/pets/${pet.id}`} className="flex items-center gap-1 px-3 py-1.5 text-xs font-black border-2 border-ori-ink rounded-lg hover:bg-gray-50 transition-all">
-                        <Eye size={12} /> ดู
+                      <Link href={`/pets/${pet.id}`} className="flex items-center gap-1 px-3 py-1.5 text-xs font-black border-2 border-ori-ink rounded-lg hover:bg-gray-50 transition-all shadow-paper-sm">
+                        <Eye size={12} /> ดูสมุดสุขภาพ
                       </Link>
-                      <Link href={`/pets/${pet.id}/edit`} className="flex items-center gap-1 px-3 py-1.5 text-xs font-black border-2 border-ori-ink rounded-lg hover:bg-gray-50 transition-all">
-                        <Edit3 size={12} /> แก้ไข
+                      <Link href={`/pets/${pet.id}/edit`} className="flex items-center gap-1 px-3 py-1.5 text-xs font-black border-2 border-ori-ink rounded-lg hover:bg-gray-50 transition-all shadow-paper-sm">
+                        <Edit3 size={12} /> แก้ไขข้อมูล
                       </Link>
                     </div>
                   </div>
@@ -279,7 +315,7 @@ export default function DashboardPetsPage() {
 
           <div className="p-4 bg-red-50 border-2 border-red-300 rounded-2xl mb-4 flex items-start gap-2">
             <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-            <p className="text-xs font-bold text-red-700">โปรไฟล์เหล่านี้ถูกซ่อนเพราะแพ็คเกจหมดอายุ ต่ออายุเพื่อดึงข้อมูลกลับมาก่อนที่จะถูกลบถาวร</p>
+            <p className="text-xs font-bold text-red-700">Ref Layer Constraint: โปรไฟล์เหล่านี้ถูกซ่อนเพราะแพ็คเกจหมดอายุ ต่ออายุเพื่อดึงข้อมูลกลับมาก่อนที่จะถูกลบถาวร</p>
           </div>
 
           <div className="space-y-3">

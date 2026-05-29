@@ -1,5 +1,5 @@
 'use client'
-// app/(main)/pets/new/page.tsx (V3 - ปลดล็อคโควตาใช้งานฟรี 100% ทุกฟีเจอร์)
+// app/(main)/pets/new/page.tsx (V4 - ปลดล็อคโควตาใช้งานฟรีพร้อมระบบอินพุตสุขภาพ เพศ ทำหมัน วันเกิด สมบูรณ์ 100%)
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { createBrowserClient }       from '@supabase/ssr'
@@ -19,10 +19,9 @@ const SPECIES_OPTIONS = [
 ]
 
 const GENDER_OPTIONS = [
-  { value: '', label: '-- เลือก เพศ --' },
-  { value: 'male',    label: '♂ เพศผู้' },
-  { value: 'female',  label: '♀ เพศเมีย' },
-  { value: 'unknown', label: '❓ ไม่ทราบ' },
+  { value: 'unknown', label: '❓ ไม่ทราบ / ไม่ระบุ' },
+  { value: 'male',    label: '♂ เพศผู้ (Male)'   },
+  { value: 'female',  label: '♀ เพศเมีย (Female)'  },
 ]
 
 const MODE_CONFIG: { key: Mode; icon: any; label: string; color: string; desc: string }[] = [
@@ -59,7 +58,9 @@ export default function NewPetPage() {
     name: '',
     species: '',
     breed: '',
-    gender: '',
+    gender: 'unknown',       // ค่าเริ่มต้นแมปให้ปลอดภัย
+    is_sterilized: false,    // 🟢 ฟิลด์ใหม่สถานะการทำหมัน
+    birthday: '',            // 🟢 ฟิลด์ใหม่วันเกิดสำหรับใช้อ้างอิงและคำนวณอายุ
     province: '',
     district: '',
     sub_district: '',
@@ -76,7 +77,6 @@ export default function NewPetPage() {
   const [error, setError] = useState<string | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
 
-  // ── 🟢 [ปรับปรุง] เช็คแค่สถานะการล็อกอินธรรมดา ปลดล็อคระบบตรวจจำกัดโควตาสัตว์เลี้ยงทิ้งร้อยเปอร์เซ็นต์ ──
   useEffect(() => {
     async function checkAuth() {
       try {
@@ -159,7 +159,10 @@ export default function NewPetPage() {
           name: form.name || 'ไม่ทราบชื่อ',
           species: form.species,
           breed: form.breed || null,
-          gender: form.gender || 'unknown',
+          gender: form.gender,
+          is_sterilized: form.is_sterilized, // 🟢 ส่งค่าการทำหมันลงฐานข้อมูลเรียบร้อย
+          birthday: form.birthday || null,   // 🟢 ส่งค่าวันเกิดลงฐานข้อมูลเรียบร้อย
+          birthdate: form.birthday || null,  // ผูกคัปปลิ้งชื่อฟิลด์ทั้งสองรูปแบบ (birthdate/birthday) กันพลาด
           province: form.province,
           district: form.district || null,
           sub_district: form.sub_district || null,
@@ -171,7 +174,11 @@ export default function NewPetPage() {
           contact_name: form.contact_name || null,
           contact_tel: form.contact_tel,
           emergency_name: form.emergency_name || null,
-          emergency_tel: form.emergency_tel || null
+          emergency_tel: form.emergency_tel || null,
+          mode_lost: mode === 'mode_lost',
+          mode_mating: mode === 'mode_mating',
+          mode_adoption: mode === 'mode_adoption',
+          mode_showcase: mode === 'mode_showcase'
         })
         .select()
         .single()
@@ -180,7 +187,6 @@ export default function NewPetPage() {
 
       images.forEach(img => URL.revokeObjectURL(img.preview))
 
-      // ลิงก์ตรงส่งเข้าหน้าดีเทลหลัก (มีตัว s สอดคล้องตามโครงสร้างสากล) พร้อมพารามิเตอร์ส่งท้าย
       router.push(`/pets/${insertedPet.id}?created=true`)
       router.refresh()
 
@@ -301,6 +307,31 @@ export default function NewPetPage() {
                   <option key={g.value} value={g.value}>{g.label}</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          {/* ── 🟢 ส่วนแผงควบคุมอินพุตสุขภาพเชิงรุกเพิ่มเติม (ทำหมัน & วันเกิด) ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-dashed border-gray-200">
+            <div className="space-y-1">
+              <label className="font-black text-sm">การทำหมัน 🩺</label>
+              <select 
+                value={form.is_sterilized ? "true" : "false"} 
+                onChange={e => setForm(f => ({ ...f, is_sterilized: e.target.value === "true" }))} 
+                className="ori-input bg-white font-bold"
+              >
+                <option value="false">❌ ยังไม่ได้ทำหมัน</option>
+                <option value="true">✨ ทำหมันเรียบร้อยแล้ว</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-black text-sm">วันเกิดน้อง (เพื่อคำนวณอายุ) 🎂</label>
+              <input 
+                type="date" 
+                value={form.birthday} 
+                onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} 
+                className="ori-input cursor-pointer font-bold" 
+              />
             </div>
           </div>
 

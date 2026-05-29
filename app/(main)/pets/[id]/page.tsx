@@ -1,5 +1,5 @@
 'use client'
-// app/(main)/pets/[id]/page.tsx (V2 - สมุดสุขภาพหน้าเว็บฟรี แนบใบเสร็จ Lightbox Thumbnail + Web Push Integration)
+// app/(main)/pets/[id]/page.tsx (V3 - สมุดสุขภาพหน้าเว็บฟรี แสดงสถานะเพศ ทำหมัน คำนวณอายุอัตโนมัติ สมบูรณ์ 100%)
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { createBrowserClient }          from '@supabase/ssr'
@@ -86,6 +86,31 @@ export default function PetProfilePage() {
   // State สำหรับคลังเปิดขยายรูปใบเสร็จขนาดใหญ่ (Lightbox Modal)
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null)
 
+  // ── 🟢 ฟังก์ชันคำนวณอายุอัตโนมัติจากวันเกิดแบบยืดหยุ่นแม่นยำ ──
+  const calculatedAge = useMemo(() => {
+    const targetDate = pet?.birthday || pet?.birthdate
+    if (!targetDate) return 'ไม่ระบุอายุ'
+    
+    const birth = new Date(targetDate)
+    const today = new Date()
+    
+    let years = today.getFullYear() - birth.getFullYear()
+    let months = today.getMonth() - birth.getMonth()
+    
+    if (months < 0 || (months === 0 && today.getDate() < birth.getDate())) {
+      years--
+      months += 12
+    }
+    if (today.getDate() < birth.getDate()) {
+      months--
+    }
+
+    if (years <= 0) {
+      return months <= 0 ? 'แรกเกิด (วัยเด็ก)' : `${months} เดือน`
+    }
+    return months <= 0 ? `${years} ขวบ` : `${years} ขวบ ${months} เดือน`
+  }, [pet])
+
   const fetchHealthAndReminders = async () => {
     const { data: evData } = await supabase
       .from('pet_health_events').select('*')
@@ -168,7 +193,6 @@ export default function PetProfilePage() {
     }
   }
 
-  // ── ฟังก์ชันบันทึกสุขภาพตรงผ่านหน้าเว็บ ──
   const handleSaveHealthEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!healthForm.title.trim() || formSaving || !pet) return
@@ -177,12 +201,11 @@ export default function PetProfilePage() {
     try {
       let evidenceUrl = null
 
-      // 1. ตรวจสอบและอัปโหลดรูปภาพหลักฐานใบเสร็จเข้าบักเก็ตสุขภาพ (ถ้ามี)
       if (evidenceFile) {
         const fileExt = evidenceFile.name.split('.').pop()
         const fileName = `${pet.user_id}/${Date.now()}-evidence.${fileExt}`
         const { error: uploadErr } = await supabase.storage
-          .from('pet-images') // ใช้งานคลังจัดเก็บไฟล์ร่วมกันอย่างคุ้มค่า
+          .from('pet-images') 
           .upload(`health_evidences/${fileName}`, evidenceFile, { cacheControl: '3600', upsert: true })
 
         if (uploadErr) throw uploadErr
@@ -194,7 +217,6 @@ export default function PetProfilePage() {
         evidenceUrl = publicUrl
       }
 
-      // 2. บันทึกข้อมูลลงตารางประวัติสุขภาพ
       const { data: newEvent, error: evErr } = await supabase
         .from('pet_health_events')
         .insert({
@@ -204,14 +226,13 @@ export default function PetProfilePage() {
           description: healthForm.description.trim() || null,
           event_date: healthForm.event_date,
           medicine_name: healthForm.event_type.includes('vaccine') ? healthForm.title.trim() : null,
-          notes: evidenceUrl // คอลเลกชันเก็บบันทึก Public URL ภาพหลักฐานใบเสร็จสำรองไว้ในฟิลด์หมายเหตุโครงสร้างเก่า
+          notes: evidenceUrl 
         })
         .select()
         .single()
 
       if (evErr) throw evErr
 
-      // 3. บันทึกตั้งการแจ้งเตือนพุชหน้าบอร์ด (Web Push Integration) หากผู้ใช้สั่งเปิดตัวเลือกใช้งานไว้
       if (healthForm.set_reminder && healthForm.next_remind_at) {
         const { error: remErr } = await supabase
           .from('reminders')
@@ -228,7 +249,6 @@ export default function PetProfilePage() {
         if (remErr) throw remErr
       }
 
-      // ล้างสัญญานพรีวิวเคลียร์ Memory
       if (imgFilePreview) URL.revokeObjectURL(imgFilePreview)
       setEvidenceFile(null)
       setImgFilePreview(null)
@@ -269,9 +289,8 @@ export default function PetProfilePage() {
   if (!pet) return null
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 mb-20 text-black">
+    <div className="max-w-3xl mx-auto px-4 py-8 mb-24 text-black">
 
-      {/* Toasts ข้อความต้อนรับและสำเร็จ */}
       {justCreated && (
         <div className="mb-6 p-4 bg-green-50 border-2 border-green-400 rounded-2xl flex items-center gap-3">
           <CheckCircle2 size={20} className="text-green-600 shrink-0" />
@@ -390,13 +409,25 @@ export default function PetProfilePage() {
         <div className="space-y-6">
           <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
             <h2 className="font-black text-lg mb-4">ข้อมูลลักษณะสัตว์เลี้ยง</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* ── 🟢 ปรับเปลี่ยนจำนวนกล่อง Grid ข้อมูลลักษณะเพิ่ม ฟิลด์เพศ การทำหมัน และเลขอายุคำนวณอัตโนมัติ ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
-                <p className="text-xs font-bold text-ori-ink-l">เพศ</p>
-                <p className="font-black text-sm mt-0.5">{pet.gender === 'male' ? '♂ ผู้' : pet.gender === 'female' ? '♀ เมีย' : '❓ ไม่ทราบ'}</p>
+                <p className="text-xs font-bold text-ori-ink-l">เพศของน้อง</p>
+                <p className="font-black text-sm mt-0.5">{pet.gender === 'male' ? '♂ เพศผู้' : pet.gender === 'female' ? '♀ เพศเมีย' : '❓ ไม่ระบุ'}</p>
               </div>
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
-                <p className="text-xs font-bold text-ori-ink-l">จังหวัดเกิดเหตุ</p>
+                <p className="text-xs font-bold text-ori-ink-l">การทำหมัน</p>
+                <p className="font-black text-sm mt-0.5">{pet.is_sterilized ? '🩺 ทำหมันแล้ว' : '❌ ยังไม่ได้ทำหมัน'}</p>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+                <p className="text-xs font-bold text-ori-ink-l">อายุปัจจุบัน (คำนวณจากวันเกิด)</p>
+                <p className="font-black text-sm mt-0.5 text-ori-ink">{calculatedAge}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+                <p className="text-xs font-bold text-ori-ink-l">จังหวัดเกิดเหตุ / พื้นที่</p>
                 <p className="font-black text-sm mt-0.5 truncate">{pet.province || 'ไม่ระบุ'}</p>
               </div>
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
@@ -473,7 +504,6 @@ export default function PetProfilePage() {
                       </div>
                       {ev.description && <p className="text-sm font-bold text-gray-500">{ev.description}</p>}
                       
-                      {/* ── 🟢 ส่วนแสดง Thumbnail รูปหลักฐานใบเสร็จขนาดเล็ก (คลิกเพื่อขยาย) ── */}
                       {ev.notes && ev.notes.startsWith('http') && (
                         <div className="pt-1">
                           <button 
@@ -579,8 +609,7 @@ export default function PetProfilePage() {
                 <textarea rows={2} value={healthForm.description} onChange={e => setHealthForm({...healthForm, description: e.target.value})} placeholder="เช่น น้ำหนัก 4.5 กก. สัตวแพทย์นัดตรวจซ้ำรอบหน้าซองยาสีชมพู" className="ori-input resize-none" />
               </div>
 
-              {/* ── 🟢 ส่วนอัปโหลดรูปภาพใบเสร็จหลักฐาน 1 รูป ── */}
-              <div className="space-y-1 border-2 border-dashed border-gray-300 p-4 rounded-xl bg-gray-50/50">
+              <div className="space-y-1">
                 <label className="font-black text-xs text-gray-600 flex items-center gap-1"><ImageIcon size={14}/> แนบรูปถ่ายใบเสร็จหรือหลักฐานทางการแพทย์ (สูงสุด 1 รูป)</label>
                 <div className="flex items-center gap-3 mt-1.5">
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="px-4 py-2 text-xs font-black bg-white border-2 border-black rounded-lg hover:bg-gray-50 shadow-paper-sm">เลือกรูปภาพ</button>
@@ -593,7 +622,6 @@ export default function PetProfilePage() {
                 </div>
               </div>
 
-              {/* ส่วนสลับเปิด-ปิดระบบผูกตั้งนัดหมาย Web Push ถัดไป */}
               <div className="border-2 border-black p-4 rounded-2xl bg-wagashi-matcha/5 space-y-3">
                 <label className="flex items-center gap-2 font-black text-sm cursor-pointer select-none">
                   <input type="checkbox" checked={healthForm.set_reminder} onChange={e => setHealthForm({...healthForm, set_reminder: e.target.checked})} className="w-4 h-4 accent-black rounded" />
@@ -601,7 +629,7 @@ export default function PetProfilePage() {
                 </label>
 
                 {healthForm.set_reminder && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 animate-fadeIn">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                     <div className="space-y-1">
                       <label className="font-black text-xs text-gray-600">วันที่ต้องนัดหมายถัดไป</label>
                       <input type="date" required={healthForm.set_reminder} value={healthForm.next_remind_at} onChange={e => setHealthForm({...healthForm, next_remind_at: e.target.value})} className="ori-input" />
@@ -626,10 +654,10 @@ export default function PetProfilePage() {
         </div>
       )}
 
-      {/* ── 🟢 LIGHTBOX MODAL ส่วนขยายภาพใบเสร็จหลักฐานขนาดใหญ่ (กดกากบาท/ด้านนอกเพื่อปิด) ── */}
+      {/* ── LIGHTBOX MODAL ส่วนขยายภาพใบเสร็จหลักฐานขนาดใหญ่ ── */}
       {activeLightboxImg && (
         <div 
-          className="fixed inset-0 bg-black/85 z-[200] flex items-center justify-center p-4 cursor-zoom-out animate-fadeIn backdrop-blur-xs"
+          className="fixed inset-0 bg-black/85 z-[200] flex items-center justify-center p-4 cursor-zoom-out"
           onClick={() => setActiveLightboxImg(null)}
         >
           <div className="relative max-w-3xl max-h-[85vh] w-full h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>

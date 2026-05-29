@@ -1,10 +1,11 @@
 'use client'
-// app/dashboard/page.tsx
+// app/dashboard/page.tsx (V3 - แดชบอร์ดสถิติแพลตฟอร์ม เพิ่มระบบรวมสถิติเพศและการทำหมันสัตว์เลี้ยงสมบูรณ์ 100%)
+
 import { useEffect, useState, useMemo } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js'
 import { Doughnut } from 'react-chartjs-2'
-import { Loader2, PawPrint, CheckCircle, Users, Share, MessageCircle } from 'lucide-react'
+import { Loader2, PawPrint, CheckCircle, Users, Share, MessageCircle, Heart, ShieldAlert } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { th } from 'date-fns/locale'
 
@@ -22,13 +23,13 @@ export default function AnalyticsDashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // 1. ดึงข้อมูลทั้งหมดจากตารางหลัก (🟢 ปรับแก้คำสั่งคอลัมน์และตารางให้สอดรับกับฐานข้อมูลจริงของระบบ)
+        // 1. ดึงข้อมูลทั้งหมดจากตารางหลัก (🟢 เพิ่มการดึงคอลัมน์ gender และ is_sterilized ออกมาร่วมประมวลผล)
         const [
           { data: pets },
           { data: profiles },
           { data: chats }
         ] = await Promise.all([
-          supabase.from('pets').select('id, status, species, province, is_resolved, created_at'),
+          supabase.from('pets').select('id, status, species, province, gender, is_sterilized, is_resolved, created_at'),
           supabase.from('profiles').select('id, occupation, interests, created_at'),
           supabase.from('pet_chat_histories').select('id, role, text, created_at')
         ])
@@ -44,7 +45,15 @@ export default function AnalyticsDashboard() {
         const foundCount = pets?.filter(p => p.status === 'found').length || 0
         const adoptionCount = pets?.filter(p => p.status === 'adoption').length || 0
 
-        // - นับจำนวนสัตว์ Top 6 (🟢 สลับใช้ .species แทนฟิลด์เดิม)
+        // ── 🟢 [ฟังก์ชันเพิ่มใหม่] ประมวลผลสถิติเพศและการทำหมันของสัตว์เลี้ยงในระบบ ──
+        const maleCount = pets?.filter(p => p.gender === 'male').length || 0
+        const femaleCount = pets?.filter(p => p.gender === 'female').length || 0
+        const unknownGenderCount = pets?.filter(p => !p.gender || p.gender === 'unknown').length || 0
+        
+        const sterilizedCount = pets?.filter(p => p.is_sterilized === true).length || 0
+        const nonSterilizedCount = totalPets - sterilizedCount
+
+        // - นับจำนวนสัตว์ Top 6 
         const petTypeCount = pets?.reduce((acc: any, curr) => {
           const type = curr.species || 'อื่นๆ'
           acc[type] = (acc[type] || 0) + 1
@@ -60,7 +69,7 @@ export default function AnalyticsDashboard() {
         }, {})
         const topProvincesList = Object.entries(provinceCount || {}).sort((a: any, b: any) => b[1] - a[1]).slice(0, 6)
 
-        // - ข้อมูลสัดส่วนข้อความในฐานข้อมูลจำลองสั้นๆ สำหรับ Analytics
+        // - ข้อมูลสัดส่วนข้อความในฐานข้อมูล
         const userCount = chats?.filter(c => c.role === 'user').length || 0
         const botCount  = chats?.filter(c => c.role === 'bot').length || 0
 
@@ -86,6 +95,8 @@ export default function AnalyticsDashboard() {
         setStats({
           totalPets, resolvedPets, totalUsers, totalChats,
           statusData: [lostCount, foundCount, adoptionCount],
+          genderData: [maleCount, femaleCount, unknownGenderCount], // ส่งต่อค่าสถิติเพศ
+          sterilizedStats: { sterilizedCount, nonSterilizedCount },  // ส่งต่อค่าสถิติทําหมัน
           topPetsList, topProvincesList,
           charData: [userCount, botCount, totalChats],
           topInterests, topOccupations,
@@ -118,6 +129,12 @@ export default function AnalyticsDashboard() {
     datasets: [{ data: stats.charData, backgroundColor: ['#FF9F66', '#FFCC00', '#A0522D'], borderWidth: 2, borderColor: '#fff' }]
   }
 
+  // ── 🟢 ข้อมูล Chart สถิติเพศของน้องๆ ในระบบ ──
+  const genderChartData = {
+    labels: ['เพศผู้ ♂', 'เพศเมีย ♀', 'ไม่ระบุ ❓'],
+    datasets: [{ data: stats.genderData, backgroundColor: ['#2196F3', '#E91E63', '#9E9E9E'], borderWidth: 2, borderColor: '#fff' }]
+  }
+
   const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
 
   const ProgressBar = ({ label, value, max, color }: { label: string, value: number, max: number, color: string }) => {
@@ -134,9 +151,9 @@ export default function AnalyticsDashboard() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 bg-gray-50 min-h-screen font-sans">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 bg-gray-50 min-h-screen font-sans text-black">
       <div>
-        <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">ภาพรวมแพลตฟอร์มพบเพ็ต</h2>
+        <h2 className="text-xs font-medium text-gray-500 text-left uppercase tracking-wider mb-3">ภาพรวมแพลตฟอร์มพบเพ็ต</h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <MetricCard icon={<PawPrint size={16}/>} title="ประกาศทั้งหมด" value={stats.totalPets} sub="ข้อมูลล่าสุด" />
           <MetricCard icon={<CheckCircle size={16}/>} title="พบสัตว์สำเร็จ" value={stats.resolvedPets} sub={`Success rate ${stats.totalPets ? ((stats.resolvedPets/stats.totalPets)*100).toFixed(1) : 0}%`} />
@@ -146,9 +163,10 @@ export default function AnalyticsDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* กราฟสัดส่วนประกาศ */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-          <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">ประกาศตามประเภท</h2>
+          <h2 className="text-xs font-medium text-gray-500 text-left uppercase tracking-wider mb-2">ประกาศตามประเภท</h2>
           <div className="flex flex-wrap gap-3 mb-4 text-xs text-gray-500">
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#3266ad]"/> สัตว์หาย</span>
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#1D9E75]"/> พบสัตว์</span>
@@ -159,14 +177,28 @@ export default function AnalyticsDashboard() {
           </div>
         </div>
 
+        {/* ── 🟢 กราฟแสดงสัดส่วนเพศสัตว์เลี้ยงที่เพิ่มเข้ามาใหม่ ── */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-          <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">กิจกรรมล่าสุด (Real-time)</h2>
+          <h2 className="text-xs font-medium text-gray-500 text-left uppercase tracking-wider mb-2">สัดส่วนเพศสัตว์เลี้ยง</h2>
+          <div className="flex flex-wrap gap-3 mb-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#2196F3]"/> เพศผู้</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#E91E63]"/> เพศเมีย</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#9E9E9E]"/> ไม่ระบุ</span>
+          </div>
+          <div className="h-[180px] relative">
+            <Doughnut data={genderChartData} options={chartOptions} />
+          </div>
+        </div>
+
+        {/* กิจกรรมล่าสุด Real-time */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+          <h2 className="text-xs font-medium text-gray-500 text-left uppercase tracking-wider mb-4">กิจกรรมล่าสุด (Real-time)</h2>
           <div className="space-y-3">
             {stats.activities.map((act: any, i: number) => (
               <div key={i} className="flex items-center gap-3 py-1 border-b border-gray-50 last:border-0 text-sm">
                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: act.color }} />
-                <span className="flex-1 font-medium text-gray-800">{act.text}</span>
-                <span className="text-xs text-gray-400">
+                <span className="flex-1 font-medium text-gray-800 text-left truncate">{act.text}</span>
+                <span className="text-xs text-gray-400 shrink-0">
                   {formatDistanceToNow(new Date(act.time), { addSuffix: true, locale: th })}
                 </span>
               </div>
@@ -175,25 +207,50 @@ export default function AnalyticsDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* สถิติสายพันธุ์สูงสุด */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-          <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">ประเภทสัตว์ที่มีประกาศสูงสุด</h2>
+          <h2 className="text-xs font-medium text-gray-500 text-left uppercase tracking-wider mb-4">ประเภทสัตว์ที่มีประกาศสูงสุด</h2>
           {stats.topPetsList.map(([name, count]: any) => (
             <ProgressBar key={name} label={name} value={count} max={stats.topPetsList[0]?.[1] || 1} color="#3266ad" />
           ))}
         </div>
 
+        {/* สถิติจังหวัดสูงสุด */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-          <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">จังหวัดที่มีประกาศสูงสุด</h2>
+          <h2 className="text-xs font-medium text-gray-500 text-left uppercase tracking-wider mb-4">จังหวัดที่มีประกาศสูงสุด</h2>
           {stats.topProvincesList.map(([name, count]: any) => (
             <ProgressBar key={name} label={name} value={count} max={stats.topProvincesList[0]?.[1] || 1} color="#1D9E75" />
           ))}
         </div>
+
+        {/* ── 🟢 แผง ProgressBar แสดงเปอร์เซ็นต์สถิติการทำหมันสัตว์เลี้ยงในระบบ ── */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+          <h2 className="text-xs font-medium text-gray-500 text-left uppercase tracking-wider mb-4">สถิติการควบคุมประชากร (ทำหมัน)</h2>
+          <div className="space-y-4 pt-2">
+            <ProgressBar 
+              label="🩺 ทำหมันแล้ว" 
+              value={stats.sterilizedStats.sterilizedCount} 
+              max={stats.totalPets || 1} 
+              color="#4CAF50" 
+            />
+            <ProgressBar 
+              label="❌ ยังไม่ทำหมัน" 
+              value={stats.sterilizedStats.nonSterilizedCount} 
+              max={stats.totalPets || 1} 
+              color="#F44336" 
+            />
+            <div className="p-3 bg-green-50 rounded-xl border border-green-200 text-xs font-bold text-green-800 text-left mt-2">
+              💡 สัตว์เลี้ยงทำหมันแล้วรวมคิดเป็น {stats.totalPets ? ((stats.sterilizedStats.sterilizedCount / stats.totalPets) * 100).toFixed(1) : 0}% ของทั้งระบบ
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* สัดส่วนข้อความบอท */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-          <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">สัดส่วนข้อความผ่านแชตบอต</h2>
+          <h2 className="text-xs font-medium text-gray-500 text-left uppercase tracking-wider mb-2">สัดส่วนข้อความผ่านแชตบอต</h2>
           <div className="flex flex-wrap gap-3 mb-4 text-xs text-gray-500">
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#FF9F66]"/> คำถามผู้ใช้</span>
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#FFCC00]"/> คำตอบบอท</span>
@@ -210,7 +267,7 @@ export default function AnalyticsDashboard() {
 
 function MetricCard({ icon, title, value, sub }: any) {
   return (
-    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col">
+    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col text-left">
       <div className="text-gray-500 text-xs mb-1.5 flex items-center gap-1.5 font-medium">{icon} {title}</div>
       <div className="text-2xl font-bold text-gray-900 leading-none">{value}</div>
       <div className="text-[10px] text-gray-400 mt-2">{sub}</div>

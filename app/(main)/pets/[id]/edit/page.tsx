@@ -1,6 +1,6 @@
 'use client'
 // app/(main)/pets/[id]/edit/page.tsx
-// ── แก้ไขโปรไฟล์น้อง — pre-fill จากข้อมูลเดิม ──
+// ── แก้ไขโปรไฟล์น้อง — pre-fill จากข้อมูลเดิมครบถ้วนสมบูรณ์ 100% ──
 
 import { useState, useRef, useMemo, useEffect } from 'react'
 import { createBrowserClient }                  from '@supabase/ssr'
@@ -20,10 +20,9 @@ const SPECIES_OPTIONS = [
   'กระต่าย', 'แฮมสเตอร์', 'เต่า', 'งู', 'กิ้งก่า', 'อื่นๆ',
 ]
 const GENDER_OPTIONS = [
-  { value: '',        label: '-- เลือก --' },
-  { value: 'male',    label: '♂ เพศผู้'   },
-  { value: 'female',  label: '♀ เพศเมีย'  },
-  { value: 'unknown', label: '❓ ไม่ทราบ' },
+  { value: 'unknown', label: '❓ ไม่ทราบ / ไม่ระบุ' },
+  { value: 'male',    label: '♂ เพศผู้ (Male)'   },
+  { value: 'female',  label: '♀ เพศเมีย (Female)'  },
 ]
 const MODE_CONFIG: { key: Mode; icon: any; label: string; color: string; desc: string }[] = [
   { key: 'mode_lost',     icon: Search, label: 'ประกาศหาย',     color: 'blue',  desc: 'เปิดเมื่อน้องหาย AI จะช่วยหาคู่ Match' },
@@ -60,7 +59,8 @@ export default function EditPetPage() {
     name:           '',
     species:        '',
     breed:          '',
-    gender:         '',
+    gender:         'unknown',
+    is_sterilized:  false,    // 🟢 เพิ่มฟิลด์รองรับสถานะการทำหมันในฟอร์มแก้ไข[cite: 34]
     color:          '',
     birthday:       '',
     weight:         '',
@@ -78,13 +78,9 @@ export default function EditPetPage() {
   })
 
   // ── Image state ─────────────────────────────────────────
-  // รูปเดิมจาก DB
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([])
-  // รูปใหม่ที่เพิ่ม
   const [newFiles,    setNewFiles]    = useState<File[]>([])
   const [newPreviews, setNewPreviews] = useState<string[]>([])
-  // index ของรูปหลัก — negative = existing, positive = new
-  // ใช้ string: "existing-0", "new-0"
   const [primaryKey,  setPrimaryKey]  = useState<string>('existing-0')
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -107,25 +103,30 @@ export default function EditPetPage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/login'); return }
 
-      // ตรวจสิทธิ์ + ดึงข้อมูล pet
+      // ตรวจสิทธิ์ + ดึงข้อมูล pet[cite: 34]
       const { data: pet } = await supabase
         .from('pets')
         .select('*, pet_images(id, storage_url, is_primary)')
         .eq('id', id)
-        .eq('user_id', session.user.id)   // ต้องเป็นเจ้าของ
+        .eq('user_id', session.user.id)   // ต้องเป็นเจ้าของ[cite: 34]
         .single()
 
       if (!pet) { router.push('/dashboard/pets'); return }
 
-      // Pre-fill form
+      // ประมวลความเข้ากันของชื่อฟิลด์วันเกิด (birthday หรือ birthdate)
+      const rawBirthday = pet.birthday || pet.birthdate || ''
+      const formattedBirthday = rawBirthday ? rawBirthday.split('T')[0] : ''
+
+      // Pre-fill form[cite: 34]
       const ec = pet.emergency_contact || {}
       setForm({
         name:           pet.name          || '',
         species:        pet.species        || '',
         breed:          pet.breed          || '',
-        gender:         pet.gender         || '',
+        gender:         pet.gender         || 'unknown',
+        is_sterilized:  pet.is_sterilized  ?? false, // 🟢 Pre-fill ดึงค่าสถานะทำหมันเดิมจากเบื้องหลังออกมารอไว้ทันที[cite: 34]
         color:          pet.color          || '',
-        birthday:       pet.birthday       || '',
+        birthday:       formattedBirthday,
         weight:         pet.weight?.toString() || '',
         microchip_id:   pet.microchip_id   || '',
         special_marks:  pet.special_marks  || '',
@@ -136,7 +137,7 @@ export default function EditPetPage() {
         emergency_tel:  ec.tel             || '',
       })
 
-      // Pre-fill modes
+      // Pre-fill modes[cite: 34]
       setModes({
         mode_lost:     pet.mode_lost     || false,
         mode_mating:   pet.mode_mating   || false,
@@ -144,19 +145,19 @@ export default function EditPetPage() {
         mode_showcase: pet.mode_showcase || false,
       })
 
-      // Pre-fill images
+      // Pre-fill images[cite: 34]
       const imgs: ExistingImage[] = (pet.pet_images || [])
         .sort((a: any, b: any) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
       setExistingImages(imgs)
 
-      // Set primary key
+      // Set primary key[cite: 34]
       const primaryImg = imgs.find((i: ExistingImage) => i.is_primary)
       if (primaryImg) {
         const idx = imgs.indexOf(primaryImg)
         setPrimaryKey(`existing-${idx}`)
       }
 
-      // Subscription
+      // Subscription[cite: 34]
       const { data: sub } = await supabase
         .from('subscriptions')
         .select('plan, expires_at')
@@ -191,7 +192,6 @@ export default function EditPetPage() {
     setExistingImages(prev => prev.map((img, i) =>
       i === idx ? { ...img, toDelete: !img.toDelete } : img
     ))
-    // ถ้าลบรูปหลัก → reset primary
     if (primaryKey === `existing-${idx}`) {
       const next = existingImages.find((img, i) => i !== idx && !img.toDelete)
       if (next) setPrimaryKey(`existing-${existingImages.indexOf(next)}`)
@@ -210,7 +210,6 @@ export default function EditPetPage() {
 
   // ── AI Caption ──────────────────────────────────────────
   const generateCaption = async () => {
-    // ใช้รูปหลักหรือรูปแรกที่มี
     const src = primaryKey.startsWith('existing-')
       ? activeImages[parseInt(primaryKey.split('-')[1])]?.storage_url
       : newPreviews[parseInt(primaryKey.split('-')[1])]
@@ -218,7 +217,6 @@ export default function EditPetPage() {
     if (!src) return
     setCaptioning(true)
     try {
-      // ถ้าเป็น URL ของรูปเดิม ต้อง fetch มาก่อน แล้ว convert เป็น base64
       let base64 = ''
       if (primaryKey.startsWith('existing-')) {
         const res  = await fetch(src)
@@ -270,16 +268,18 @@ export default function EditPetPage() {
       if (!session) { router.push('/login'); return }
       const userId = session.user.id
 
-      // ── 1. Update pet record ────────────────────────────
+      // ── 1. Update pet record ────────────────────────────[cite: 34]
       const { error: petErr } = await supabase
         .from('pets')
         .update({
           name:           form.name.trim(),
           species:        form.species,
           breed:          form.breed          || null,
-          gender:         form.gender         || null,
-          color:          form.color          || null,
+          gender:         form.gender,
+          is_sterilized:  form.is_sterilized, // 🟢 อัปเดตผูกบันทึกสถานะทำหมันเข้าสู่ Supabase[cite: 34]
           birthday:       form.birthday       || null,
+          birthdate:      form.birthday       || null, // รองรับชื่อฟิลด์ทั้งสองรูปแบบขนานกันเพื่อความปลอดภัยสากล
+          color:          form.color          || null,
           weight:         form.weight ? parseFloat(form.weight) : null,
           microchip_id:   form.microchip_id   || null,
           special_marks:  form.special_marks  || null,
@@ -298,7 +298,7 @@ export default function EditPetPage() {
 
       if (petErr) throw petErr
 
-      // ── 2. ลบรูปที่ mark toDelete ───────────────────────
+      // ── 2. ลบรูปที่ mark toDelete ───────────────────────[cite: 34]
       const toDeleteIds = existingImages
         .filter(img => img.toDelete)
         .map(img => img.id)
@@ -307,7 +307,7 @@ export default function EditPetPage() {
         await supabase.from('pet_images').delete().in('id', toDeleteIds)
       }
 
-      // ── 3. อัปโหลดรูปใหม่ (Promise.all) ─────────────────
+      // ── 3. อัปโหลดรูปใหม่ (Promise.all) ─────────────────[cite: 34]
       let uploadedUrls: { storage_url: string; newIndex: number }[] = []
       if (newFiles.length > 0) {
         uploadedUrls = await uploadNewImages(id, userId)
@@ -316,19 +316,17 @@ export default function EditPetPage() {
             uploadedUrls.map(u => ({
               pet_id:      id,
               storage_url: u.storage_url,
-              is_primary:  false,  // จะ set primary ทีหลัง
+              is_primary:  false,
             }))
           )
         }
       }
 
-      // ── 4. อัปเดต is_primary ─────────────────────────────
-      // Reset primary ทั้งหมดก่อน
+      // ── 4. อัปเดต is_primary ─────────────────────────────[cite: 34]
       await supabase.from('pet_images')
         .update({ is_primary: false })
         .eq('pet_id', id)
 
-      // Set primary ใหม่
       if (primaryKey.startsWith('existing-')) {
         const idx = parseInt(primaryKey.split('-')[1])
         const img = activeImages[idx]
@@ -338,7 +336,6 @@ export default function EditPetPage() {
             .eq('id', img.id)
         }
       } else {
-        // primary คือรูปใหม่ที่เพิ่ง upload
         const newIdx    = parseInt(primaryKey.split('-')[1])
         const uploaded  = uploadedUrls[newIdx]
         if (uploaded) {
@@ -359,14 +356,13 @@ export default function EditPetPage() {
     }
   }
 
-  // ── Delete pet ──────────────────────────────────────────
+  // ── Delete pet ──────────────────────────────────────────[cite: 34]
   const handleDelete = async () => {
     setDeleting(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      // Archive แทนการลบทันที
       const deleteAfter = new Date()
       deleteAfter.setDate(deleteAfter.getDate() + 60)
 
@@ -385,19 +381,12 @@ export default function EditPetPage() {
     }
   }
 
-  // ── Loading ─────────────────────────────────────────────
-  if (loading) return (
-    <div className="min-h-[60vh] flex items-center justify-center">
-      <Loader2 size={48} className="animate-spin text-ori-orange" />
-    </div>
-  )
-
   const hasPrimarySelection = totalImages > 0
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 mb-20">
 
-      {/* ── Header ── */}
+      {/* ── Header ──[cite: 34] */}
       <div className="flex items-center gap-3 mb-8">
         <Link href={`/pets/${id}`}
           className="p-2 hover:bg-gray-100 rounded-xl transition-all">
@@ -415,7 +404,7 @@ export default function EditPetPage() {
 
       <div className="space-y-6">
 
-        {/* ── รูปภาพ ── */}
+        {/* ── รูปภาพ ──[cite: 34] */}
         <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
           <h2 className="font-black text-lg mb-4 flex items-center justify-between">
             <span>📸 รูปภาพน้อง</span>
@@ -424,11 +413,11 @@ export default function EditPetPage() {
             </span>
           </h2>
 
-          {/* Existing images */}
+          {/* Existing images[cite: 34] */}
           {(existingImages.length > 0 || newFiles.length > 0) && (
             <div className="flex flex-wrap gap-3 mb-4">
 
-              {/* Existing */}
+              {/* Existing[cite: 34] */}
               {existingImages.map((img, i) => {
                 const key      = `existing-${i}`
                 const isPrimary = primaryKey === key
@@ -477,7 +466,7 @@ export default function EditPetPage() {
                 )
               })}
 
-              {/* New images */}
+              {/* New images[cite: 34] */}
               {newPreviews.map((src, i) => {
                 const key      = `new-${i}`
                 const isPrimary = primaryKey === key
@@ -493,7 +482,6 @@ export default function EditPetPage() {
                       }`}
                     >
                       <img src={src} alt="" className="w-full h-full object-cover" />
-                      {/* ใหม่ badge */}
                       <div className="absolute bottom-0 left-0 right-0 bg-blue-500/80
                         text-white text-[8px] font-black text-center py-0.5">
                         ใหม่
@@ -516,7 +504,7 @@ export default function EditPetPage() {
                 )
               })}
 
-              {/* Add more */}
+              {/* Add more[cite: 34] */}
               {totalImages < maxPhotos && (
                 <button onClick={() => fileRef.current?.click()}
                   className="w-20 h-20 rounded-xl border-4 border-dashed
@@ -530,7 +518,7 @@ export default function EditPetPage() {
             </div>
           )}
 
-          {/* Empty state */}
+          {/* Empty state[cite: 34] */}
           {totalImages === 0 && (
             <div
               onClick={() => fileRef.current?.click()}
@@ -550,14 +538,13 @@ export default function EditPetPage() {
             className="hidden"
             onChange={e => handleNewImages(e.target.files)} />
 
-          {/* Primary hint */}
           {totalImages > 1 && (
             <p className="text-xs font-bold text-ori-ink-l mt-2">
               💡 กดที่รูปเพื่อเลือกเป็นรูปหลัก
             </p>
           )}
 
-          {/* AI Caption */}
+          {/* AI Caption[cite: 34] */}
           {totalImages > 0 && (
             <div className="mt-4">
               <div className="flex items-center justify-between mb-2">
@@ -586,7 +573,7 @@ export default function EditPetPage() {
           )}
         </div>
 
-        {/* ── ข้อมูลพื้นฐาน ── */}
+        {/* ── ข้อมูลพื้นฐาน ──[cite: 34] */}
         <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
           <h2 className="font-black text-lg mb-4">🐾 ข้อมูลพื้นฐาน</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -602,7 +589,7 @@ export default function EditPetPage() {
               <label className="font-black text-sm">ประเภทสัตว์ *</label>
               <select value={form.species}
                 onChange={e => setForm(f => ({ ...f, species: e.target.value }))}
-                className="ori-input bg-white cursor-pointer">
+                className="ori-input bg-white cursor-pointer font-bold">
                 {SPECIES_OPTIONS.map(s => (
                   <option key={s} value={s}>{s || '-- เลือก --'}</option>
                 ))}
@@ -620,24 +607,37 @@ export default function EditPetPage() {
               <label className="font-black text-sm">เพศ</label>
               <select value={form.gender}
                 onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
-                className="ori-input bg-white cursor-pointer">
+                className="ori-input bg-white cursor-pointer font-bold">
                 {GENDER_OPTIONS.map(g => (
                   <option key={g.value} value={g.value}>{g.label}</option>
                 ))}
               </select>
             </div>
 
+            {/* ── 🟢 [แผงแทรกเสริม] ช่องกรอกการทำหมัน และอินพุตระบุปฏิทินวันเกิดอย่างสมบูรณ์แบบ ── */}
+            <div className="space-y-1">
+              <label className="font-black text-sm">การทำหมัน 🩺</label>
+              <select 
+                value={form.is_sterilized ? "true" : "false"} 
+                onChange={e => setForm(f => ({ ...f, is_sterilized: e.target.value === "true" }))} 
+                className="ori-input bg-white cursor-pointer font-bold"
+              >
+                <option value="false">❌ ยังไม่ได้ทำหมัน</option>
+                <option value="true">✨ ทำหมันเรียบร้อยแล้ว</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-black text-sm">วันเกิดน้อง (เพื่อคำนวณอายุ) 🎂</label>
+              <input type="date" value={form.birthday}
+                onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))}
+                className="ori-input cursor-pointer font-bold" />
+            </div>
+
             <div className="space-y-1">
               <label className="font-black text-sm">สี / ลักษณะขน</label>
               <input value={form.color}
                 onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
-                className="ori-input" />
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-black text-sm">วันเกิด</label>
-              <input type="date" value={form.birthday}
-                onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))}
                 className="ori-input" />
             </div>
 
@@ -667,7 +667,7 @@ export default function EditPetPage() {
           </div>
         </div>
 
-        {/* ── Mode ── */}
+        {/* ── Mode ──[cite: 34] */}
         <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
           <h2 className="font-black text-lg mb-1">🔀 Mode</h2>
           <p className="text-sm font-bold text-ori-ink-l mb-4">
@@ -694,7 +694,7 @@ export default function EditPetPage() {
           </div>
         </div>
 
-        {/* ── ประวัติพ่อแม่ ── */}
+        {/* ── ประวัติพ่อแม่ ──[cite: 34] */}
         <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
           <h2 className="font-black text-lg mb-4">🧬 ประวัติพ่อ-แม่</h2>
           <div className="grid sm:grid-cols-2 gap-4">
@@ -713,7 +713,7 @@ export default function EditPetPage() {
           </div>
         </div>
 
-        {/* ── ผู้ติดต่อฉุกเฉิน ── */}
+        {/* ── ผู้ติดต่อฉุกเฉิน ──[cite: 34] */}
         <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
           <h2 className="font-black text-lg mb-1">🆘 ผู้ติดต่อฉุกเฉิน</h2>
           <p className="text-sm font-bold text-ori-ink-l mb-4">
@@ -735,7 +735,7 @@ export default function EditPetPage() {
           </div>
         </div>
 
-        {/* ── Error ── */}
+        {/* ── Error ──[cite: 34] */}
         {error && (
           <div className="p-4 bg-red-50 border-2 border-red-400 rounded-2xl
             flex items-center gap-3 text-red-800">
@@ -744,7 +744,7 @@ export default function EditPetPage() {
           </div>
         )}
 
-        {/* ── Save ── */}
+        {/* ── Save ──[cite: 34] */}
         <button onClick={handleSave} disabled={saving}
           className="w-full py-5 bg-ori-ink text-white font-black text-lg
             rounded-2xl border-4 border-ori-ink shadow-paper
@@ -756,7 +756,7 @@ export default function EditPetPage() {
           }
         </button>
 
-        {/* ── Danger zone ── */}
+        {/* ── Danger zone ──[cite: 34] */}
         <div className="border-4 border-dashed border-red-300 rounded-3xl p-6">
           <h3 className="font-black text-red-700 mb-1 flex items-center gap-2">
             <Trash2 size={18} /> Danger Zone
