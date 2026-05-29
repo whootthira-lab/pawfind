@@ -1,5 +1,5 @@
 'use client'
-// app/(main)/pets/[id]/page.tsx (V3 - สมุดสุขภาพหน้าเว็บฟรี แสดงสถานะเพศ ทำหมัน คำนวณอายุอัตโนมัติ สมบูรณ์ 100%)
+// app/(main)/pets/[id]/page.tsx (V4 - สมุดสุขภาพหน้าเว็บฟรี เพิ่มอินพุตเพศและทำหมันลงใน Modal หน้างานตามรูปภาพภาพสมบูรณ์ 100%)
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { createBrowserClient }          from '@supabase/ssr'
@@ -52,6 +52,7 @@ export default function PetProfilePage() {
   ), [])
 
   // ── States ──────────────────────────────────────────────────
+  const petInitialRef = useRef<any>(null)
   const [pet,         setPet]         = useState<any>(null)
   const [images,      setImages]      = useState<any[]>([])
   const [events,      setEvents]      = useState<any[]>([])
@@ -73,11 +74,15 @@ export default function PetProfilePage() {
   const [formSaving,    setFormSaving]    = useState(false)
   const [evidenceFile,  setEvidenceFile]  = useState<File | null>(null)
   const [imgFilePreview, setImgFilePreview] = useState<string | null>(null)
+  
+  // 🟢 เพิ่มค่าดักจับ State เพศ และการทำหมัน ไว้เตรียมส่งไปบันทึกทับข้อมูลตัวสัตว์เลี้ยงหลัก
   const [healthForm,    setHealthForm]    = useState({
     title: '',
     event_type: 'vaccine',
     description: '',
     event_date: new Date().toISOString().split('T')[0],
+    gender: 'unknown',       // 🟢 รองรับสลับเพศในฟอร์มย่อยหน้าเว็บ
+    is_sterilized: false,    // 🟢 รองรับการเลือกทำหมันในฟอร์มย่อยหน้าเว็บ
     set_reminder: false,
     next_remind_at: '',
     repeat_type: 'none'
@@ -86,7 +91,7 @@ export default function PetProfilePage() {
   // State สำหรับคลังเปิดขยายรูปใบเสร็จขนาดใหญ่ (Lightbox Modal)
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null)
 
-  // ── 🟢 ฟังก์ชันคำนวณอายุอัตโนมัติจากวันเกิดแบบยืดหยุ่นแม่นยำ ──
+  // ฟังก์ชันคำนวณอายุอัตโนมัติจากวันเกิดแบบยืดหยุ่นแม่นยำ
   const calculatedAge = useMemo(() => {
     const targetDate = pet?.birthday || pet?.birthdate
     if (!targetDate) return 'ไม่ระบุอายุ'
@@ -140,7 +145,17 @@ export default function PetProfilePage() {
       const { data: petData } = await supabase
         .from('pets').select('*').eq('id', id).single()
       if (!petData) { router.push('/'); return }
+      
       setPet(petData)
+      petInitialRef.current = petData
+      
+      // เอาค่าเพศและการทำหมันเดิมที่มีอยู่แล้วในระบบมาหยอดลงในฟอร์มรอก่อนล่วงหน้าเพื่อความลื่นไหล
+      setHealthForm(prev => ({
+        ...prev,
+        gender: petData.gender || 'unknown',
+        is_sterilized: petData.is_sterilized ?? false
+      }))
+
       setIsOwner(session?.user?.id === petData.user_id)
       setQrUrl(petData.qr_code_url || null)
 
@@ -217,7 +232,8 @@ export default function PetProfilePage() {
         evidenceUrl = publicUrl
       }
 
-      const { data: newEvent, error: evErr } = await supabase
+      // 1. บันทึกข้อมูลลงตารางประวัติสุขภาพดั้งเดิมปกติ
+      const { error: evErr } = await supabase
         .from('pet_health_events')
         .insert({
           pet_id: id,
@@ -228,10 +244,26 @@ export default function PetProfilePage() {
           medicine_name: healthForm.event_type.includes('vaccine') ? healthForm.title.trim() : null,
           notes: evidenceUrl 
         })
-        .select()
-        .single()
 
       if (evErr) throw evErr
+
+      // ── 🟢 2. สั่งบันทึกแก้ไขและอัปเดตฟิลด์ เพศ และการทำหมัน วิ่งกลับเข้าไปอัปเดตที่โปรไฟล์น้องโดยตรง ──
+      const { error: petUpdateErr } = await supabase
+        .from('pets')
+        .update({
+          gender: healthForm.gender,
+          is_sterilized: healthForm.is_sterilized
+        })
+        .eq('id', id)
+
+      if (petUpdateErr) throw petUpdateErr
+
+      // รีเฟรชสัญญานข้อมูล State บนหน้าจอให้อัปเดตเรียลไทม์ทันที
+      setPet((prev: any) => ({
+        ...prev,
+        gender: healthForm.gender,
+        is_sterilized: healthForm.is_sterilized
+      }))
 
       if (healthForm.set_reminder && healthForm.next_remind_at) {
         const { error: remErr } = await supabase
@@ -252,11 +284,8 @@ export default function PetProfilePage() {
       if (imgFilePreview) URL.revokeObjectURL(imgFilePreview)
       setEvidenceFile(null)
       setImgFilePreview(null)
-      setHealthForm({
-        title: '', event_type: 'vaccine', description: '',
-        event_date: new Date().toISOString().split('T')[0],
-        set_reminder: false, next_remind_at: '', repeat_type: 'none'
-      })
+      
+      // ปิดกล่องโมดอลและรีเฟรชประวัติตารางความจำสุขภาพด้านล่าง
       setShowFormModal(false)
       await fetchHealthAndReminders()
 
@@ -409,7 +438,6 @@ export default function PetProfilePage() {
         <div className="space-y-6">
           <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper">
             <h2 className="font-black text-lg mb-4">ข้อมูลลักษณะสัตว์เลี้ยง</h2>
-            {/* ── 🟢 ปรับเปลี่ยนจำนวนกล่อง Grid ข้อมูลลักษณะเพิ่ม ฟิลด์เพศ การทำหมัน และเลขอายุคำนวณอัตโนมัติ ── */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
                 <p className="text-xs font-bold text-ori-ink-l">เพศของน้อง</p>
@@ -584,23 +612,45 @@ export default function PetProfilePage() {
             </div>
 
             <form onSubmit={handleSaveHealthEvent} className="space-y-4">
-              <div className="space-y-1">
-                <label className="font-black text-sm">หัวข้อเรื่องทางการแพทย์ / ชื่อตัวยา <span className="text-red-500">*</span></label>
-                <input type="text" required value={healthForm.title} onChange={e => setHealthForm({...healthForm, title: e.target.value})} placeholder="เช่น ฉีดวัคซีนรวมประจำปี, ถ่ายพยาธิรสเนื้อ" className="ori-input" />
-              </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="font-black text-sm">ประเภทรายการ</label>
+                  <label className="font-black text-sm">ชื่อของน้องสัตว์เลี้ยง <span className="text-red-500">*</span></label>
+                  <input type="text" required value={healthForm.title} onChange={e => setHealthForm({...healthForm, title: e.target.value})} placeholder="เช่น ชาเย็น, นมสด" className="ori-input" />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-black text-sm">ประเภทสายพันธุ์</label>
                   <select value={healthForm.event_type} onChange={e => setHealthForm({...healthForm, event_type: e.target.value})} className="ori-input bg-white cursor-pointer font-bold">
                     {Object.entries(EVENT_TYPE_LABEL).map(([val, lbl]) => (
                       <option key={val} value={val}>{lbl}</option>
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* ── 🟢 [แผงแทรกใหม่แกะกล่องตามรูปภาพ image_e49afb.png] ช่องกรอกข้อมูลเพศ และการทำหมัน ── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 <div className="space-y-1">
-                  <label className="font-black text-sm">วันที่ทำรายการ</label>
-                  <input type="date" required value={healthForm.event_date} onChange={e => setHealthForm({...healthForm, event_date: e.target.value})} className="ori-input cursor-pointer" />
+                  <label className="font-black text-sm">เพศของน้อง 🐾</label>
+                  <select 
+                    value={healthForm.gender} 
+                    onChange={e => setHealthForm({...healthForm, gender: e.target.value})} 
+                    className="ori-input bg-white cursor-pointer font-bold"
+                  >
+                    <option value="unknown">❓ ไม่ทราบ / ไม่ระบุ</option>
+                    <option value="male">♂ เพศผู้ (Male)</option>
+                    <option value="female">♀ เพศเมีย (Female)</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="font-black text-sm">การทำหมันของน้อง 🩺</label>
+                  <select 
+                    value={healthForm.is_sterilized ? "true" : "false"} 
+                    onChange={e => setHealthForm({...healthForm, is_sterilized: e.target.value === "true"})} 
+                    className="ori-input bg-white cursor-pointer font-bold"
+                  >
+                    <option value="false">❌ ยังไม่ได้ทำหมัน</option>
+                    <option value="true">✨ ทำหมันเรียบร้อยแล้ว</option>
+                  </select>
                 </div>
               </div>
 
