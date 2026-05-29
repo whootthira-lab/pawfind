@@ -1,5 +1,5 @@
 'use client'
-// app/(main)/pets/new/page.tsx (V4 - ปลดล็อคโควตาใช้งานฟรีพร้อมระบบอินพุตสุขภาพ เพศ ทำหมัน วันเกิด สมบูรณ์ 100%)
+// app/(main)/pets/new/page.tsx (ฉบับแก้ไขเพิ่มช่องเลือกเพศและทำหมันสากลตามโครงสร้างดีไซน์ PobPet)
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { createBrowserClient }       from '@supabase/ssr'
@@ -58,9 +58,9 @@ export default function NewPetPage() {
     name: '',
     species: '',
     breed: '',
-    gender: 'unknown',       // ค่าเริ่มต้นแมปให้ปลอดภัย
-    is_sterilized: false,    // 🟢 ฟิลด์ใหม่สถานะการทำหมัน
-    birthday: '',            // 🟢 ฟิลด์ใหม่วันเกิดสำหรับใช้อ้างอิงและคำนวณอายุ
+    gender: 'unknown',       
+    is_sterilized: false,    // 🟢 รองรับค่า Boolean การทำหมันหลังบ้าน
+    birthday: '',            
     province: '',
     district: '',
     sub_district: '',
@@ -160,9 +160,9 @@ export default function NewPetPage() {
           species: form.species,
           breed: form.breed || null,
           gender: form.gender,
-          is_sterilized: form.is_sterilized, // 🟢 ส่งค่าการทำหมันลงฐานข้อมูลเรียบร้อย
-          birthday: form.birthday || null,   // 🟢 ส่งค่าวันเกิดลงฐานข้อมูลเรียบร้อย
-          birthdate: form.birthday || null,  // ผูกคัปปลิ้งชื่อฟิลด์ทั้งสองรูปแบบ (birthdate/birthday) กันพลาด
+          is_sterilized: form.is_sterilized, 
+          birthday: form.birthday || null,   
+          birthdate: form.birthday || null,  
           province: form.province,
           district: form.district || null,
           sub_district: form.sub_district || null,
@@ -282,12 +282,12 @@ export default function NewPetPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="font-black text-sm">ชื่อน้อง (ถ้ามี)</label>
-              <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="เช่น น้องส้ม, หลงหลง" className="ori-input" />
+              <label className="font-black text-sm">ชื่อของน้องสัตว์เลี้ยง *</label>
+              <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="เช่น ชาเย็น, นมสด" className="ori-input" />
             </div>
 
             <div className="space-y-1">
-              <label className="font-black text-sm">ประเภท <span className="text-red-500">*</span></label>
+              <label className="font-black text-sm">ประเภทสายพันธุ์ *</label>
               <select value={form.species} onChange={e => setForm(f => ({ ...f, species: e.target.value }))} className="ori-input bg-white font-bold">
                 {SPECIES_OPTIONS.map(opt => (
                   <option key={opt} value={opt}>{opt === '' ? '-- เลือกประเภท --' : opt}</option>
@@ -295,29 +295,26 @@ export default function NewPetPage() {
               </select>
             </div>
 
+            {/* ── 🟢 [แผงแทรกใหม่แกะกล่องตามสไตล์หน้ากากรูปภาพ] ช่องกรอกข้อมูลเพศ และการทำหมัน ── */}
             <div className="space-y-1">
-              <label className="font-black text-sm">สายพันธุ์</label>
-              <input type="text" value={form.breed} onChange={e => setForm(f => ({ ...f, breed: e.target.value }))} placeholder="เช่น ชิสุ, เปอร์เซีย (ระบุหรือไม่ก็ได้)" className="ori-input" />
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-black text-sm">เพศ</label>
-              <select value={form.gender} onChange={e => setForm(f => ({ ...f, gender: e.target.value }))} className="ori-input bg-white font-bold">
+              <label className="font-black text-sm">เพศของน้อง 🐾</label>
+              <select 
+                value={form.gender} 
+                onChange={e => setForm(f => ({ ...f, gender: e.target.value }))} 
+                className="ori-input bg-white font-bold cursor-pointer"
+              >
                 {GENDER_OPTIONS.map(g => (
                   <option key={g.value} value={g.value}>{g.label}</option>
                 ))}
               </select>
             </div>
-          </div>
 
-          {/* ── 🟢 ส่วนแผงควบคุมอินพุตสุขภาพเชิงรุกเพิ่มเติม (ทำหมัน & วันเกิด) ── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-dashed border-gray-200">
             <div className="space-y-1">
-              <label className="font-black text-sm">การทำหมัน 🩺</label>
+              <label className="font-black text-sm">การทำหมันของน้อง 🩺</label>
               <select 
                 value={form.is_sterilized ? "true" : "false"} 
                 onChange={e => setForm(f => ({ ...f, is_sterilized: e.target.value === "true" }))} 
-                className="ori-input bg-white font-bold"
+                className="ori-input bg-white font-bold cursor-pointer"
               >
                 <option value="false">❌ ยังไม่ได้ทำหมัน</option>
                 <option value="true">✨ ทำหมันเรียบร้อยแล้ว</option>
@@ -332,6 +329,11 @@ export default function NewPetPage() {
                 onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} 
                 className="ori-input cursor-pointer font-bold" 
               />
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-black text-sm">สายพันธุ์เฉพาะ (ระบุระเอียดเพิ่มเติม)</label>
+              <input type="text" value={form.breed} onChange={e => setForm(f => ({ ...f, breed: e.target.value }))} placeholder="เช่น ชิสุ, เปอร์เซีย (ระบุหรือไม่ก็ได้)" className="ori-input" />
             </div>
           </div>
 
@@ -351,7 +353,7 @@ export default function NewPetPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1">
-              <label className="font-black text-sm">จังหวัด <span className="text-red-500">*</span></label>
+              <label className="font-black text-sm">จังหวัดประจำตัวน้อง <span className="text-red-500">*</span></label>
               <select value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value }))} className="ori-input bg-white font-bold">
                 <option value="">-- เลือกจังหวัด --</option>
                 {THAI_PROVINCES.map(prov => (
@@ -361,18 +363,18 @@ export default function NewPetPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="font-black text-sm">อำเภอ / เขต</label>
-              <input type="text" value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} placeholder="เช่น เมือง, ด่านขุนทด" className="ori-input" />
+              <label className="font-black text-sm">อำเภอ</label>
+              <input type="text" value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} placeholder="เช่น อำเภอเมือง, ด่านขุนทด" className="ori-input" />
             </div>
 
             <div className="space-y-1">
-              <label className="font-black text-sm">ตำบล / แขวง</label>
+              <label className="font-black text-sm">ตำบล</label>
               <input type="text" value={form.sub_district} onChange={e => setForm(f => ({ ...f, sub_district: e.target.value }))} placeholder="เช่น ในเมือง, หินดาด" className="ori-input" />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="font-black text-sm">รายละเอียดเพิ่มเติม / จุดสังเกตเด่น</label>
+            <label className="font-black text-sm">รายละเอียดจุดสังเกตเพิ่มเติม / พฤติกรรมน้อง</label>
             <textarea rows={3} value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="เช่น น้องมีปลอกคอสีแดง, ขนแหว่งที่ขาหลังซ้าย" className="ori-input resize-none" />
           </div>
         </div>
