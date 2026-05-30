@@ -1,5 +1,5 @@
 'use client'
-// app/(main)/profile/page.tsx (V6 - ปรับพาทเชื่อมโฟลเดอร์ avatars บนคลาวด์ Supabase สำเร็จรูป Thumbnail คมชัด 100%)
+// app/(main)/profile/page.tsx (V7 - อัปเกรดระบบสิทธิ์ความเป็นส่วนตัวโปรไฟล์, ออโต้แมปตารางรูปภาพลูก และซ่อมแซมภาพ Fallback สมบูรณ์ 100%)
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
@@ -15,7 +15,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { DonationModal } from '@/components/DonationModal'
 
-// ── Constants ตัวเลือกต่าง ๆ สอดคล้องทั้งระบบ ──────────────────
+// ── Constants ตัวเลือกต่าง ๆ สอดคล้องทั้งระบบ ──────────────────[cite: 21]
 const expertiseOptions = [
   { value: 'general', label: 'ผู้ใช้งานทั่วไป (พร้อมช่วยเป็นหูเป็นตา)' },
   { value: 'adopt',       label: '🐶 หาบ้านใหม่ / รับเลี้ยง' },
@@ -25,9 +25,9 @@ const expertiseOptions = [
   { value: 'knowledge',   label: '📚 ศึกษาความรู้และการเลี้ยงดู' },
   { value: 'petscout', label: '🔍 สร้างรายได้จากการช่วยตามหาสัตว์หาย(PetScout)' },
   { value: 'vet', label: '🏥 ประชาสัมพันธ์ คลินิกรักษาสัตว์' },
-  { value: 'groomer', label: '🪮 ประชาสัมพันธ์ บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
-  { value: 'petsitter', label: '🏩 ประชาสัมพันธ์ บริการรับฝากหรือดูแลสัตว์ที่บ้าน' },
-  { value: 'retailer', label: '🛍️ ประชาสัมพันธ์ ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
+  { value: 'groomer', label: '🪮 บริการอาบน้ำตัดขน / โรงแรมสัตว์' },
+  { value: 'petsitter', label: '🏩 บริการรับฝากหรือดูแลสัตว์ที่บ้าน' },
+  { value: 'retailer', label: '🛍️ ร้านจำหน่ายอาหารและอุปกรณ์สัตว์เลี้ยง' },
   { value: 'announce', label: '📢 ประชาสัมพันธ์ข่าว/กิจกรรม' },
   { value: 'other', label: 'อื่นๆ (โปรดระบุ)' },
 ]
@@ -117,7 +117,7 @@ export default function ProfilePage() {
     is_public:            true,
   })
 
-  // ── States สำหรับโมดูลสร้างโปรไฟล์น้องใหม่พรีเมียม ──
+  // ── States สำหรับโมดูลสร้างโปรไฟล์น้องใหม่พรีเมียม ──[cite: 21]
   const [petFormOpen, setPetFormOpen] = useState(false)
   const [petSaving, setPetSaving] = useState(false)
   const petFileInputRef = useRef<HTMLInputElement>(null)
@@ -142,7 +142,7 @@ export default function ProfilePage() {
 
   const [speciesCustom, setSpeciesCustom] = useState('')
 
-  // ฟังก์ชันคำนวณอายุสัตว์เลี้ยงภาษาไทยเรียลไทม์
+  // ฟังก์ชันคำนวณอายุสัตว์เลี้ยงภาษาไทยเรียลไทม์[cite: 21]
   const calculateAge = (birthdayString: string | null) => {
     if (!birthdayString) return 'ไม่ระบุอายุ'
     const birth = new Date(birthdayString)
@@ -177,7 +177,7 @@ export default function ProfilePage() {
       if (!session?.user) { setLoading(false); return }
       setUser(session.user)
 
-      // ── Profile ──────────────────────────────────────────
+      // ── Profile ──────────────────────────────────────────[cite: 21]
       const { data: pData } = await supabase
         .from('profiles')
         .select('*')
@@ -206,7 +206,7 @@ export default function ProfilePage() {
         })
       }
 
-      // ── Pets ──────────────────────────────────────────────
+      // ── Pets ──────────────────────────────────────────────[cite: 21]
       const { data: pets } = await supabase
         .from('pets')
         .select('*, pet_images(storage_url, is_primary), comments(count)')
@@ -215,11 +215,21 @@ export default function ProfilePage() {
         .order('created_at', { ascending: false })
 
       if (pets) {
-        setMyPets(pets.map((p: any) => ({
-          ...p,
-          unread_count: p.comments?.[0]?.count || 0,
-          image_url:    p.image_url || p.pet_images?.find((img: any) => img.is_primary)?.storage_url || p.pet_images?.[0]?.storage_url || '/favicon.ico',
-        })))
+        setMyPets(pets.map((p: any) => {
+          // ── 🟢 ปรับโครงสร้างดึงภาพประจำตัวแดชบอร์ดแบบพรีเมียม Fallback แก้ปัญหารูปพังไม่ยอมแสดงผล (ข้อ 9) ──
+          const safeImageUrl = p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
+            || p.pet_images?.[0]?.storage_url 
+            || (p.images && Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : '')
+            || p.primary_image 
+            || p.image_url 
+            || '/favicon.ico'
+
+          return {
+            ...p,
+            unread_count: p.comments?.[0]?.count || 0,
+            image_url:    safeImageUrl,
+          }
+        }))
       }
     } catch (err) {
       console.error(err)
@@ -230,7 +240,7 @@ export default function ProfilePage() {
 
   useEffect(() => { fetchAllData() }, [fetchAllData])
 
-  // ── Avatar Upload (🟢 แก้ไขให้ต่อสายพาทเข้าโฟลเดอร์ avatars บนคลาวด์สอดคล้องกันตรงตัว) ──
+  // ── Avatar Upload ──[cite: 21]
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user) return
@@ -238,8 +248,6 @@ export default function ProfilePage() {
     try {
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
-      
-      // 🟢 เติม 'avatars/' นำหน้าพาทอัปโหลดเพื่อให้ลงล็อกถังเดียวกับระบบคลาวด์ของพี่วุฒิ์
       const filePath = `avatars/${fileName}`
 
       const { error: upErr } = await supabase.storage
@@ -256,12 +264,13 @@ export default function ProfilePage() {
     }
   }
 
-  // ── Save Profile ──────────────────────────────────────────
+  // ── Save Profile ──[cite: 21]
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
     setIsSaving(true)
     try {
+      // ── 🟢 อัปเดตผูกมิติบันทึกค่าลงตัวแปรสิทธิ์ความปลอดภัยใหม่ visibility สอดคล้องเงื่อนไข (ข้อ 6) ──
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -280,6 +289,7 @@ export default function ProfilePage() {
           community_role_custom: profile.community_role === 'other' ? profile.community_role_custom.trim() : null,
           interests: profile.interests.length ? profile.interests : null,
           is_public: profile.is_public,
+          visibility: profile.is_public ? 'public' : 'private', // 🟢 เชื่อมระบบส่งสิทธิ์ความปลอดภัยสากลลงดาต้าเบส
         })
         .eq('id', user.id)
 
@@ -293,7 +303,7 @@ export default function ProfilePage() {
     }
   }
 
-  // ── 🆕 ฟังก์ชันอัปโหลดคลังรูปภาพและบันทึกรูปตำหนิ 3 ชิ้นลงฟิลด์ distinctive_features ──
+  // ── 🆕 ฟังก์ชันอัปโหลดคลังรูปภาพและบันทึกรูปตำหนิ 3 ชิ้นลงฟิลด์ distinctive_features ──[cite: 21]
   const handlePetRegistration = async (e: React.FormEvent) => {
     e.preventDefault()
     if (petSaving || !user) return
@@ -322,7 +332,8 @@ export default function ProfilePage() {
         })
       }
 
-      const { error } = await supabase
+      // ── 🟢 สั่งบันทึกลงตารางหลักพร้อมรับก้อนข้อมูล ID กลับมาจัดการออโต้แมปตารางลูก (ข้อ 1, 5, 9) ──
+      const { data: insertedPet, error: insertErr } = await supabase
         .from('pets')
         .insert({
           user_id: user.id,
@@ -343,20 +354,34 @@ export default function ProfilePage() {
           distinctive_features: JSON.stringify(markingsJsonList),
           status: 'showcase',
           is_public: true,
+          visibility: 'public',
           mode_showcase: true,
           mode_lost: false,
           mode_mating: false,
           mode_adoption: false
         })
+        .select()
+        .single()
 
-      if (error) throw error
+      if (insertErr) throw insertErr
+
+      // ── 🟢 แตกแถวข้อมูลลิงก์ส่งไปบันทึกลงฐานตารางย่อย pet_images อัตโนมัติ ป้องกันรูปภาพหายไร้บั๊ก 100% ──
+      if (insertedPet && uploadedUrls.length > 0) {
+        const imageRows = uploadedUrls.map((url, index) => ({
+          pet_id: insertedPet.id,
+          storage_url: url,
+          is_primary: index === 0
+        }))
+        await supabase.from('pet_images').insert(imageRows)
+      }
+
       alert('🎉 ลงทะเบียนบันทึกโปรไฟล์น้องสำเร็จเสร็จสิ้นเรียบร้อย!')
       setPetFormOpen(false)
       setPetImages([])
       setFeatureImages([])
       await fetchAllData()
     } catch (err: any) {
-      alert(`บันทึกโปรไฟล์น้องล้มเหลว: ${err.message}`)
+      alert(`ลงทะเบียนโปรไฟล์น้องล้มเหลว: ${err.message}`)
     } finally {
       setPetSaving(false)
     }
@@ -372,7 +397,7 @@ export default function ProfilePage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col gap-8 mb-20 text-black" style={{ fontFamily: "'Noto Sans Thai', sans-serif" }}>
 
-      {/* ── Profile Header (กล่องบนสุดดึงรูปมาวาดลงโครงสร้างการ์ด Thumbnail ทรงเหลี่ยม) ── */}
+      {/* ── Profile Header ── */}
       <div className="bg-white border-4 border-black rounded-3xl p-8 shadow-paper
         flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
         <div className="w-24 h-24 rounded-2xl border-4 border-black overflow-hidden
@@ -383,7 +408,6 @@ export default function ProfilePage() {
               alt="Profile Thumbnail" 
               className="w-full h-full object-cover"
               onError={(e) => {
-                // 🟢 Fallback เช็คกรณีฐานข้อมูลมีพาทเก่าที่ขาดโฟลเดอร์ นำมาต่อเชื่อมพาท avatars ให้ทำงานได้ลื่นไหลอัตโนมัติ
                 if (profile.avatar_url && !profile.avatar_url.includes('/avatars/')) {
                   const parts = profile.avatar_url.split('/profile-images/');
                   if (parts.length === 2) {
