@@ -1,5 +1,5 @@
 'use client'
-// components/pet/MatchResult.tsx — อัปเดตตรรกะนิรภัยดักจับ Cross-Fallback สมบูรณ์แบบ 100% ตรงล็อก 5 โหมดสากล
+// components/pet/MatchResult.tsx — อัปเดตตรรกะนิรภัยดักจับ Cross-Fallback สมบูรณ์แบบ 100% ตรงล็อก 5 โหมดสากล แก้ไขปัญหา Type Error
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -83,7 +83,8 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     finally { setIsLoadingPin(false) }
   }
 
-  const [loadingResolve = false, setLoadingResolve] = useState(false)
+  // ── 🟢 แก้ไขตรงนี้: ปรับโครงสร้างวิถีประกาศประเภท State ของ loadingResolve ให้เป็นระบบระเบียบเพื่อผ่านกระบวนการ Compile ──
+  const [loadingResolve, setLoadingResolve] = useState<boolean>(false)
 
   const handleResolveCase = async (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
