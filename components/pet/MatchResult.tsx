@@ -1,9 +1,9 @@
 'use client'
-// components/pet/MatchResult.tsx — อัปเดตตรรกะนิรภัยดักจับ Cross-Fallback สมบูรณ์แบบ 100% ตรงล็อก 5 โหมดสากล แก้ไขปัญหา Type Error
+// components/pet/MatchResult.tsx — แก้ไขปุ่มซ้อนเบิ้ล + เพิ่มปุ่มแชร์ระบบ OG Link รองรับ Web Share API สมบูรณ์แบบ 100%
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bookmark, BookmarkCheck, Loader2, MapPin, Edit3, Trash2, ArrowRight, X } from 'lucide-react'
+import { Bookmark, BookmarkCheck, Loader2, MapPin, Edit3, Trash2, ArrowRight, X, Share2 } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -54,7 +54,6 @@ export function MatchResultCard({ result }: { result: PetResult }) {
           .eq('user_id', session.user.id).eq('pet_id', result.id).single()
         if (data) setIsPinned(true)
 
-        // ── track return frequency ถ้าเป็นเจ้าของ ──────────────
         if (session.user.id === result.user_id) {
           trackOwnerReturn(result.id)
         }
@@ -83,7 +82,6 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     finally { setIsLoadingPin(false) }
   }
 
-  // ── 🟢 แก้ไขตรงนี้: ปรับโครงสร้างวิถีประกาศประเภท State ของ loadingResolve ให้เป็นระบบระเบียบเพื่อผ่านกระบวนการ Compile ──
   const [loadingResolve, setLoadingResolve] = useState<boolean>(false)
 
   const handleResolveCase = async (e: React.MouseEvent) => {
@@ -122,7 +120,6 @@ export function MatchResultCard({ result }: { result: PetResult }) {
 
       if (error) throw error
 
-      // บันทึกลงประวัติสุขภาพสัตว์เลี้ยง (pet_health_events)
       await supabase
         .from('pet_health_events')
         .insert({
@@ -139,6 +136,34 @@ export function MatchResultCard({ result }: { result: PetResult }) {
       alert(`ปิดเคสไม่สำเร็จ: ${err.message}`)
     } finally {
       setLoadingResolve(false)
+    }
+  }
+
+  // ── 🟢 ฟังก์ชันสำหรับปุ่มแชร์ลิ้งค์ดักรูปภาพพรีวิวสไตล์ OG Card ──
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    const shareUrl = `${window.location.origin}/pet/${result.id}`
+    const shareTitle = `PobPet | ช่วยกันแชร์ประกาศของ ${result.name || 'น้องสัตว์เลี้ยง'}`
+    const shareText = `ช่วยเหลือน้องตามหาพิกัดปลอดภัย สายพันธุ์ ${result.breed || 'ไม่ระบุ'} ประจำจังหวัด ${result.province}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        })
+      } catch (err) {
+        console.log('User cancelled or error sharing:', err)
+      }
+    } else {
+      // Fallback กรณีเปิดบนเบราว์เซอร์ที่ไม่มีระบบ Share API ให้ทำระบบก๊อปปี้ลิ้งค์อัตโนมัติ
+      try {
+        await navigator.clipboard.writeText(shareUrl)
+        alert('📋 คัดลอกลิงก์ประกาศสำหรับนำไปแชร์โพสต์ OG สำเร็จเรียบร้อยแล้วค่ะ!')
+      } catch {
+        alert(`แชร์ประกาศผ่านทางลิงก์นี้ได้เลยค่ะ: ${shareUrl}`)
+      }
     }
   }
 
@@ -181,28 +206,21 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     return `${supabaseUrl}/storage/v1/object/public/pet-images/${src}`
   }
 
-  // ── 🟢 ฟังก์ชันคำนวณวิเคราะห์สถานะนิรภัย Cross-Fallback ดักจับกรณีดึงคอลัมน์โหมดมาไม่ครบ (Defensive Programming) ──
   const determineStatus = (): string => {
     const validStatuses = ['lost', 'found', 'adoption', 'mating', 'showcase']
-    // 1. เช็กถ้าเป็นสถานะมาตรฐานที่ระบุไว้ชัดเจนอยู่แล้ว ให้ผ่านทางได้ทันที
     if (result.status && validStatuses.includes(result.status)) {
       return result.status
     }
-
-    // 2. Fallback: กรณีคอลัมน์ status หลุดค่าเพี้ยน แต่มีก้อนข้อมูล Boolean ของคอลัมน์ mode_* แนบมาด้วย
     const r = result as any
     if (r.mode_lost) return 'lost'
     if (r.mode_mating) return 'mating'
     if (r.mode_adoption) return 'adoption'
     if (r.mode_showcase) return 'showcase'
-
-    // 3. ปลายท่อสุดท้าย: คืนค่า status เดิม หรือดึงเข้าทำเนียบโชว์เคสกันพัง
     return result.status || 'showcase'
   }
 
   const currentStatus = determineStatus()
 
-  // ── 🟢 ผูก Configuration การตกแต่งชุดสีและป้ายภาษาไทยซิงค์ตรงตามระบบ 100% ──
   const statusCfg: Record<string, { label: string; color: string; bg: string }> = {
     lost:     { label: '🚨 ประกาศตามหาน้อง', color: '#D94F1E', bg: '#FFF1EC' },
     found:    { label: '👀 พบน้องหลงทาง',    color: '#2D6A2D', bg: '#EBF5EB' },
@@ -242,7 +260,6 @@ export function MatchResultCard({ result }: { result: PetResult }) {
           
           <div className="absolute bottom-0 left-0 right-0 h-1 z-10" style={{ background: cfg.color }} />
           
-          {/* ป้ายสลักสถานะภาษาไทย Origami ซิงค์ค่าลื่นไหลผ่านตัวดักจับ Fallback */}
           <div className="absolute bottom-2 left-2 z-10 text-xs font-black px-2.5 py-1 rounded-full border-2 border-ori-ink bg-white shadow-[2px_2px_0_rgba(0,0,0,1)]"
             style={{ color: cfg.color }}>{cfg.label}</div>
         </div>
@@ -257,37 +274,50 @@ export function MatchResultCard({ result }: { result: PetResult }) {
           </div>
         </div>
 
-        {/* CTA */}
+        {/* CTA (ส่วนควบคุมปุ่มล่างการ์ด จัดระเบียบตัดปุ่มซ้อนออกถาวร) */}
         <div className="px-4 pb-4 space-y-2 bg-white">
-          <button
-            onClick={() => { setIsNavigating(true); router.push(`/pet/${result.id}`) }}
-            disabled={isNavigating}
-            className="ori-btn ori-btn-orange w-full text-sm flex items-center justify-center gap-2">
-            {isNavigating ? <Loader2 size={16} className="animate-spin" /> : null}
-            {isNavigating ? 'กำลังโหลด...' : 'ดูรายละเอียด'} <ArrowRight size={16} />
-          </button>
+          
+          {/* ── 🟢 ปรับปรุงปุ่มหลัก: แบ่งครึ่งแถวคู่ "ดูรายละเอียด" และ "แชร์โพสต์ OG" ให้เท่ากันอย่างสมมาตร ── */}
+          <div className="grid grid-cols-5 gap-2">
+            <button
+              onClick={() => { setIsNavigating(true); router.push(`/pet/${result.id}`) }}
+              disabled={isNavigating}
+              className="ori-btn ori-btn-orange col-span-4 text-xs py-3 flex items-center justify-center gap-1.5">
+              {isNavigating ? <Loader2 size={14} className="animate-spin" /> : null}
+              {isNavigating ? 'กำลังโหลด...' : 'ดูรายละเอียด'} <ArrowRight size={14} />
+            </button>
+
+            <button
+              onClick={handleShare}
+              title="แชร์ประกาศสไตล์ OG Card"
+              className="ori-btn bg-white border-2 border-black p-0 rounded-xl flex items-center justify-center shadow-paper-sm hover:bg-gray-50 transition-all text-black active:translate-y-0"
+            >
+              <Share2 size={16} strokeWidth={2.5} />
+            </button>
+          </div>
 
           {isOwner && (
-            <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-dashed border-ori-ink/20">
+            <div className="grid grid-cols-2 gap-2 pt-1">
               <Link href={`/pet/${result.id}/edit`}
-                className="flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 border-ori-ink bg-blue-50 text-blue-700 text-xs font-black hover:bg-blue-100 transition-colors">
+                className="flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 border-ori-ink bg-blue-50 text-blue-700 text-xs font-black hover:bg-blue-100 transition-colors shadow-paper-sm">
                 <Edit3 size={14} /> แก้ไข
               </Link>
               <button onClick={handleDeleteClick} disabled={isDeleting}
-                className="flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 border-ori-ink bg-red-50 text-red-600 text-xs font-black hover:bg-red-100 transition-colors">
+                className="flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 border-ori-ink bg-red-50 text-red-600 text-xs font-black hover:bg-red-100 transition-colors shadow-paper-sm">
                 {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 {isDeleting ? 'ลบ...' : 'ลบ'}
               </button>
             </div>
           )}
 
+          {/* ── 🟢 ปุ่มปิดเคสเจ้าของ ยึดตำแหน่งด้านในกรอบการ์ดอย่างมั่นคง ไม่หลุดซ้อนเบิ้ลไปด้านนอกอีก ── */}
           {isOwner && (currentStatus === 'lost' || currentStatus === 'mating' || currentStatus === 'adoption' || currentStatus === 'showcase') && (
             <button
               onClick={handleResolveCase}
               disabled={loadingResolve}
-              className={`w-full py-2.5 rounded-xl border-2 border-black font-black text-xs flex items-center justify-center gap-1.5 shadow-paper-sm transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 text-white mt-2
+              className={`w-full py-2.5 rounded-xl border-2 border-black font-black text-xs flex items-center justify-center gap-1.5 shadow-paper-sm transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 text-white mt-1
                 ${currentStatus === 'lost' ? 'bg-[#2D6A2D] hover:bg-[#3E803E]' : ''}
-                ${currentStatus === 'mating' ? 'bg-[#C2185B] hover:bg-[#D81B60]' : ''}
+                ${currentStatus === 'mating' ? 'bg-[#1A5EA8] hover:bg-[#1E71C9]' : ''}
                 ${currentStatus === 'adoption' ? 'bg-[#1A5EA8] hover:bg-[#1E71C9]' : ''}
                 ${currentStatus === 'showcase' ? 'bg-[#A07800] hover:bg-[#B38F1B]' : ''}
               `}
