@@ -139,6 +139,8 @@ export default function ProfilePage() {
     reward_amount: '0'
   })
 
+  const [speciesCustom, setSpeciesCustom] = useState('')
+
   // ฟังก์ชันคำนวณอายุสัตว์เลี้ยงภาษาไทยเรียลไทม์
   const calculateAge = (birthdayString: string | null) => {
     if (!birthdayString) return 'ไม่ระบุอายุ'
@@ -322,8 +324,8 @@ export default function ProfilePage() {
         .insert({
           user_id: user.id,
           name: petDataForm.name || 'ไม่ทราบชื่อ',
-          species: petDataForm.species,
-          breed: petDataForm.breed || null,
+          species: petDataForm.species === 'อื่นๆ' ? (speciesCustom.trim() || 'อื่นๆ') : petDataForm.species,
+          breed: petDataForm.breed.trim() || null,
           gender: petDataForm.gender,
           is_sterilized: petDataForm.is_sterilized,
           birthday: petDataForm.birthday || null,
@@ -636,7 +638,7 @@ export default function ProfilePage() {
                     <input type="text" required value={petDataForm.name} onChange={e => setPetDataForm({...petDataForm, name: e.target.value})} placeholder="เช่น ชาเย็น, นมสด" className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none bg-white" />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-black text-sm">ประเภทสายพันธุ์</label>
+                    <label className="font-black text-sm">ประเภทสัตว์</label>
                     <select value={petDataForm.species} onChange={e => setPetDataForm({...petDataForm, species: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-bold bg-white cursor-pointer outline-none">
                       <option value="แมว">🐈 แมว</option>
                       <option value="สุนัข">🐕 สุนัข</option>
@@ -644,6 +646,20 @@ export default function ProfilePage() {
                       <option value="อื่นๆ">🐾 อื่นๆ</option>
                     </select>
                   </div>
+                </div>
+
+                {/* ── ฟิลด์สายพันธุ์ และช่องกรอกระบุเพิ่มเติมกรณีเลือกสัตว์ประเภทอื่นๆ ── */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">สายพันธุ์ (Breed)</label>
+                    <input type="text" value={petDataForm.breed} onChange={e => setPetDataForm({...petDataForm, breed: e.target.value})} placeholder="เช่น วิเชียรมาศ, ไซบีเรียนฮัสกี้ (ระบุหรือไม่ก็ได้)" className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none bg-white" />
+                  </div>
+                  {petDataForm.species === 'อื่นๆ' ? (
+                    <div className="space-y-1">
+                      <label className="font-black text-sm">ระบุประเภทสัตว์เพิ่มเติม <span className="text-red-500">*</span></label>
+                      <input type="text" required value={speciesCustom} onChange={e => setSpeciesCustom(e.target.value)} placeholder="เช่น เต่า, กิ้งก่า, แฮมสเตอร์" className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none bg-white" />
+                    </div>
+                  ) : <div />}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
