@@ -1,5 +1,5 @@
 'use client'
-// components/pet/MatchResult.tsx — พร้อม Delete Reason Modal + Return tracking
+// components/pet/MatchResult.tsx — อัปเดตตรรกะนิรภัยดักจับ Cross-Fallback สมบูรณ์แบบ 100% ตรงล็อก 5 โหมดสากล
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -83,7 +83,7 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     finally { setIsLoadingPin(false) }
   }
 
-  const [loadingResolve, setLoadingResolve] = useState(false)
+  const [loadingResolve = false, setLoadingResolve] = useState(false)
 
   const handleResolveCase = async (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
@@ -141,19 +141,16 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     }
   }
 
-  // ── Step 1: เปิด modal ถามเหตุผลก่อน ─────────────────────────
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
     setSelectedReason(null)
     setShowDeleteModal(true)
   }
 
-  // ── Step 2: ยืนยันลบหลังเลือกเหตุผล ─────────────────────────
   const handleConfirmDelete = async () => {
     if (!selectedReason) return
     setIsDeleting(true)
     try {
-      // track ก่อน delete จริง (เผื่อ network fail ยังมีข้อมูล)
       trackDeleteReason(result.id, selectedReason)
 
       const res = await fetch(`/api/pets/${result.id}`, { method: 'DELETE' })
@@ -183,17 +180,42 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     return `${supabaseUrl}/storage/v1/object/public/pet-images/${src}`
   }
 
-  const statusCfg: Record<string, { label: string; color: string }> = {
-    lost:     { label: '🚨 ประกาศตามหาน้อง', color: '#D94F1E' },
-    found:    { label: '👀 พบน้องหลงทาง',    color: '#2D6A2D' },
-    adoption: { label: '💖 หาบ้านให้น้อง',   color: '#1A5EA8' },
+  // ── 🟢 ฟังก์ชันคำนวณวิเคราะห์สถานะนิรภัย Cross-Fallback ดักจับกรณีดึงคอลัมน์โหมดมาไม่ครบ (Defensive Programming) ──
+  const determineStatus = (): string => {
+    const validStatuses = ['lost', 'found', 'adoption', 'mating', 'showcase']
+    // 1. เช็กถ้าเป็นสถานะมาตรฐานที่ระบุไว้ชัดเจนอยู่แล้ว ให้ผ่านทางได้ทันที
+    if (result.status && validStatuses.includes(result.status)) {
+      return result.status
+    }
+
+    // 2. Fallback: กรณีคอลัมน์ status หลุดค่าเพี้ยน แต่มีก้อนข้อมูล Boolean ของคอลัมน์ mode_* แนบมาด้วย
+    const r = result as any
+    if (r.mode_lost) return 'lost'
+    if (r.mode_mating) return 'mating'
+    if (r.mode_adoption) return 'adoption'
+    if (r.mode_showcase) return 'showcase'
+
+    // 3. ปลายท่อสุดท้าย: คืนค่า status เดิม หรือดึงเข้าทำเนียบโชว์เคสกันพัง
+    return result.status || 'showcase'
   }
-  const cfg    = statusCfg[result.status] || { label: result.status, color: '#1A1208' }
+
+  const currentStatus = determineStatus()
+
+  // ── 🟢 ผูก Configuration การตกแต่งชุดสีและป้ายภาษาไทยซิงค์ตรงตามระบบ 100% ──
+  const statusCfg: Record<string, { label: string; color: string; bg: string }> = {
+    lost:     { label: '🚨 ประกาศตามหาน้อง', color: '#D94F1E', bg: '#FFF1EC' },
+    found:    { label: '👀 พบน้องหลงทาง',    color: '#2D6A2D', bg: '#EBF5EB' },
+    adoption: { label: '💖 หาบ้านให้น้อง',   color: '#1A5EA8', bg: '#EEF6FF' },
+    mating:   { label: '❤️ หาคู่ให้น้อง',     color: '#C2185B', bg: '#FCE4EC' },
+    showcase: { label: '✨ โชว์โปรไฟล์น้อง',  color: '#A07800', bg: '#FFFDE7' },
+  }
+  
+  const cfg = statusCfg[currentStatus] || { label: '🐾 สัตว์เลี้ยงคอมมูนิตี้', color: '#1A1208', bg: '#FFFFFF' }
   const isOwner = userId === result.user_id
 
   return (
     <>
-      <div className="ori-card flex flex-col h-full group relative overflow-hidden">
+      <div className="ori-card flex flex-col h-full group relative overflow-hidden" style={{ backgroundColor: cfg.bg }}>
 
         {/* AI Match % */}
         {result.match_percentage && (
@@ -211,19 +233,21 @@ export function MatchResultCard({ result }: { result: PetResult }) {
           {isLoadingPin ? <Loader2 size={18} className="animate-spin" /> : isPinned ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
         </motion.button>
 
-        {/* 💡 Image (ล็อกสัดส่วน 1:1 ด้วย pt-[100%] รับประกันเป๊ะทุกหน้าจอ) */}
+        {/* Image */}
         <div className="relative w-full pt-[100%] overflow-hidden border-b-2 border-ori-ink shrink-0 block"
           style={{ background: 'linear-gradient(135deg, #FDE8ED, #E4F0E5)' }}>
           <img src={formatSrc(result.image_url)} alt={result.name}
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           
           <div className="absolute bottom-0 left-0 right-0 h-1 z-10" style={{ background: cfg.color }} />
-          <div className="absolute bottom-2 left-2 z-10 text-xs font-black px-2 py-0.5 rounded-full border-2 border-ori-ink bg-white"
+          
+          {/* ป้ายสลักสถานะภาษาไทย Origami ซิงค์ค่าลื่นไหลผ่านตัวดักจับ Fallback */}
+          <div className="absolute bottom-2 left-2 z-10 text-xs font-black px-2.5 py-1 rounded-full border-2 border-ori-ink bg-white shadow-[2px_2px_0_rgba(0,0,0,1)]"
             style={{ color: cfg.color }}>{cfg.label}</div>
         </div>
 
         {/* Info */}
-        <div className="p-4 flex flex-grow flex-col gap-2">
+        <div className="p-4 flex flex-grow flex-col gap-2 bg-white text-left">
           <h3 className="font-display font-black text-xl text-ori-ink truncate">{result.name || 'ไม่ทราบชื่อ'}</h3>
           <p className="text-sm text-ori-ink-l font-medium truncate">{result.breed || 'ไม่ระบุสายพันธุ์'}</p>
           <div className="flex items-start gap-1.5 text-sm font-bold text-ori-ink-m bg-ori-cream border border-ori-cream-d rounded-lg px-3 py-1.5 w-full">
@@ -233,7 +257,7 @@ export function MatchResultCard({ result }: { result: PetResult }) {
         </div>
 
         {/* CTA */}
-        <div className="px-4 pb-4 space-y-2">
+        <div className="px-4 pb-4 space-y-2 bg-white">
           <button
             onClick={() => { setIsNavigating(true); router.push(`/pet/${result.id}`) }}
             disabled={isNavigating}
@@ -256,18 +280,19 @@ export function MatchResultCard({ result }: { result: PetResult }) {
             </div>
           )}
 
-          {isOwner && (result.status === 'lost' || result.status === 'mating' || result.status === 'adoption') && (
+          {isOwner && (currentStatus === 'lost' || currentStatus === 'mating' || currentStatus === 'adoption' || currentStatus === 'showcase') && (
             <button
               onClick={handleResolveCase}
               disabled={loadingResolve}
               className={`w-full py-2.5 rounded-xl border-2 border-black font-black text-xs flex items-center justify-center gap-1.5 shadow-paper-sm transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 text-white mt-2
-                ${result.status === 'lost' ? 'bg-[#2D6A2D] hover:bg-[#3E803E]' : ''}
-                ${result.status === 'mating' ? 'bg-[#C2185B] hover:bg-[#D81B60]' : ''}
-                ${result.status === 'adoption' ? 'bg-[#1A5EA8] hover:bg-[#1E71C9]' : ''}
+                ${currentStatus === 'lost' ? 'bg-[#2D6A2D] hover:bg-[#3E803E]' : ''}
+                ${currentStatus === 'mating' ? 'bg-[#C2185B] hover:bg-[#D81B60]' : ''}
+                ${currentStatus === 'adoption' ? 'bg-[#1A5EA8] hover:bg-[#1E71C9]' : ''}
+                ${currentStatus === 'showcase' ? 'bg-[#A07800] hover:bg-[#B38F1B]' : ''}
               `}
             >
               {loadingResolve ? <Loader2 className="animate-spin" size={12}/> : null}
-              {loadingResolve ? 'กำลังบันทึก...' : result.status === 'lost' ? 'พบน้องแล้ว 🚨' : result.status === 'mating' ? 'น้องได้คู่แล้ว ❤️' : 'น้องได้บ้านแล้ว 🏡'}
+              {loadingResolve ? 'กำลังบันทึก...' : currentStatus === 'lost' ? 'พบน้องแล้ว 🚨' : currentStatus === 'mating' ? 'น้องได้คู่แล้ว ❤️' : currentStatus === 'adoption' ? 'น้องได้บ้านแล้ว 🏡' : 'อัปเดตสถานะโชว์ ✨'}
             </button>
           )}
         </div>
@@ -279,20 +304,15 @@ export function MatchResultCard({ result }: { result: PetResult }) {
       <AnimatePresence>
         {showDeleteModal && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
             onClick={() => setShowDeleteModal(false)}
           >
             <motion.div
-              initial={{ scale: .9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: .9, y: 20 }}
+              initial={{ scale: .9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: .9, y: 20 }}
               onClick={e => e.stopPropagation()}
               className="bg-white border-4 border-ori-ink rounded-2xl shadow-[8px_8px_0_#1A1208] w-full max-w-sm p-6 relative"
             >
-              {/* Close */}
               <button onClick={() => setShowDeleteModal(false)}
                 className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-gray-100 transition-colors">
                 <X size={20} />
@@ -304,7 +324,6 @@ export function MatchResultCard({ result }: { result: PetResult }) {
                 ช่วยบอกเหตุผลด้วยนะครับ ข้อมูลนี้ช่วยให้แพลตฟอร์มดีขึ้น
               </p>
 
-              {/* Reason options */}
               <div className="flex flex-col gap-2 mb-5">
                 {DELETE_REASON_OPTIONS.map(opt => (
                   <button key={opt.value}
@@ -323,7 +342,6 @@ export function MatchResultCard({ result }: { result: PetResult }) {
                 ))}
               </div>
 
-              {/* Confirm / Cancel */}
               <div className="flex gap-2">
                 <button onClick={() => setShowDeleteModal(false)}
                   className="flex-1 py-3 rounded-xl border-2 border-ori-ink bg-gray-50 font-bold text-sm hover:bg-gray-100 transition-colors">
