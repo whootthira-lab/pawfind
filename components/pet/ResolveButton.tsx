@@ -17,9 +17,19 @@ export function ResolveButton({ petId, status, onResolved }: {
   )
 
   const handleResolve = async () => {
-    const confirmMsg = status === 'adoption' 
-      ? '🎉 ยืนยันว่าน้องได้บ้านใหม่ที่อบอุ่นแล้วใช่ไหม?' 
-      : '🎊 ยืนยันว่าพบน้องแล้วใช่ไหม? ยินดีด้วยนะครับ!';
+    let confirmMsg = '🎊 ยืนยันว่าพบน้องแล้วใช่ไหม? ยินดีด้วยนะครับ!'
+    let titleText = '🎉 พบน้องแล้ว!'
+    let descText = 'ยินดีด้วยค่ะ น้องได้กลับบ้านอย่างปลอดภัยเรียบร้อยแล้ว'
+    
+    if (status === 'adoption') {
+      confirmMsg = '🎉 ยืนยันว่าน้องได้บ้านใหม่ที่อบอุ่นแล้วใช่ไหม?'
+      titleText = '🏡 น้องได้บ้านแล้ว!'
+      descText = 'ยินดีด้วยค่ะ น้องได้รับอุปการะสู่บ้านใหม่ที่อบอุ่นเรียบร้อยแล้ว'
+    } else if (status === 'mating') {
+      confirmMsg = '💖 ยืนยันว่าน้องจับคู่แมตช์สำเร็จแล้วใช่ไหม?'
+      titleText = '❤️ น้องได้คู่แล้ว!'
+      descText = 'ยินดีด้วยค่ะ น้องจับคู่แมตช์และผสมพันธุ์สำเร็จเรียบร้อยแล้ว'
+    }
     
     if (!confirm(confirmMsg)) return
 
@@ -28,12 +38,28 @@ export function ResolveButton({ petId, status, onResolved }: {
       const { error } = await supabase
         .from('pets')
         .update({ 
+          status: 'showcase',
+          mode_lost: false,
+          mode_adoption: false,
+          mode_mating: false,
+          mode_showcase: true,
           is_resolved: true, 
           resolved_at: new Date().toISOString() 
         })
         .eq('id', petId)
 
       if (!error) {
+        // บันทึกลงประวัติสุขภาพสัตว์เลี้ยง (pet_health_events)
+        await supabase
+          .from('pet_health_events')
+          .insert({
+            pet_id: petId,
+            event_type: 'other',
+            title: titleText,
+            description: descText,
+            event_date: new Date().toISOString().split('T')[0]
+          })
+
         onResolved() // รีเฟรชข้อมูลในหน้า Profile
         router.refresh() // อัปเดต Server Cache
       } else {
@@ -46,15 +72,23 @@ export function ResolveButton({ petId, status, onResolved }: {
     }
   }
 
-  const buttonText = status === 'adoption' ? 'ได้บ้านแล้ว 💖' : 'พบน้องแล้ว 🚨';
-  // 💡 ใช้สีเขียวที่ดูสำเร็จกว่าสำหรับสถานะพบน้อง
-  const colorClass = "ori-btn-green"; 
+  const buttonText = status === 'adoption' 
+    ? 'น้องได้บ้านแล้ว 🏡' 
+    : status === 'mating' 
+      ? 'น้องได้คู่แล้ว ❤️' 
+      : 'พบน้องแล้ว 🚨';
+
+  const colorClass = status === 'lost' 
+    ? 'bg-[#2D6A2D] hover:bg-[#3E803E] text-white' 
+    : status === 'mating' 
+      ? 'bg-[#C2185B] hover:bg-[#D81B60] text-white' 
+      : 'bg-[#1A5EA8] hover:bg-[#1E71C9] text-white';
 
   return (
     <button 
       onClick={handleResolve}
       disabled={loading}
-      className={`${colorClass} w-full py-3 rounded-2xl border-2 border-ori-ink font-black text-sm flex items-center justify-center gap-2 shadow-paper-sm hover:shadow-none active:translate-y-1 transition-all disabled:opacity-70`}
+      className={`${colorClass} w-full py-3 rounded-2xl border-2 border-black font-black text-sm flex items-center justify-center gap-2 shadow-paper-sm hover:shadow-none active:translate-y-1 transition-all disabled:opacity-70`}
     >
       {loading ? (
         <Loader2 className="animate-spin" size={18} />

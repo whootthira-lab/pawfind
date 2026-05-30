@@ -21,8 +21,10 @@ export default function RecentPetsGrid() {
         const { data, error } = await supabase
           .from('pets')
           .select('*, pet_images(storage_url, is_primary), comments(count)')
+          .eq('visibility', 'public')
+          .or('is_resolved.eq.false,status.eq.showcase')
           .order('created_at', { ascending: false })
-          .limit(3) // 💡 ตรงนี้คือจุดที่จำกัดให้ดึงมาแค่ 3 รายการล่าสุดครับ
+          .limit(3) // 💡 ดึงมาเฉพาะเคสสาธารณะที่เปิดอยู่ หรือโพสต์โชว์โปรไฟล์ 3 รายการล่าสุดครับ
         
         if (error) throw error;
 

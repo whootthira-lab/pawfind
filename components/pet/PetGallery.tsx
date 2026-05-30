@@ -7,8 +7,12 @@ import { X } from 'lucide-react'
 export function PetGallery({ primaryImage, images, petName }: any) {
   const [selectedImg, setSelectedImg] = useState<string | null>(null)
 
-  const formatSrc = (src: string) => 
-    src?.startsWith('http') ? src : `data:image/jpeg;base64,${src}`
+  const formatSrc = (src: string) => {
+    if (!src) return ''
+    if (src.startsWith('http') || src.startsWith('data:')) return src
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ajjvtazuncdtxjwcplcv.supabase.co'
+    return `${supabaseUrl}/storage/v1/object/public/pet-images/${src}`
+  }
 
   return (
     <>

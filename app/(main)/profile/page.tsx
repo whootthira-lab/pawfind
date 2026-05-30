@@ -114,6 +114,7 @@ export default function ProfilePage() {
     community_role:       'general',
     community_role_custom: '',
     interests:            [] as string[],
+    is_public:            true,
   })
 
   // ── States สำหรับโมดูลสร้างโปรไฟล์น้องใหม่พรีเมียม ──
@@ -201,6 +202,7 @@ export default function ProfilePage() {
           community_role:        pData.community_role        || 'general',
           community_role_custom: pData.community_role_custom || '',
           interests:             pData.interests             || [],
+          is_public:             pData.is_public !== false,
         })
       }
 
@@ -277,6 +279,7 @@ export default function ProfilePage() {
           community_role: profile.community_role,
           community_role_custom: profile.community_role === 'other' ? profile.community_role_custom.trim() : null,
           interests: profile.interests.length ? profile.interests : null,
+          is_public: profile.is_public,
         })
         .eq('id', user.id)
 
@@ -324,8 +327,8 @@ export default function ProfilePage() {
         .insert({
           user_id: user.id,
           name: petDataForm.name || 'ไม่ทราบชื่อ',
-          species: petDataForm.species === 'อื่นๆ' ? (speciesCustom.trim() || 'อื่นๆ') : petDataForm.species,
-          breed: petDataForm.breed.trim() || null,
+          species: petDataForm.species === 'อื่นๆ' ? ((speciesCustom || '').trim() || 'อื่นๆ') : petDataForm.species,
+          breed: (petDataForm.breed || '').trim() || null,
           gender: petDataForm.gender,
           is_sterilized: petDataForm.is_sterilized,
           birthday: petDataForm.birthday || null,
@@ -514,6 +517,18 @@ export default function ProfilePage() {
                 <option value="male">ชาย</option>
                 <option value="female">หญิง</option>
                 <option value="other">อื่นๆ</option>
+              </select>
+            </div>
+            
+            <div className="space-y-2 text-left">
+              <label className="font-black text-sm flex items-center gap-1">🔒 สิทธิ์ความเป็นส่วนตัวโปรไฟล์</label>
+              <select 
+                value={profile.is_public ? "public" : "private"} 
+                onChange={e => setProfile({ ...profile, is_public: e.target.value === "public" })} 
+                className="ori-input bg-white cursor-pointer font-bold"
+              >
+                <option value="public">🌍 สาธารณะ (ค้นเจอที่อยู่และสัตว์ได้)</option>
+                <option value="private">🔒 เฉพาะฉัน (จำกัดเฉพาะชื่อ, รูป และจังหวัด)</option>
               </select>
             </div>
             <div className="space-y-2 text-left">

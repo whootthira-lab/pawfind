@@ -167,7 +167,7 @@ export default function PetProfilePage() {
       await fetchHealthAndReminders()
 
       const { data: ownerData } = await supabase
-        .from('profiles').select('display_name, avatar_url, province')
+        .from('profiles').select('display_name, avatar_url, province, district, subdistrict, address, phone_number, line_id, contact_link, is_public')
         .eq('id', petData.user_id).single()
       setOwner(ownerData)
 
@@ -479,16 +479,49 @@ export default function PetProfilePage() {
           {owner && !isOwner && (
             <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper text-left">
               <h2 className="font-black text-lg mb-4">👤 ข้อมูลติดต่อเจ้าของสัตว์เลี้ยง</h2>
-              <div className="flex items-center gap-4 border-2 border-black p-4 rounded-2xl bg-wagashi-matcha/5">
-                <div className="w-12 h-12 rounded-full border-2 border-black overflow-hidden bg-gray-200">
+              
+              <div className="flex items-start gap-4 border-2 border-black p-4 rounded-2xl bg-wagashi-matcha/5 mb-4">
+                <div className="w-12 h-12 rounded-full border-2 border-black overflow-hidden bg-gray-200 shrink-0">
                   {owner.avatar_url ? <img src={owner.avatar_url} alt="" className="w-full h-full object-cover" /> : <PawPrint size={24} className="m-2 text-gray-400" />}
                 </div>
                 <div>
                   <p className="font-black text-lg">{owner.display_name || 'สมาชิก PobPet'}</p>
-                  <p className="text-sm font-bold text-gray-600">📱 เบอร์โทรศัพท์: {pet.contact_tel || 'กรุณาติดต่อผ่านแผงแชทบอตในระบบ'}</p>
-                  {pet.contact_name && <p className="text-xs font-bold text-gray-500">ชื่อผู้ติดต่อหลัก: {pet.contact_name}</p>}
+                  <p className="text-xs font-bold text-gray-600 mt-1">📍 จังหวัด: {owner.province || 'ไม่ระบุ'}</p>
+                  {owner.is_public !== false && (
+                    <>
+                      {owner.district && <p className="text-xs font-bold text-gray-600">อำเภอ: {owner.district} {owner.subdistrict && ` • ตำบล: ${owner.subdistrict}`}</p>}
+                      {owner.address && <p className="text-xs font-bold text-gray-500 mt-0.5">🏠 ที่อยู่: {owner.address}</p>}
+                    </>
+                  )}
+                  {owner.is_public === false && (
+                    <p className="text-xs font-bold text-red-500 mt-1">🔒 เจ้าของระบุความเป็นส่วนตัวระดับเฉพาะฉัน (ซ่อนที่อยู่ละเอียด)</p>
+                  )}
                 </div>
               </div>
+
+              {owner.is_public !== false ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {(owner.phone_number || pet.contact_tel) && (
+                    <a href={`tel:${owner.phone_number || pet.contact_tel}`} className="flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-black bg-wagashi-kinako text-black text-xs font-black hover:bg-yellow-400 transition-all shadow-paper-sm text-center">
+                      📱 โทรติดต่อ
+                    </a>
+                  )}
+                  {owner.line_id && (
+                    <a href={`https://line.me/ti/p/~${owner.line_id}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-black bg-[#00B900] text-white text-xs font-black hover:bg-[#009E00] transition-all shadow-paper-sm text-center">
+                      💬 แอดไลน์
+                    </a>
+                  )}
+                  {owner.contact_link && (
+                    <a href={owner.contact_link.startsWith('http') ? owner.contact_link : `https://${owner.contact_link}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-black bg-black text-white text-xs font-black hover:bg-gray-800 transition-all shadow-paper-sm text-center">
+                      🔗 ช่องทางอื่น
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-3 bg-gray-100 rounded-xl border border-gray-300">
+                  <p className="text-sm font-bold text-gray-500">กรุณาติดต่อเจ้าของผ่านการแชทบอตในระบบ PobPet หรือช่องทางแชทหน้ารายละเอียด 🐾</p>
+                </div>
+              )}
             </div>
           )}
         </div>

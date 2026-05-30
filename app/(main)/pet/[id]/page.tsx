@@ -96,16 +96,32 @@ export default async function PetProfilePage({ params }: Props) {
     .select(`
       *,
       pet_images(storage_url, is_primary),
-      profiles(first_name, last_name, display_name, avatar_url, phone_number, line_id, contact_link)
+      profiles(first_name, last_name, display_name, avatar_url, phone_number, line_id, contact_link, province, district, subdistrict, address, is_public)
     `)
     .eq('id', params.id)
     .single()
 
   if (!pet) notFound()
 
+  const { data: { session } } = await supabase.auth.getSession()
+  const isOwner = session?.user?.id === pet.user_id
+
   const images       = pet.pet_images || []
   const primaryImage = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url
   const reporter     = pet.profiles
+  const isProfilePublic = reporter?.is_public !== false || isOwner
+
+  let distinctiveFeaturesList: { url: string; description: string }[] = []
+  try {
+    if (pet.distinctive_features) {
+      const parsed = JSON.parse(pet.distinctive_features)
+      if (Array.isArray(parsed)) {
+        distinctiveFeaturesList = parsed.filter(item => item && (item.url || item.description))
+      }
+    }
+  } catch (e) {
+    // legacy non-JSON text
+  }
 
   const createdAt     = new Date(pet.created_at)
   const formattedDate = createdAt.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -187,9 +203,28 @@ export default async function PetProfilePage({ params }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 text-left">
               <div className="border-2 border-black p-5 rounded-lg bg-wagashi-kinako shadow-paper-sm md:col-span-2">
                 <h3 className="font-bold text-lg mb-2">✨ ตำหนิหรือลักษณะพิเศษ</h3>
-                <p className="text-black font-medium leading-relaxed">
-                  {pet.distinctive_features || 'ผู้แจ้งไม่ได้ระบุลักษณะพิเศษไว้'}
-                </p>
+                {distinctiveFeaturesList.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-3">
+                    {distinctiveFeaturesList.map((item, index) => (
+                      <div key={index} className="border-2 border-black rounded-xl overflow-hidden bg-white shadow-paper-sm flex flex-col">
+                        {item.url && (
+                          <div className="aspect-square w-full bg-gray-50 border-b-2 border-black overflow-hidden relative">
+                            <img src={item.url} alt={item.description || 'ตำหนิพิเศษ'} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                          </div>
+                        )}
+                        <div className="p-3 flex-1 flex items-center justify-start bg-yellow-50/30">
+                          <p className="font-bold text-xs text-gray-800 leading-relaxed">🐾 {item.description || 'ไม่ได้ระบุคำอธิบาย'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-black font-medium leading-relaxed">
+                    {pet.distinctive_features && !pet.distinctive_features.startsWith('[') 
+                      ? pet.distinctive_features 
+                      : 'ผู้แจ้งไม่ได้ระบุลักษณะพิเศษไว้'}
+                  </p>
+                )}
               </div>
               <div className="border-2 border-black p-5 rounded-lg bg-wagashi-sakura shadow-paper-sm">
                 <div className="text-sm font-bold text-gray-600 mb-1 uppercase">สีของสัตว์เลี้ยง</div>
@@ -226,7 +261,7 @@ export default async function PetProfilePage({ params }: Props) {
 
             {reporter && (
               <div className="border-2 border-black rounded-xl p-6 bg-gray-50 mt-10 text-left">
-                <div className="flex items-center gap-4 mb-5 border-b-2 border-black pb-4">
+                <div className="flex items-start gap-4 mb-5 border-b-2 border-black pb-4">
                   {reporter.avatar_url ? (
                     <img src={reporter.avatar_url} alt={reporter.display_name || 'Profile'} className="w-14 h-14 rounded-full border-2 border-black object-cover" />
                   ) : (
@@ -237,25 +272,47 @@ export default async function PetProfilePage({ params }: Props) {
                     <p className="text-xl font-black">
                       {reporter.display_name || `${reporter.first_name || ''} ${reporter.last_name || ''}`}
                     </p>
+                    <p className="text-xs font-bold text-gray-600 mt-1">
+                      📍 จังหวัด: {reporter.province || 'ไม่ระบุ'}
+                      {isProfilePublic && reporter.district && ` • อำเภอ: ${reporter.district}`}
+                      {isProfilePublic && reporter.subdistrict && ` • ตำบล: ${reporter.subdistrict}`}
+                    </p>
+                    {isProfilePublic && reporter.address && (
+                      <p className="text-xs font-bold text-gray-500 mt-0.5">
+                        🏠 ที่อยู่ติดต่อ: {reporter.address}
+                      </p>
+                    )}
+                    {!isProfilePublic && (
+                      <p className="text-xs font-bold text-red-500 mt-1">
+                        🔒 บัญชีนี้ตั้งค่าการแสดงผลที่อยู่และช่องทางติดต่อเป็นส่วนตัว
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  {reporter.phone_number && (
-                    <a href={`tel:${reporter.phone_number}`} className="flex-1 flex items-center justify-center gap-2 bg-wagashi-kinako border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all text-black">
-                      <Phone size={20} /><span>โทรติดต่อ</span>
-                    </a>
-                  )}
-                  {reporter.line_id && (
-                    <a href={`https://line.me/ti/p/~${reporter.line_id}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-[#00B900] text-white border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all">
-                      <MessageCircle size={20} /><span>แอดไลน์</span>
-                    </a>
-                  )}
-                  {reporter.contact_link && (
-                    <a href={reporter.contact_link.startsWith('http') ? reporter.contact_link : `https://${reporter.contact_link}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-black text-white border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all">
-                      <ExternalLink size={20} /><span>ช่องทางอื่น</span>
-                    </a>
-                  )}
-                </div>
+
+                {isProfilePublic ? (
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {reporter.phone_number && (
+                      <a href={`tel:${reporter.phone_number}`} className="flex-1 flex items-center justify-center gap-2 bg-wagashi-kinako border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all text-black">
+                        <Phone size={20} /><span>โทรติดต่อ</span>
+                      </a>
+                    )}
+                    {reporter.line_id && (
+                      <a href={`https://line.me/ti/p/~${reporter.line_id}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-[#00B900] text-white border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all">
+                        <MessageCircle size={20} /><span>แอดไลน์</span>
+                      </a>
+                    )}
+                    {reporter.contact_link && (
+                      <a href={reporter.contact_link.startsWith('http') ? reporter.contact_link : `https://${reporter.contact_link}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-black text-white border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all">
+                        <ExternalLink size={20} /><span>ช่องทางอื่น</span>
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 bg-gray-200 border border-gray-300 rounded-xl">
+                    <p className="text-sm font-bold text-gray-500">ติดต่อผ่านแผงแชทของระบบ PobPet หรือส่งข้อความผ่านคอมเมนต์ด้านล่าง 🐾</p>
+                  </div>
+                )}
               </div>
             )}
 

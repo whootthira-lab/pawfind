@@ -83,6 +83,64 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     finally { setIsLoadingPin(false) }
   }
 
+  const [loadingResolve, setLoadingResolve] = useState(false)
+
+  const handleResolveCase = async (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    let checkText = 'เจอน้องเรียบร้อยแล้วใช่ไหมคะ?'
+    let titleText = '🎉 พบน้องแล้ว!'
+    let descText = 'ยินดีด้วยค่ะ น้องได้กลับบ้านอย่างปลอดภัยเรียบร้อยแล้ว'
+    
+    if (result.status === 'adoption') {
+      checkText = 'น้องได้บ้านที่อบอุ่นใหม่เรียบร้อยแล้วใช่ไหมคะ?'
+      titleText = '🏡 น้องได้บ้านแล้ว!'
+      descText = 'ยินดีด้วยค่ะ น้องได้รับอุปการะสู่บ้านใหม่ที่อบอุ่นเรียบร้อยแล้ว'
+    }
+    if (result.status === 'mating') {
+      checkText = 'น้องจับคู่แมตช์สำเร็จเรียบร้อยแล้วใช่ไหมคะ?'
+      titleText = '❤️ น้องได้คู่แล้ว!'
+      descText = 'ยินดีด้วยค่ะ น้องจับคู่แมตช์และผสมพันธุ์สำเร็จเรียบร้อยแล้ว'
+    }
+
+    if (!window.confirm(`⚠️ ยืนยันปิดประกาศสถานะเคสนี้สำเร็จ: ${checkText}`)) return
+    
+    setLoadingResolve(true)
+    try {
+      const { error } = await supabase
+        .from('pets')
+        .update({
+          status: 'showcase', 
+          mode_lost: false,
+          mode_adoption: false,
+          mode_mating: false,
+          mode_showcase: true,
+          is_resolved: true,
+          resolved_at: new Date().toISOString()
+        })
+        .eq('id', result.id)
+
+      if (error) throw error
+
+      // บันทึกลงประวัติสุขภาพสัตว์เลี้ยง (pet_health_events)
+      await supabase
+        .from('pet_health_events')
+        .insert({
+          pet_id: result.id,
+          event_type: 'other',
+          title: titleText,
+          description: descText,
+          event_date: new Date().toISOString().split('T')[0]
+        })
+
+      alert('🎉 ปิดเคสสำเร็จเรียบร้อยแล้วค่ะ!')
+      window.location.reload()
+    } catch (err: any) {
+      alert(`ปิดเคสไม่สำเร็จ: ${err.message}`)
+    } finally {
+      setLoadingResolve(false)
+    }
+  }
+
   // ── Step 1: เปิด modal ถามเหตุผลก่อน ─────────────────────────
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
@@ -118,8 +176,12 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     }
   }
 
-  const formatSrc = (src: string) =>
-    src?.startsWith('http') ? src : `data:image/jpeg;base64,${src}`
+  const formatSrc = (src: string) => {
+    if (!src) return ''
+    if (src.startsWith('http') || src.startsWith('data:')) return src
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ajjvtazuncdtxjwcplcv.supabase.co'
+    return `${supabaseUrl}/storage/v1/object/public/pet-images/${src}`
+  }
 
   const statusCfg: Record<string, { label: string; color: string }> = {
     lost:     { label: '🚨 ประกาศตามหาน้อง', color: '#D94F1E' },
@@ -192,6 +254,21 @@ export function MatchResultCard({ result }: { result: PetResult }) {
                 {isDeleting ? 'ลบ...' : 'ลบ'}
               </button>
             </div>
+          )}
+
+          {isOwner && (result.status === 'lost' || result.status === 'mating' || result.status === 'adoption') && (
+            <button
+              onClick={handleResolveCase}
+              disabled={loadingResolve}
+              className={`w-full py-2.5 rounded-xl border-2 border-black font-black text-xs flex items-center justify-center gap-1.5 shadow-paper-sm transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 text-white mt-2
+                ${result.status === 'lost' ? 'bg-[#2D6A2D] hover:bg-[#3E803E]' : ''}
+                ${result.status === 'mating' ? 'bg-[#C2185B] hover:bg-[#D81B60]' : ''}
+                ${result.status === 'adoption' ? 'bg-[#1A5EA8] hover:bg-[#1E71C9]' : ''}
+              `}
+            >
+              {loadingResolve ? <Loader2 className="animate-spin" size={12}/> : null}
+              {loadingResolve ? 'กำลังบันทึก...' : result.status === 'lost' ? 'พบน้องแล้ว 🚨' : result.status === 'mating' ? 'น้องได้คู่แล้ว ❤️' : 'น้องได้บ้านแล้ว 🏡'}
+            </button>
           )}
         </div>
       </div>

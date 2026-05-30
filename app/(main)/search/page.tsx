@@ -64,6 +64,7 @@ function SearchContent() {
       countQuery = supabase.from('pets').select('*', { count: 'exact', head: true })
     }
     
+    countQuery = countQuery.eq('is_resolved', false).eq('visibility', 'public')
     if (currentTab !== 'all') countQuery = countQuery.eq('status', currentTab)
     const { count } = await countQuery
     if (count !== null) setTotalCount(count)
@@ -81,6 +82,7 @@ function SearchContent() {
         .order('created_at', { ascending: false })
     }
 
+    query = query.eq('is_resolved', false).eq('visibility', 'public')
     if (currentTab !== 'all') query = query.eq('status', currentTab)
 
     // กำหนดช่วงการดึง (Pagination offset)
