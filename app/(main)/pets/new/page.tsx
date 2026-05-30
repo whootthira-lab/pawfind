@@ -57,6 +57,7 @@ export default function NewPetPage() {
   const [form, setForm] = useState({
     name: '',
     species: '',
+    species_custom: '',   // ← เพิ่มช่องกรอกเมื่อเลือก "อื่นๆ"
     breed: '',
     gender: 'unknown',       
     is_sterilized: false,    // 🟢 รองรับค่า Boolean การทำหมันหลังบ้าน
@@ -146,6 +147,9 @@ export default function NewPetPage() {
     setError(null)
 
     if (!form.species) return setError('กรุณาเลือกประเภทสัตว์เลี้ยงค่ะ')
+    if (form.species === 'อื่นๆ' && !form.species_custom.trim()) {
+      return setError('กรุณาระบุประเภทสัตว์เลี้ยงในช่อง "อื่นๆ" ค่ะ')
+    }
     if (!form.province) return setError('กรุณาเลือกจังหวัดที่เกิดเหตุค่ะ')
     if (!form.contact_tel) return setError('กรุณากรอกเบอร์โทรศัพท์ผู้ติดต่อหลักค่ะ')
     if (images.length === 0) return setError('กรุณาอัปโหลดรูปภาพน้องอย่างน้อย 1 รูป เพื่อช่วยในการจดจำของ AI ค่ะ')
@@ -180,7 +184,9 @@ export default function NewPetPage() {
         .insert({
           user_id: user.id,
           name: form.name || 'ไม่ทราบชื่อ',
-          species: form.species,
+          species: form.species === 'อื่นๆ' && form.species_custom.trim()
+            ? form.species_custom.trim()
+            : form.species,
           breed: form.breed || null,
           gender: form.gender,
           is_sterilized: form.is_sterilized, 
@@ -193,7 +199,9 @@ export default function NewPetPage() {
           reward_amount: form.reward_amount ? parseFloat(form.reward_amount) : 0,
           mode: mode,
           images: uploadedUrls,
-          status: mode === 'mode_lost' ? 'lost' : 'active',
+          status: mode === 'mode_lost'     ? 'lost'     :
+                  mode === 'mode_mating'   ? 'mating'   :
+                  mode === 'mode_adoption' ? 'adoption' : 'showcase',
           contact_name: form.contact_name || null,
           contact_tel: form.contact_tel,
           emergency_name: form.emergency_name || null,
@@ -312,12 +320,25 @@ export default function NewPetPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="font-black text-sm">ประเภทสายพันธุ์ *</label>
-              <select value={form.species} onChange={e => setForm(f => ({ ...f, species: e.target.value }))} className="ori-input bg-white font-bold">
+              <label className="font-black text-sm">ประเภทสัตว์เลี้ยง *</label>
+              <select value={form.species} onChange={e => setForm(f => ({ ...f, species: e.target.value, species_custom: '' }))} className="ori-input bg-white font-bold">
                 {SPECIES_OPTIONS.map(opt => (
                   <option key={opt} value={opt}>{opt === '' ? '-- เลือกประเภท --' : opt}</option>
                 ))}
               </select>
+              {/* ── ช่องกรอกเพิ่มเติมเมื่อเลือก "อื่นๆ" ── */}
+              {form.species === 'อื่นๆ' && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    value={form.species_custom}
+                    onChange={e => setForm(f => ({ ...f, species_custom: e.target.value }))}
+                    placeholder="ระบุประเภทสัตว์เลี้ยง เช่น แกะ, หนูแฮมสเตอร์..."
+                    className="ori-input border-2 border-dashed border-black focus:border-solid"
+                    autoFocus
+                  />
+                </div>
+              )}
             </div>
 
             {/* ── 🟢 [แผงแทรกใหม่แกะกล่องตามสไตล์หน้ากากรูปภาพ] ช่องกรอกข้อมูลเพศ และการทำหมัน ── */}
