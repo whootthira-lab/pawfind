@@ -1,5 +1,5 @@
 // app/(main)/pet/[id]/page.tsx
-// ── สมุดสุขภาพและประวัติสัตว์เลี้ยงรายตัว (ฉบับสมบูรณ์สูงสุด: แก้ไข Text Entity และปลดล็อกสิทธิ์ตรวจเช็คปุ่ม Action บล็อกการดีดหน้าสลับ 100%) ──
+// ── สมุดสุขภาพและประวัติสัตว์เลี้ยงรายตัว (ฉบับแก้ไขสัญญานอินพุตพารามิเตอร์ PetActionButtons ผ่านบิวด์ Vercel 100%) ──
 
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
@@ -48,10 +48,6 @@ export async function generateMetadata(
 export default async function PetDetailPage({ params }: Props) {
   const supabase = createClient()
 
-  // ดึงข้อมูลเซสชันปัจจุบันของผู้เปิดชมหน้าเว็บเพื่อนำมาเทียบเคียงสิทธิ์
-  const { data: { session } } = await supabase.auth.getSession()
-  const currentUserId = session?.user?.id || null
-
   // ── 🟢 สั่งดึงข้อมูล Join ข้ามตารางพ่วงก้อนข้อมูล Profiles และรูปภาพ Multi-photos ทั้งหมด ──
   const { data: pet, error } = await supabase
     .from('pets')
@@ -78,9 +74,6 @@ export default async function PetDetailPage({ params }: Props) {
 
   if (error || !pet) return notFound()
 
-  // คำนวณตรวจสอบสิทธิ์ความเป็นเจ้าของสัตว์เลี้ยงที่แท้จริง
-  const isOwner = currentUserId !== null && currentUserId === pet.user_id
-
   // จัดการจัดระเบียบคลังรูปภาพ Multi-photos 3 มุมส่งเข้าโมดูลแกลเลอรี
   const galleryImages = pet.pet_images && pet.pet_images.length > 0
     ? pet.pet_images.map((img: any) => img.storage_url)
@@ -94,7 +87,7 @@ export default async function PetDetailPage({ params }: Props) {
     showcase: '✨ ทำเนียบโชว์โปรไฟล์น้อง',
   }
 
-  // ── 🟢 แกะสิทธิ์และแกะรอยระดับความเป็นส่วนตัวจากตารางโปรไฟล์เจ้าของ ──
+  // แกะรอยระดับความเป็นส่วนตัวจากตารางโปรไฟล์เจ้าของ
   const isPrivateProfile = pet.profiles?.visibility === 'private'
   
   // ชุดข้อมูล Fallback ดึงสิทธิ์ผู้ดูแล
@@ -108,8 +101,13 @@ export default async function PetDetailPage({ params }: Props) {
 
   return (
     <>
-      {/* ── 🟢 ปรับเปลี่ยนค่าส่งสัญญาณพารามิเตอร์ของระบบแอคชันบาร์ เพื่อป้องกันการ Redirect Loop วนลูปกลับไปหน้าแก้ไขโดยอัตโนมัติ ── */}
-      <PetActionButtons petId={pet.id} isOwner={isOwner} />
+      {/* ── 🟢 แก้ไขจุดบิวด์เอเรอร์: ส่งค่า Props ไปหา PetActionButtons ให้ตรงตามข้อกำหนด Type สากลประจำคอมโพเนนต์ของพี่วุฒิ์ ── */}
+      <PetActionButtons 
+        petId={pet.id} 
+        status={pet.status} 
+        petName={pet.name || 'ไม่ทราบชื่อ'} 
+        ownerId={pet.user_id || ''} 
+      />
       
       <div className="max-w-5xl mx-auto px-4 py-6 text-black">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -151,7 +149,7 @@ export default async function PetDetailPage({ params }: Props) {
               <div className="space-y-2 font-bold text-sm">
                 <p>จังหวัด: <span className="font-black">{pet.profiles?.province || pet.province}</span></p>
                 
-                {/* ── 🟢 ดักตรวจสอบสิทธิ์การแสดงผลพิกัดอำเภอเชิงลึกตามค่า Privacy ── */}
+                {/* ดักตรวจสอบสิทธิ์การแสดงผลพิกัดอำเภอเชิงลึกตามค่า Privacy */}
                 {!isPrivateProfile ? (
                   <>
                     <p>อำเภอ / เขต: <span className="font-black">{pet.profiles?.district || pet.district || 'ไม่ระบุ'}</span></p>
@@ -160,7 +158,6 @@ export default async function PetDetailPage({ params }: Props) {
                 ) : (
                   <div className="bg-amber-50 border-2 border-amber-300 p-3 rounded-xl flex gap-2 items-start text-amber-800 text-xs mt-3">
                     <ShieldAlert size={16} className="shrink-0 mt-0.5" />
-                    {/* ── 🟢 เปลี่ยนมาใช้ &quot; เพื่อให้ระบบผ่านการตรวจสอบโครงสร้างสากลฉลุย 100% ── */}
                     <p>เจ้าของสัตว์เลี้ยงเลือกตั้งค่าโปรไฟล์เป็น <span className="font-black">&quot;เฉพาะฉัน&quot;</span> ระบบจึงจำกัดการเข้าถึงข้อมูลพิกัดอำเภอเพื่อความปลอดภัยค่ะ</p>
                   </div>
                 )}
@@ -187,7 +184,7 @@ export default async function PetDetailPage({ params }: Props) {
                 </div>
               </div>
 
-              {/* ── 🟢 ดักสิทธิ์บล็อกปุ่มเปิดเผยช่องทางติดต่อส่วนตัวหากโหมดเป็น private ── */}
+              {/* ดักสิทธิ์บล็อกปุ่มเปิดเผยช่องทางติดต่อส่วนตัวหากโหมดเป็น private */}
               {!isPrivateProfile ? (
                 <div className="flex flex-col sm:flex-row gap-2">
                   {reporter.phone_number && (
