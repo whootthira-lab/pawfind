@@ -1,320 +1,216 @@
-'use client'
-// app/(main)/pet/[id]/edit/page.tsx (ฉบับปลดล็อคโครงข่ายอัปเดตประวัติการทำหมันและเพศสัตว์เลี้ยงครบมิติ 100%)
+// app/(main)/pet/[id]/page.tsx
+// ── สมุดสุขภาพและประวัติสัตว์เลี้ยงรายตัว (ฉบับกู้คืนโครงสร้างหลัก + ผูกระบบความปลอดภัย Privacy ล็อกสิทธิ์อำเภอและเบอร์โทร 100%) ──
 
-import { useState, useRef, useMemo, useEffect } from 'react'
-import { createBrowserClient }                  from '@supabase/ssr'
-import { useRouter }                             from 'next/navigation'
-import Link                                     from 'next/link'
-import {
-  Upload, Sparkles, Loader2, ChevronLeft,
-  PawPrint, Heart, Home, Trophy, Search,
-  X, Plus, AlertCircle, Save, Trash2
-} from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { PetGallery } from '@/components/pet/PetGallery'
+import { Phone, MessageCircle, ExternalLink, UserCircle2, ShieldAlert } from 'lucide-react'
+import type { Metadata, ResolvingMetadata } from 'next'
+import ShareButton from '@/components/pet/ShareButton'
+import { CommentSection } from '@/components/pet/CommentSection'
+import { PetActionButtons } from '@/components/pet/PetActionButtons'
 
-type Mode = 'mode_lost' | 'mode_mating' | 'mode_adoption' | 'mode_showcase'
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pobpet.com'
 
-const SPECIES_OPTIONS = [
-  '', 'สุนัข', 'แมว', 'นกสวยงาม', 'ปลาสวยงาม',
-  'กระต่าย', 'แฮมสเตอร์', 'เต่า', 'งู', 'กิ้งก่า', 'อื่นๆ',
-]
+type Props = { params: { id: string } }
 
-const GENDER_OPTIONS = [
-  { value: 'unknown', label: '❓ ไม่ทราบ / ไม่ระบุ' },
-  { value: 'male',    label: '♂ เพศผู้ (Male)'   },
-  { value: 'female',  label: '♀ เพศเมีย (Female)'  },
-]
+function resolveImageUrl(url: string | null | undefined): string {
+  if (!url) return ''
+  if (url.startsWith('data:')) return ''
+  if (url.startsWith('http')) return url
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pet-images/${url}`
+}
 
-export default function EditPetFormPage({ params }: { params: { id: string } }) {
-  const router = useRouter()
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  ), [])
+export async function generateMetadata(
+  { params }: Props,
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const supabase = createClient()
+  const { data: pet } = await supabase
+    .from('pets')
+    .select('*, pet_images(storage_url, is_primary)')
+    .eq('id', params.id)
+    .single()
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // ── States โครงสร้างฟอร์มแก้ไข ──
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving]   = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [showDelete, setShowDelete] = useState(false)
-  const [error, setError]     = useState<string | null>(null)
-
-  const [name, setName] = useState('')
-  const [species, setSpecies] = useState('')
-  const [breed, setBreed] = useState('')
-  const [color, setColor] = useState('')
+  if (!pet) return { title: 'ไม่พบข้อมูล - PobPet หาสัตว์หายด้วย AI' }
+  const primaryImg = pet.pet_images?.find((img: any) => img.is_primary)?.storage_url || pet.image_url || ''
   
-  // ── 🟢 ฟิลด์ประวัติสุขภาพรองรับการแก้ไขเปลี่ยนค่าภายหลัง (ข้อ 1) ──
-  const [gender, setGender] = useState('unknown')
-  const [isSterilized, setIsSterilized] = useState(false)
-  const [birthday, setBirthday] = useState('')
+  return {
+    title: `${pet.name || 'ไม่ทราบชื่อ'} | PobPet หาสัตว์หายด้วย AI`,
+    description: pet.distinctive_features || pet.details || 'ช่วยเหลือน้องสัตว์เลี้ยงตามหาบ้านและพิกัดที่ปลอดภัย',
+    openGraph: {
+      images: [primaryImg ? resolveImageUrl(primaryImg) : '/logo-og.png'],
+    },
+  }
+}
 
-  const [province, setProvince] = useState('')
-  const [district, setDistrict] = useState('')
-  const [tambon, setTambon] = useState('')
-  const [rewardAmount, setRewardAmount] = useState('0')
-  const [distinctiveFeatures, setDistinctiveFeatures] = useState('')
-  const [details, setDetails] = useState('')
-  const [contactInfo, setContactInfo] = useState('')
+export default async function PetDetailPage({ params }: Props) {
+  const supabase = createClient()
 
-  // โหมดประกาศ
-  const [activeMode, setActiveMode] = useState<Mode>('mode_showcase')
+  // ── 🟢 สั่งดึงข้อมูล Join ข้ามตารางพ่วงก้อนข้อมูล Profiles และรูปภาพ Multi-photos ทั้งหมด ──
+  const { data: pet, error } = await supabase
+    .from('pets')
+    .select(`
+      *,
+      pet_images (
+        id,
+        storage_url,
+        is_primary
+      ),
+      profiles (
+        display_name,
+        avatar_url,
+        phone_number,
+        line_id,
+        contact_link,
+        province,
+        district,
+        visibility
+      )
+    `)
+    .eq('id', params.id)
+    .single()
 
-  // คลังรูปภาพ
-  const [images, setImages] = useState<{ id?: string; url: string; file?: File; isPrimary: boolean }[]>([])
+  if (error || !pet) return notFound()
 
-  useEffect(() => {
-    const fetchPetData = async () => {
-      const { data: pet, error: petErr } = await supabase
-        .from('pets')
-        .select('*, pet_images(*)')
-        .eq('id', params.id)
-        .single()
+  // จัดการจัดระเบียบคลังรูปภาพ Multi-photos 3 มุมส่งเข้าโมดูลแกลเลอรี
+  const galleryImages = pet.pet_images && pet.pet_images.length > 0
+    ? pet.pet_images.map((img: any) => img.storage_url)
+    : [pet.image_url].filter(Boolean)
 
-      if (petErr || !pet) {
-        setError('ไม่พบข้อมูลสัตว์เลี้ยงตัวนี้ในระบบค่ะ')
-        setLoading(false)
-        return
-      }
-
-      // ดึงสิทธิ์ความปลอดภัยเจ้าของป้องการการแฮกข้ามบัญชี
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session || session.user.id !== pet.user_id) {
-        setError('🔒 คุณไม่มีสิทธิ์เข้าถึงหรือแก้ไขฟอร์มประกาศฉบับนี้ค่ะ')
-        setLoading(false)
-        return
-      }
-
-      // แมปเข้า State
-      setName(pet.name || '')
-      setSpecies(pet.species || '')
-      setBreed(pet.breed || '')
-      setColor(pet.color || '')
-      setGender(pet.gender || 'unknown')
-      setIsSterilized(!!pet.is_sterilized)
-      setBirthday(pet.birthday || pet.birthdate || '')
-      setProvince(pet.province || '')
-      setDistrict(pet.district || '')
-      setTambon(pet.tambon || '')
-      setRewardAmount(String(pet.reward_amount || 0))
-      setDetails(pet.details || '')
-      setContactInfo(pet.contact_info || '')
-
-      // ล้างข้อมูลสตริง JSON ลักษณะเด่นพิเศษถอดออกมาเรนเดอร์ (ข้อ 8)
-      if (pet.distinctive_features && pet.distinctive_features.startsWith('[')) {
-        try {
-          const parsed = JSON.parse(pet.distinctive_features)
-          setDistinctiveFeatures(parsed[0]?.description || pet.distinctive_features)
-        } catch {
-          setDistinctiveFeatures(pet.distinctive_features)
-        }
-      } else {
-        setDistinctiveFeatures(pet.distinctive_features || '')
-      }
-
-      // แกะค่าโหมด
-      if (pet.mode_lost) setActiveMode('mode_lost')
-      else if (pet.mode_mating) setActiveMode('mode_mating')
-      else if (pet.mode_adoption) setActiveMode('mode_adoption')
-      else setActiveMode('mode_showcase')
-
-      // จัดการดึงคลังรูป (ข้อ 9)
-      if (pet.pet_images && pet.pet_images.length > 0) {
-        setImages(pet.pet_images.map((img: any) => ({
-          id: img.id,
-          url: img.storage_url,
-          isPrimary: !!img.is_primary
-        })))
-      } else if (pet.image_url) {
-        setImages([{ url: pet.image_url, isPrimary: true }])
-      }
-
-      setLoading(false)
-    }
-
-    fetchPetData()
-  }, [params.id, supabase])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (saving) return
-    setSaving(true)
-    setError(null)
-
-    try {
-      // 1. อัปโหลดรูปใหม่เข้าคลัง (ถ้ามี)
-      const finalImages = [...images]
-      for (let i = 0; i < finalImages.length; i++) {
-        if (finalImages[i].file) {
-          const file = finalImages[i].file!
-          const fileExt = file.name.split('.').pop()
-          const path = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-          await supabase.storage.from('pet-images').upload(path, file)
-          const { data: { publicUrl } } = supabase.storage.from('pet-images').getPublicUrl(path)
-          finalImages[i].url = publicUrl
-          delete finalImages[i].file
-        }
-      }
-
-      // 2. เซฟค่าบันทึกลงตารางหลัก pets สอดคล้องตามคอลัมน์ดาต้าเบส
-      const { error: updateErr } = await supabase
-        .from('pets')
-        .update({
-          name,
-          species,
-          breed: breed || null,
-          color,
-          gender,
-          is_sterilized: isSterilized,
-          birthday: birthday || null,
-          birthdate: birthday || null,
-          province,
-          district,
-          tambon,
-          reward_amount: parseFloat(rewardAmount) || 0,
-          distinctive_features: distinctiveFeatures,
-          details,
-          contact_info: contactInfo,
-          status: activeMode === 'mode_lost' ? 'lost' : (activeMode === 'mode_adoption' ? 'adoption' : activeMode === 'mode_mating' ? 'mating' : 'showcase'),
-          mode_lost: activeMode === 'mode_lost',
-          mode_mating: activeMode === 'mode_mating',
-          mode_adoption: activeMode === 'mode_adoption',
-          mode_showcase: activeMode === 'mode_showcase'
-        })
-        .eq('id', params.id)
-
-      if (updateErr) throw updateErr
-
-      // 3. ปรับระดับสลับรูปภาพในตารางย่อย pet_images
-      await supabase.from('pet_images').delete().eq('pet_id', params.id)
-      const imageRows = finalImages.map((img, index) => ({
-        pet_id: params.id,
-        storage_url: img.url,
-        is_primary: index === 0
-      }))
-      await supabase.from('pet_images').insert(imageRows)
-
-      alert('🎉 อัปเดตข้อมูลประวัติและโหมดประกาศของน้องสำเร็จเรียบร้อยค่ะ!')
-      router.push(`/pet/${params.id}`)
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setSaving(false)
-    }
+  const statusLabels: Record<string, string> = {
+    lost: '🚨 ประกาศตามหา (สัตว์หาย)',
+    found: '👀 แจ้งพบสัตว์พลัดหลง',
+    adoption: '💖 ประกาศตามหาบ้านใหม่',
+    mating: '❤️ ประกาศตามหาคู่ผสมพันธุ์',
+    showcase: '✨ ทำเนียบโชว์โปรไฟล์น้อง',
   }
 
-  const handleDelete = async () => {
-    setDeleting(true)
-    await supabase.from('pets').update({ status: 'archived' }).eq('id', params.id)
-    router.push('/profile')
+  // ── 🟢 แกะสิทธิ์และแกะรอยระดับความเป็นส่วนตัวจากตารางโปรไฟล์เจ้าของ ──
+  const isPrivateProfile = pet.profiles?.visibility === 'private'
+  
+  // ชุดข้อมูล Fallback ดึงสิทธิ์ผู้ดูแล
+  const reporter = {
+    display_name: pet.profiles?.display_name || 'สมาชิกเครือข่าย PobPet',
+    avatar_url: pet.profiles?.avatar_url || null,
+    phone_number: pet.contact_info || pet.profiles?.phone_number || null,
+    line_id: pet.profiles?.line_id || null,
+    contact_link: pet.profiles?.contact_link || null,
   }
-
-  if (loading) return <div className="min-h-[50vh] flex items-center justify-center font-bold text-black"><Loader2 className="animate-spin text-ori-orange mr-2" /> กำลังเรียกแฟ้มประวัติน้อง...</div>
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 text-black">
-      <Link href={`/pet/${params.id}`} className="inline-flex items-center gap-1 font-black text-sm mb-4 text-gray-500 hover:text-black">
-        <ChevronLeft size={16} /> ย้อนกลับหน้าสมุดสุขภาพ
-      </Link>
-
-      <div className="bg-white border-4 border-black p-6 md:p-8 rounded-3xl shadow-paper space-y-6">
-        <h2 className="text-2xl font-black border-b-4 border-black pb-3 flex items-center gap-2">📝 แก้ไขและสลับโหมดโปรไฟล์</h2>
-
-        {error && <div className="bg-red-50 border-2 border-red-500 p-4 rounded-xl text-red-700 font-bold">{error}</div>}
-
-        {/* แผงปุ่ม Neubrutalism เลือกโหมด 4 ทิศทาง */}
-        <div className="space-y-1 text-left">
-          <label className="font-black text-sm text-gray-400">🚨 เลือกโหมดการโชว์ประกาศในบอร์ดสาธารณะ:</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setActiveMode('mode_lost')} className={`p-3 rounded-xl font-black border-2 border-black flex items-center justify-center gap-1.5 transition-all shadow-paper-sm ${activeMode === 'mode_lost' ? 'bg-red-400' : 'bg-white'}`}><Search size={16} /> ประกาศหาย</button>
-            <button type="button" onClick={() => setActiveMode('mode_mating')} className={`p-3 rounded-xl font-black border-2 border-black flex items-center justify-center gap-1.5 transition-all shadow-paper-sm ${activeMode === 'mode_mating' ? 'bg-pink-400' : 'bg-white'}`}><Heart size={16} /> หาคู่ให้น้อง</button>
-            <button type="button" onClick={() => setActiveMode('mode_adoption')} className={`p-3 rounded-xl font-black border-2 border-black flex items-center justify-center gap-1.5 transition-all shadow-paper-sm ${activeMode === 'mode_adoption' ? 'bg-blue-400' : 'bg-white'}`}><Home size={16} /> หาบ้านให้น้อง</button>
-            <button type="button" onClick={() => setActiveMode('mode_showcase')} className={`p-3 rounded-xl font-black border-2 border-black flex items-center justify-center gap-1.5 transition-all shadow-paper-sm ${activeMode === 'mode_showcase' ? 'bg-amber-400' : 'bg-white'}`}><Trophy size={16} /> โชว์โปรไฟล์</button>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4 text-left">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="font-black text-sm">ชื่อน้องสัตว์เลี้ยง</label>
-              <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white" />
-            </div>
-            <div className="space-y-1">
-              <label className="font-black text-sm">ประเภทสัตว์</label>
-              <select value={species} onChange={e => setSpecies(e.target.value)} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
-                {SPECIES_OPTIONS.map(opt => <option key={opt} value={opt}>{opt || 'โปรดเลือกประเภท'}</option>)}
-              </select>
-            </div>
+    <>
+      {/* ส่วนควบคุมแอคชันบาร์ด้านบนสุด */}
+      <PetActionButtons petId={pet.id} isOwner={false} />
+      
+      <div className="max-w-5xl mx-auto px-4 py-6 text-black">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* คอลัมน์ซ้าย: แฟลชแกลเลอรีรูปภาพแบบสไลด์ดูครบทุกมุมมอง */}
+          <div className="lg:col-span-7 space-y-6">
+            <PetGallery images={galleryImages} name={pet.name} />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <label className="font-black text-sm">เพศ</label>
-              <select value={gender} onChange={e => setGender(e.target.value)} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
-                {GENDER_OPTIONS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="font-black text-sm">การทำหมันย้อนหลัง 🩺</label>
-              <select value={isSterilized ? "true" : "false"} onChange={e => setIsSterilized(e.target.value === "true")} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
-                <option value="false">❌ ยังไม่ได้ทำหมัน</option>
-                <option value="true">✨ ทำหมันเรียบร้อยแล้ว</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="font-black text-sm">วันเดือนปีเกิด 🎂</label>
-              <input type="date" value={birthday} onChange={e => setBirthday(e.target.value)} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer" />
-            </div>
-          </div>
+          {/* คอลัมน์ขวา: รายละเอียดเนื้อหาข้อมูลทั่วไปของตัวน้อง */}
+          <div className="lg:col-span-5 space-y-6 text-left">
+            <div className="bg-white border-4 border-black p-6 rounded-3xl shadow-paper">
+              <div className="inline-block bg-ori-orange/10 border-2 border-ori-orange text-ori-orange font-black text-xs px-3 py-1 rounded-full mb-3">
+                {statusLabels[pet.status] || pet.status}
+              </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-1">
-              <label className="font-black text-xs">จังหวัด</label>
-              <input type="text" value={province} onChange={e => setProvince(e.target.value)} className="w-full border-2 border-black p-2 rounded-xl font-bold bg-white" />
+              <h1 className="text-3xl font-black mb-2 flex items-center justify-between">
+                <span>{pet.name || 'ไม่ระบุชื่อ'} 🐾</span>
+              </h1>
+
+              <div className="grid grid-cols-2 gap-3 mt-4 text-sm font-bold border-t-2 border-black pt-4">
+                <p className="bg-gray-50 p-2.5 rounded-xl border border-black">🧬 สายพันธุ์: <span className="font-black text-ori-orange">{pet.breed || 'ไม่ระบุ'}</span></p>
+                <p className="bg-gray-50 p-2.5 rounded-xl border border-black">🎨 สีขนน้อง: <span className="font-black">{pet.color || 'ไม่ระบุ'}</span></p>
+                <p className="bg-gray-50 p-2.5 rounded-xl border border-black">⚧️ เพศ: <span className="font-black">{pet.gender === 'male' ? 'ผู้ ♂' : pet.gender === 'female' ? 'เมีย ♀' : 'ไม่ระบุ'}</span></p>
+                <p className="bg-gray-50 p-2.5 rounded-xl border border-black">🩺 ทำหมันแล้ว: <span className="font-black">{pet.is_sterilized ? 'ใช่ ✅' : 'ยังไม่ทำ ❌'}</span></p>
+              </div>
+
+              {pet.reward_amount > 0 && (
+                <div className="mt-4 bg-yellow-100 border-4 border-black p-4 rounded-2xl text-center shadow-paper-sm">
+                  <p className="text-xs font-black text-amber-800 uppercase tracking-wider">💰 สินน้ำใจ / เงินรางวัลนำส่ง</p>
+                  <p className="text-3xl font-black text-red-600 mt-1">{pet.reward_amount.toLocaleString()} <span className="text-sm text-black">บาท</span></p>
+                </div>
+              )}
             </div>
-            <div className="space-y-1">
-              <label className="font-black text-xs">อำเภอ</label>
-              <input type="text" value={district} onChange={e => setDistrict(e.target.value)} className="w-full border-2 border-black p-2 rounded-xl font-bold bg-white" />
-            </div>
-            <div className="space-y-1">
-              <label className="font-black text-xs">ตำบล</label>
-              <input type="text" value={tambon} onChange={e => setTambon(e.target.value)} className="w-full border-2 border-black p-2 rounded-xl font-bold bg-white" />
-            </div>
-          </div>
 
-          <div className="space-y-1">
-            <label className="font-black text-sm">ตำหนิเด่น / ลักษณะเด่นพิเศษ</label>
-            <input type="text" value={distinctiveFeatures} onChange={e => setDistinctiveFeatures(e.target.value)} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white" />
-          </div>
-
-          <div className="space-y-1">
-            <label className="font-black text-sm">เบอร์โทรศัพท์และช่องทางการติดต่อ</label>
-            <input type="text" value={contactInfo} onChange={e => setContactInfo(e.target.value)} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white" />
-          </div>
-
-          <button type="submit" disabled={saving} className="w-full bg-black text-white font-black py-4 border-2 border-black shadow-paper-sm rounded-xl flex items-center justify-center gap-1.5 hover:bg-gray-800">
-            {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-            {saving ? 'กำลังบันทึกข้อมูลการแก้ไข...' : '💾 ยืนยันอัปเดตแฟ้มข้อมูลสัตว์เลี้ยง'}
-          </button>
-        </form>
-
-        <div className="border-4 border-dashed border-red-300 rounded-3xl p-6 text-left">
-          <h3 className="font-black text-red-700 mb-1 flex items-center gap-2"><Trash2 size={18} /> Danger Zone</h3>
-          <p className="text-sm font-bold text-red-500 mb-4">ลบประกาศนี้ — ข้อมูลจะถูกซ่อนไว้ในคลัง 60 วัน ก่อนถูกเคลียร์ระบบถาวร</p>
-          {!showDelete ? (
-            <button type="button" onClick={() => setShowDelete(true)} className="px-4 py-2 text-sm font-black text-red-600 border-2 border-red-400 rounded-xl bg-white hover:bg-red-50 transition-all shadow-paper-sm">ลบไฟล์ประกาศน้อง</button>
-          ) : (
-            <div className="p-4 bg-red-50 rounded-2xl border-2 border-red-400">
-              <p className="font-black text-red-800 mb-3">คุณแน่ใจใช่ไหมที่จะสั่งลบข้อมูลประกาศน้องตัวนี้?</p>
-              <div className="flex gap-2">
-                <button type="button" onClick={handleDelete} disabled={deleting} className="px-4 py-2 bg-red-600 text-white font-black text-sm rounded-xl flex items-center gap-1.5">{deleting ? <Loader2 className="animate-spin" size={12}/> : null} ยืนยันลบเด็ดขาด</button>
-                <button type="button" onClick={() => setShowDelete(false)} className="px-4 py-2 bg-white text-black font-black text-sm border-2 border-black rounded-xl shadow-paper-sm">ยกเลิก</button>
+            {/* กล่องพิกัดข้อมูลสถานที่ที่ตั้งน้อง */}
+            <div className="bg-white border-4 border-black p-6 rounded-3xl shadow-paper">
+              <h3 className="font-black text-lg mb-3">📍 พิกัดพื้นที่ประจำตัวน้อง</h3>
+              <div className="space-y-2 font-bold text-sm">
+                <p>จังหวัด: <span className="font-black">{pet.profiles?.province || pet.province}</span></p>
+                
+                {/* ── 🟢 ดักตรวจสอบสิทธิ์การแสดงผลพิกัดอำเภอเชิงลึกตามค่า Privacy ── */}
+                {!isPrivateProfile ? (
+                  <>
+                    <p>อำเภอ / เขต: <span className="font-black">{pet.profiles?.district || pet.district || 'ไม่ระบุ'}</span></p>
+                    {pet.tambon && <p>ตำบล / แขวง: <span className="font-black">ต.{pet.tambon}</span></p>}
+                  </>
+                ) : (
+                  <div className="bg-amber-50 border-2 border-amber-300 p-3 rounded-xl flex gap-2 items-start text-amber-800 text-xs mt-3">
+                    <ShieldAlert size={16} className="shrink-0 mt-0.5" />
+                    <p>เจ้าของสัตว์เลี้ยงเลือกตั้งค่าโปรไฟล์เป็น <b>"เฉพาะฉัน"</b> ระบบจึงจำกัดการเข้าถึงข้อมูลพิกัดอำเภอเพื่อความปลอดภัยค่ะ</p>
+                  </div>
+                )}
               </div>
             </div>
-          )}
+
+            {/* กล่องผู้ดูแลและเบอร์โทรช่องทางติดต่อกลับ */}
+            <div className="bg-white border-4 border-black p-6 rounded-3xl shadow-paper">
+              <h3 className="font-black text-lg mb-4 flex items-center gap-2">
+                <UserCircle2 className="text-ori-orange" /> ข้อมูลผู้ดูแล / ผู้แจ้งเหตุ
+              </h3>
+              
+              <div className="flex items-center gap-3 border-b-2 border-gray-100 pb-4 mb-4">
+                <div className="w-12 h-12 bg-gray-100 rounded-full border-2 border-black overflow-hidden shadow-paper-sm">
+                  {reporter.avatar_url ? (
+                    <img src={reporter.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xl">🐾</div>
+                  )}
+                </div>
+                <div className="text-left">
+                  <p className="font-black text-base leading-tight">{reporter.display_name}</p>
+                  <p className="text-xs font-bold text-gray-400 mt-1">เครือข่ายสมาชิกประจำชุมชน</p>
+                </div>
+              </div>
+
+              {/* ── 🟢 ดักสิทธิ์บล็อกปุ่มเปิดเผยช่องทางติดต่อส่วนตัวหากโหมดเป็น private ── */}
+              {!isPrivateProfile ? (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {reporter.phone_number && (
+                    <a href={`tel:${reporter.phone_number}`} className="flex-1 flex items-center justify-center gap-2 bg-wagashi-kinako border-2 border-black px-4 py-3 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all text-black text-xs">
+                      <Phone size={16} /><span>โทรติดต่อ</span>
+                    </a>
+                  )}
+                  {reporter.line_id && (
+                    <a href={`https://line.me/ti/p/~${reporter.line_id}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-[#00B900] text-white border-2 border-black px-4 py-3 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all text-xs">
+                      <MessageCircle size={16} /><span>แอดไลน์</span>
+                    </a>
+                  )}
+                  {reporter.contact_link && (
+                    <a href={reporter.contact_link.startsWith('http') ? reporter.contact_link : `https://${reporter.contact_link}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-black text-white border-2 border-black px-4 py-3 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all text-xs">
+                      <ExternalLink size={16} /><span>ช่องทางอื่น</span>
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-4 bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl">
+                  <p className="text-xs font-black text-gray-400">🔒 กรุณาส่งข้อความสอบถามเบาะแสผ่านช่องคอมเมนต์ด้านล่างแทนค่ะ</p>
+                </div>
+              )}
+            </div>
+
+            {/* ระบบกล่องคอมเมนต์สาธารณะเบาะแส */}
+            <CommentSection petId={params.id} />
+
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
