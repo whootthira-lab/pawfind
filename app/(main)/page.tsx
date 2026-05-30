@@ -28,12 +28,12 @@ export const metadata: Metadata = {
 
 export default function LandingPage() {
   return (
-    <div className="flex flex-col gap-14 pb-20">
+    <div className="flex flex-col gap-14 pb-20 text-black">
       
       {/* --- Section 1: Hero Banner --- */}
       <section className="bg-white border-4 border-black rounded-3xl p-8 md:p-12 shadow-paper text-center overflow-visible max-w-5xl mx-auto w-full mt-4">
         
-        {/* 💡 ส่วนแสดงโลโก้ ปรับขนาดให้เข้ากับทรงกลม */}
+        {/* ส่วนแสดงโลโก้ ปรับขนาดให้เข้ากับทรงกลม */}
         <div className="flex justify-center mb-8 relative">
           <div className="relative w-48 h-48 md:w-56 md:h-56 hover:scale-105 transition-transform duration-300">
             <Image 
@@ -60,10 +60,13 @@ export default function LandingPage() {
             <button className="w-full md:w-64 bg-wagashi-matcha border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all">
               <Search size={22} /> ค้นหา <ChevronDown size={18} />
             </button>
+            {/* ── 🟢 ปรับปรุงเมนูดรอปดาวน์สืบค้นให้ครบถ้วน 5 หมวดหมู่หลัก วิ่งเข้าหาคีย์ tab ตามระบบค้นหาฉบับแก้ไข ── */}
             <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute top-full left-0 w-full bg-white border-4 border-black rounded-2xl mt-3 p-2 shadow-paper transition-all">
-              <Link href="/search?status=lost" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">🚨 เข้าดูประกาศตามหาเจ้าของ</Link>
-              <Link href="/search?status=found" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">👀 เข้าดูประกาศพบน้องหลงทาง</Link>
-              <Link href="/search?status=adoption" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left text-black">💖 เข้าดูประกาศหาบ้านให้น้อง</Link>
+              <Link href="/search?tab=lost" className="block p-3.5 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">🚨 เข้าดูประกาศตามหาน้อง (หาย)</Link>
+              <Link href="/search?tab=found" className="block p-3.5 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">👀 เข้าดูประกาศพบสัตว์หลง</Link>
+              <Link href="/search?tab=mating" className="block p-3.5 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">❤️ เข้าดูประกาศหาคู่ให้น้อง</Link>
+              <Link href="/search?tab=adoption" className="block p-3.5 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">💖 เข้าดูประกาศหาบ้านให้น้อง</Link>
+              <Link href="/search?tab=showcase" className="block p-3.5 hover:bg-gray-100 rounded-xl font-bold text-left text-black">✨ เข้าดูทำเนียบโชว์โปรไฟล์น้อง</Link>
             </div>
           </div>
 
@@ -71,10 +74,13 @@ export default function LandingPage() {
             <button className="w-full md:w-64 bg-black text-white border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all">
               <PlusCircle size={22} /> ลงประกาศใหม่ <ChevronDown size={18} />
             </button>
+            {/* ── 🟢 ปรับเมนูแจ้งเหตุให้วิ่งเข้าหาคีย์ status ตามโครงสร้างแผงควบคุม ReportForm ตัวอัปเกรด ── */}
             <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute top-full left-0 w-full bg-white border-4 border-black rounded-2xl mt-3 p-2 shadow-paper transition-all">
-              <Link href="/report?type=lost" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">📢 ลงประกาศหาสัตว์หาย</Link>
-              <Link href="/report?type=found" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">📍 ลงประกาศพบสัตว์หลง</Link>
-              <Link href="/report?type=adoption" className="block p-4 hover:bg-gray-100 rounded-xl font-bold text-left text-black">🏠 ลงประกาศหาบ้านให้น้อง</Link>
+              <Link href="/report?status=lost" className="block p-3.5 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">📢 ลงประกาศหาสัตว์หาย</Link>
+              <Link href="/report?status=found" className="block p-3.5 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">📍 ลงประกาศพบสัตว์หลง</Link>
+              <Link href="/report?status=mating" className="block p-3.5 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">❤️ ลงประกาศหาคู่ให้น้อง</Link>
+              <Link href="/report?status=adoption" className="block p-3.5 hover:bg-gray-100 rounded-xl font-bold text-left border-b-2 border-gray-100 text-black">🏠 ลงประกาศหาบ้านให้น้อง</Link>
+              <Link href="/report?status=showcase" className="block p-3.5 hover:bg-gray-100 rounded-xl font-bold text-left text-black">✨ ลงทะเบียนโชว์โปรไฟล์</Link>
             </div>
           </div>
 
