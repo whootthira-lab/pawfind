@@ -1,5 +1,5 @@
 // app/(main)/pet/[id]/page.tsx
-// ── สมุดสุขภาพและประวัติสัตว์เลี้ยงรายตัว (ฉบับแก้ไขสัญญานอินพุตพารามิเตอร์ PetActionButtons ผ่านบิวด์ Vercel 100%) ──
+// ── สมุดสุขภาพและประวัติสัตว์เลี้ยงรายตัว (ฉบับแก้รูปภาพคลังแตกสลับสิทธิ์ Safe URL ผ่านบิวด์สมบูรณ์แบบ 100%) ──
 
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
@@ -15,6 +15,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pobpet.com'
 
 type Props = { params: { id: string } }
 
+// ฟังก์ชันแปลงค่าจัดระเบียบพาร์ทรูปภาพจากคลังเก็บของหลังบ้าน Supabase
 function resolveImageUrl(url: string | null | undefined): string {
   if (!url) return ''
   if (url.startsWith('data:')) return ''
@@ -48,6 +49,10 @@ export async function generateMetadata(
 export default async function PetDetailPage({ params }: Props) {
   const supabase = createClient()
 
+  // ดึงข้อมูลเซสชันปัจจุบันของผู้เปิดชมหน้าเว็บเพื่อนำมาเทียบเคียงสิทธิ์
+  const { data: { session } } = await supabase.auth.getSession()
+  const currentUserId = session?.user?.id || null
+
   // ── 🟢 สั่งดึงข้อมูล Join ข้ามตารางพ่วงก้อนข้อมูล Profiles และรูปภาพ Multi-photos ทั้งหมด ──
   const { data: pet, error } = await supabase
     .from('pets')
@@ -74,10 +79,10 @@ export default async function PetDetailPage({ params }: Props) {
 
   if (error || !pet) return notFound()
 
-  // จัดการจัดระเบียบคลังรูปภาพ Multi-photos 3 มุมส่งเข้าโมดูลแกลเลอรี
+  // ── 🟢 ปรับปรุงตรงนี้: วิ่งลูปแมปอาเรย์รูปถ่าย 3 มุมทั้งหมดผ่านฟังก์ชันสลายพาร์ทดึงรูปขึ้นหน้าจอแบบไม่แตก ──
   const galleryImages = pet.pet_images && pet.pet_images.length > 0
-    ? pet.pet_images.map((img: any) => img.storage_url)
-    : [pet.image_url].filter(Boolean)
+    ? pet.pet_images.map((img: any) => resolveImageUrl(img.storage_url))
+    : [resolveImageUrl(pet.image_url)].filter(Boolean)
 
   const statusLabels: Record<string, string> = {
     lost: '🚨 ประกาศตามหา (สัตว์หาย)',
@@ -101,7 +106,6 @@ export default async function PetDetailPage({ params }: Props) {
 
   return (
     <>
-      {/* ── 🟢 แก้ไขจุดบิวด์เอเรอร์: ส่งค่า Props ไปหา PetActionButtons ให้ตรงตามข้อกำหนด Type สากลประจำคอมโพเนนต์ของพี่วุฒิ์ ── */}
       <PetActionButtons 
         petId={pet.id} 
         status={pet.status} 
@@ -112,7 +116,7 @@ export default async function PetDetailPage({ params }: Props) {
       <div className="max-w-5xl mx-auto px-4 py-6 text-black">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* คอลัมน์ซ้าย: แฟลชแกลเลอรีรูปภาพแบบสไลด์ดูครบทุกมุมมอง */}
+          {/* คอลัมน์ซ้าย: แฟลชแกลเลอรีรูปภาพสไลด์ Origami ปรับรูปพรีวิวให้ขึ้นแบบสวยคมชัดเจน */}
           <div className="lg:col-span-7 space-y-6">
             <PetGallery images={galleryImages} name={pet.name} />
           </div>
@@ -149,7 +153,6 @@ export default async function PetDetailPage({ params }: Props) {
               <div className="space-y-2 font-bold text-sm">
                 <p>จังหวัด: <span className="font-black">{pet.profiles?.province || pet.province}</span></p>
                 
-                {/* ดักตรวจสอบสิทธิ์การแสดงผลพิกัดอำเภอเชิงลึกตามค่า Privacy */}
                 {!isPrivateProfile ? (
                   <>
                     <p>อำเภอ / เขต: <span className="font-black">{pet.profiles?.district || pet.district || 'ไม่ระบุ'}</span></p>
@@ -184,7 +187,6 @@ export default async function PetDetailPage({ params }: Props) {
                 </div>
               </div>
 
-              {/* ดักสิทธิ์บล็อกปุ่มเปิดเผยช่องทางติดต่อส่วนตัวหากโหมดเป็น private */}
               {!isPrivateProfile ? (
                 <div className="flex flex-col sm:flex-row gap-2">
                   {reporter.phone_number && (
