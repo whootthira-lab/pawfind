@@ -6,7 +6,13 @@ import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, MapPinCheckInside, Loader2 } from 'lucide-react'
 
-// ── 🤖 Component สำหรับหน้าโหลด AI แบบ Full Screen ──
+const GENDER_OPTIONS = [
+  { value: 'unknown', label: '❓ ไม่ทราบ / ไม่ระบุ' },
+  { value: 'male',    label: '♂ เพศผู้ (Male)'   },
+  { value: 'female',  label: '♀ เพศเมีย (Female)'  },
+]
+
+// ── 🤖 Component สำหรับหน้าโหลด AI แบบ Full Screen ──[cite: 11]
 function ReportLoadingOverlay() {
   const [loadingStep, setLoadingStep] = useState(0)
 
@@ -76,7 +82,7 @@ function ReportForm() {
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState<string | null>(null)
 
-  // ── Form fields ──────────────────────────────────────────────
+  // ── Form fields ──────────────────────────────────────────────[cite: 11]
   const [name,               setName]               = useState('')
   const [type,               setType]               = useState('dog')
   const [otherType,          setOtherType]          = useState('') 
@@ -84,7 +90,11 @@ function ReportForm() {
   const [color,              setColor]              = useState('')
   const [distinctiveFeatures,setDistinctiveFeatures] = useState('')
   
-  // 💡 แยกเบอร์โทรศัพท์ กับ LINE ID
+  // ── 🟢 [เพิ่มกลุ่มฟิลด์ State สุขภาพระดับพรีเมียม] เพศ, การทำหมัน, และวันเกิดของน้อง ──
+  const [gender,             setGender]             = useState('unknown')
+  const [isSterilized,       setIsSterilized]       = useState(false)
+  const [birthday,           setBirthday]           = useState('')
+  
   const [phoneNumber,        setPhoneNumber]        = useState('')
   const [lineId,             setLineId]             = useState('')
   
@@ -165,6 +175,7 @@ function ReportForm() {
       const combinedContactInfo = `โทร: ${phoneNumber} ${lineId ? ` | LINE: ${lineId}` : ''}`
       const finalType = type === 'other' ? otherType : type
 
+      // ── 🟢 ผูกเชื่อมโยงตัวแปรข้อมูลชุดค่าสุขภาพและเพศสัตว์ส่งตรงเข้าสู่ฐานคลาวด์หลังบ้าน ──[cite: 11]
       const res = await fetch('/api/pets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -172,6 +183,10 @@ function ReportForm() {
           name,
           type: finalType,
           status,
+          gender,               // 🟢 ส่งค่าข้อมูลตัวเลือกเพศน้องเข้าสู่ระบบ
+          is_sterilized: isSterilized, // 🟢 ส่งค่าสถานะข้อมูลระบุการทำหมัน
+          birthday: birthday || null,   // 🟢 ส่งค่านัดหมายวันเกิดสำหรับการคำนวณเลขอายุอัตโนมัติ
+          birthdate: birthday || null,
           province,
           district:  amphure,     
           tambon,                  
@@ -193,7 +208,6 @@ function ReportForm() {
 
       const newPetId = data.pet?.id || data.id 
       if (newPetId) {
-        // 💡 พระเอกของเราอยู่ตรงนี้ครับ! ใส่ await เพื่อบังคับให้รอระบบส่งคำสั่งสำเร็จก่อนเปลี่ยนหน้า
         await fetch('/api/generate-og', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -214,10 +228,10 @@ function ReportForm() {
     adoption: { title:'ประกาศหาบ้านให้น้อง 💖', desc:'ลงประกาศหาบ้านใหม่ที่อบอุ่นให้กับน้องๆ',               bgClass:'bg-wagashi-matcha border-ori-green-d' },
   }
   const config = pageConfig[status] || pageConfig.lost
-  const selectCls = 'ori-input cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+  const selectCls = 'ori-input cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed font-bold bg-white'
 
   return (
-    <div className="max-w-2xl mx-auto flex flex-col gap-6 mb-12 relative p-4 mt-4">
+    <div className="max-w-2xl mx-auto flex flex-col gap-6 mb-12 relative p-4 mt-4 text-black">
       <AnimatePresence>
         {loading && <ReportLoadingOverlay />}
       </AnimatePresence>
@@ -238,7 +252,7 @@ function ReportForm() {
         )}
 
         <div className="flex flex-col gap-2">
-          <label className="font-bold text-lg">รูปภาพสัตว์เลี้ยง <span className="text-red-500">*</span> (1-5 รูป)</label>
+          <label className="font-bold text-lg text-left">รูปภาพสัตว์เลี้ยง <span className="text-red-500">*</span> (1-5 รูป)</label>
           <div className="border-[3px] border-dashed border-ori-ink-l rounded-xl p-8 text-center bg-ori-cream hover:bg-yellow-50 transition-colors cursor-pointer relative">
             <div className="font-bold text-ori-ink-m text-lg">📸 คลิกเพื่ออัปโหลดรูปภาพ</div>
             <input type="file" accept="image/*" multiple onChange={handleImageUpload}
@@ -262,7 +276,7 @@ function ReportForm() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
           <div className="flex flex-col gap-2">
             <label className="font-bold text-lg">ชื่อสัตว์เลี้ยง</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
@@ -291,11 +305,13 @@ function ReportForm() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="font-bold text-lg">สถานะ</label>
+            <label className="font-bold text-lg">หมวดหมู่ประกาศ</label>
             <select value={status} onChange={e => setStatus(e.target.value)} className={selectCls}>
-              <option value="lost">🚨 ลงประกาศหาน้อง</option>
-              <option value="found">👀 แจ้งพบสัตว์หลง</option>
+              <option value="lost">🚨 ลงประกาศหาน้อง (หาย)</option>
+              <option value="found">👀 แจ้งพบสัตว์หลงทาง</option>
+              <option value="mating">❤️ ประกาศหาคู่ให้น้อง</option>
               <option value="adoption">💖 ประกาศหาบ้านให้น้อง</option>
+              <option value="showcase">✨ ทำเนียบโชว์โปรไฟล์</option>
             </select>
           </div>
 
@@ -303,6 +319,29 @@ function ReportForm() {
             <label className="font-bold text-lg">สีของสัตว์เลี้ยง <span className="text-red-500">*</span></label>
             <input type="text" value={color} onChange={e => setColor(e.target.value)}
               required className="ori-input" placeholder="เช่น สีน้ำตาลขาว, ลายสลิด" />
+          </div>
+
+          {/* ── 🟢 [แผงกล่องอินพุตแทรกเสริมเพื่อความสอดคล้อง] ป้อนสถิติ เพศ และสถานะการทำหมันของตัวสัตว์เลี้ยงดั้งเดิม ── */}
+          <div className="flex flex-col gap-2">
+            <label className="font-bold text-lg">เพศของน้อง 🐾</label>
+            <select value={gender} onChange={e => setGender(e.target.value)} className={selectCls}>
+              {GENDER_OPTIONS.map(g => (
+                <option key={g.value} value={g.value}>{g.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="font-bold text-lg">การทำหมันของน้อง 🩺</label>
+            <select value={isSterilized ? "true" : "false"} onChange={e => setIsSterilized(e.target.value === "true")} className={selectCls}>
+              <option value="false">❌ ยังไม่ได้ทำหมัน</option>
+              <option value="true">✨ ทำหมันเรียบร้อยแล้ว</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-2 md:col-span-2">
+            <label className="font-bold text-lg">วันเกิดของน้อง (ระบุเพื่อประมวลอายุอัตโนมัติ) 🎂</label>
+            <input type="date" value={birthday} onChange={e => setBirthday(e.target.value)} className="ori-input cursor-pointer font-bold" />
           </div>
 
           <div className="flex flex-col gap-2 md:col-span-2">
@@ -348,17 +387,17 @@ function ReportForm() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1">
               <div className="flex flex-col gap-1">
-                <label className="font-bold text-sm text-ori-ink-m">จังหวัด <span className="text-red-500">*</span></label>
+                <label className="font-bold text-sm text-ori-ink-m">จังหวัด *</label>
                 <input type="text" value={province} onChange={e => setProvince(e.target.value)}
                   required className="ori-input" placeholder="เช่น นครราชสีมา" />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="font-bold text-sm text-ori-ink-m">อำเภอ / เขต <span className="text-red-500">*</span></label>
+                <label className="font-bold text-sm text-ori-ink-m">อำเภอ / เขต *</label>
                 <input type="text" value={amphure} onChange={e => setAmphure(e.target.value)}
                   required className="ori-input" placeholder="เช่น ด่านขุนทด" />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="font-bold text-sm text-ori-ink-m">ตำบล / แขวง <span className="text-red-500">*</span></label>
+                <label className="font-bold text-sm text-ori-ink-m">ตำบล / แขวง *</label>
                 <input type="text" value={tambon} onChange={e => setTambon(e.target.value)}
                   required className="ori-input" placeholder="เช่น ด่านขุนทด" />
               </div>
@@ -369,20 +408,20 @@ function ReportForm() {
           </div>
 
           <div className="flex flex-col gap-2 md:col-span-2">
-            <label className="font-bold text-lg">เงินรางวัล (บาท)</label>
+            <label className="font-bold text-lg">เงินรางวัล / สินน้ำใจ (บาท)</label>
             <input type="number" value={reward} onChange={e => setReward(e.target.value)}
-              className="ori-input" placeholder="0 (เว้นว่างได้)" min="0" />
+              className="ori-input" placeholder="0 (เว้นว่างได้หากไม่มีสินน้ำใจ)" min="0" />
           </div>
 
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="font-bold text-lg">ตำหนิหรือลักษณะพิเศษ</label>
             <textarea value={distinctiveFeatures} onChange={e => setDistinctiveFeatures(e.target.value)}
-              rows={3} className="ori-input"
+              rows={3} className="ori-input resize-none"
               placeholder="เช่น มีถุงเท้าขาว, หางกุด, ปลอกคอสีแดง, ขี้กลัว..." />
           </div>
 
           <div className="flex flex-col gap-2 md:col-span-1">
-            <label className="font-bold text-lg">เบอร์โทรติดต่อ <span className="text-red-500">*</span></label>
+            <label className="font-bold text-lg">เบอร์โทรติดต่อ *</label>
             <input type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)}
               required className="ori-input" placeholder="เช่น 0812345678" />
           </div>
@@ -395,8 +434,8 @@ function ReportForm() {
         </div>
 
         <Button type="submit" disabled={loading}
-          className="w-full mt-4 ori-btn-orange text-xl py-6 rounded-xl">
-          {loading ? 'กำลังประมวลผล...' : 'บันทึกข้อมูล 🐾'}
+          className="w-full mt-4 bg-black hover:bg-gray-800 text-white font-black text-xl py-6 rounded-xl border-2 border-black shadow-paper-sm hover:shadow-paper transition-all">
+          {loading ? 'กำลังประมวลผลบันทึกข้อมูล...' : 'ลงประกาศเหตุสัตว์เลี้ยง 🐾'}
         </Button>
       </form>
     </div>
