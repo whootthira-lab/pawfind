@@ -1,4 +1,6 @@
 'use client'
+// app/(main)/search/page.tsx (ฉบับอัปเกรดระบบคัดกรองโหมด 5 สถานะ, ปลดล็อคโหมดหาคู่/โชว์โปรไฟล์ และ Fallback รูปภาพสมบูรณ์ 100%)
+
 import { useState, useEffect, Suspense, useCallback, useMemo } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
@@ -64,7 +66,8 @@ function SearchContent() {
       countQuery = supabase.from('pets').select('*', { count: 'exact', head: true })
     }
     
-    countQuery = countQuery.eq('is_resolved', false).eq('visibility', 'public')
+    // ── 🟢 ปรับเงื่อนไขตัวกรองบอร์ดสาธารณะ: ต้องไม่ถูกปิดเคส สำเร็จแล้ว และ ไม่ใช่โหมดความเป็นส่วนตัว 'only_me' (ข้อ 1, 2, 3, 5) ──
+    countQuery = countQuery.eq('is_resolved', false).eq('visibility', 'public').not('status', 'eq', 'only_me')
     if (currentTab !== 'all') countQuery = countQuery.eq('status', currentTab)
     const { count } = await countQuery
     if (count !== null) setTotalCount(count)
@@ -72,17 +75,16 @@ function SearchContent() {
     // --- ส่วนดึงข้อมูล (Data Fetching) ---
     let query;
     if (userLocation) {
-      // 💡 ใช้ RPC เพื่อเรียงตามระยะทาง + ดึงรูปภาพมาด้วย
       query = supabase.rpc('get_pets_by_distance', { user_lat: userLocation.lat, user_lng: userLocation.lng })
         .select('*, pet_images(storage_url, is_primary)')
     } else {
-      // 💡 ถ้าไม่มี GPS ให้เรียงตามเวลาที่สร้าง
       query = supabase.from('pets')
         .select('*, pet_images(storage_url, is_primary)')
         .order('created_at', { ascending: false })
     }
 
-    query = query.eq('is_resolved', false).eq('visibility', 'public')
+    // ── 🟢 ล็อกสิทธิ์ความปลอดภัยการมองเห็นของหน้าสืบค้นหลัก (ข้อ 5) ──
+    query = query.eq('is_resolved', false).eq('visibility', 'public').not('status', 'eq', 'only_me')
     if (currentTab !== 'all') query = query.eq('status', currentTab)
 
     // กำหนดช่วงการดึง (Pagination offset)
@@ -105,19 +107,25 @@ function SearchContent() {
           fullAddress += ` (พิกัด: ${roughLat}, ${roughLng})`
         }
 
+        // ── 🟢 ซ่อมแซมระบบดึงรูปภาพแบบลำดับขั้น Fallback หมดปัญหาภาพไม่ยอมแสดงผล (ข้อ 9) ──
+        const safeImageUrl = p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
+          || p.pet_images?.[0]?.storage_url 
+          || (p.images && Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : '')
+          || p.primary_image 
+          || p.image_url 
+          || ''
+
         return {
+          ...p, // กระจายเพื่อคงฟังก์ชันและข้อมูลอื่นที่อาจเกี่ยวข้องไว้ทั้งหมด ไม่ให้ตกหล่น
           id: p.id,
           name: p.name,
           breed: p.breed,
           province: fullAddress, 
           status: p.status,
-          image_url: p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
-            || p.pet_images?.[0]?.storage_url 
-            || (p.images && p.images.length > 0 ? p.images[0] : '')
+          image_url: safeImageUrl
         }
       })
 
-      // 💡 ถ่าเป็นการกดปุ่ม "โหลดเพิ่มเติม" ให้เอาข้อมูลใหม่มาต่อท้ายของเดิม
       if (isAppend) {
         setPets(prev => [...prev, ...formattedPets])
       } else {
@@ -148,7 +156,7 @@ function SearchContent() {
   }
 
   return (
-    <div className="flex flex-col gap-6 mb-20 max-w-6xl mx-auto px-4">
+    <div className="flex flex-col gap-6 mb-20 max-w-6xl mx-auto px-4 text-black">
       <div className="bg-wagashi-sora border-4 border-black rounded-2xl shadow-paper p-8 text-center mt-6">
         <h1 className="text-4xl font-black mb-2">ค้นหาน้อง 🐾🔍</h1>
         <p className="font-bold text-lg text-gray-700">ค้นหาสัตว์เลี้ยงที่หายไป หรืออุปการะเพื่อนใหม่</p>
@@ -161,10 +169,13 @@ function SearchContent() {
             onChange={handleTabChange}
             className="w-full bg-white border-4 border-black rounded-2xl px-5 py-4 font-black shadow-paper-sm appearance-none cursor-pointer hover:-translate-y-1 transition-transform focus:outline-none focus:ring-4 focus:ring-ori-orange/30 text-lg text-black"
           >
+            {/* ── 🟢 ปรับเพิ่มตัวเลือก Dropdown เมนูให้ครบทุกสถานะหมวดหมู่ความต้องการของแพลตฟอร์ม (ข้อ 1, 2, 3, 4) ── */}
             <option value="all">🔍 ดูทั้งหมด</option>
-            <option value="lost">🚨 ดูประกาศตามหาน้อง</option>
+            <option value="lost">🚨 ดูประกาศตามหาน้อง (หาย)</option>
             <option value="found">👀 ดูประกาศพบสัตว์หลง</option>
+            <option value="mating">❤️ ดูประกาศหาคู่ให้น้อง</option>
             <option value="adoption">💖 ดูประกาศหาบ้านให้น้อง</option>
+            <option value="showcase">✨ ดูทำเนียบโชว์โปรไฟล์</option>
           </select>
           <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-black" size={24} />
         </div>
@@ -195,7 +206,7 @@ function SearchContent() {
             </div>
           )}
 
-          {/* 💡 ปุ่มโหลดเพิ่มเติม (Infinite Scroll Style) */}
+          {/* ปุ่มโหลดเพิ่มเติม (Infinite Scroll Style) */}
           {pets.length > 0 && pets.length < totalCount && (
             <div className="flex justify-center mt-8">
               <button 
