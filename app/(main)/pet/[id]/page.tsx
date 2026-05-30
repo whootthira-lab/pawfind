@@ -1,5 +1,5 @@
 // app/(main)/pet/[id]/page.tsx
-// ── สมุดสุขภาพและประวัติสัตว์เลี้ยงรายตัว (ฉบับกู้คืนโครงสร้างหลัก + ผูกระบบความปลอดภัย Privacy ล็อกสิทธิ์อำเภอและเบอร์โทร 100%) ──
+// ── สมุดสุขภาพและประวัติสัตว์เลี้ยงรายตัว (ฉบับสมบูรณ์สูงสุด: แก้ไข Text Entity และปลดล็อกสิทธิ์ตรวจเช็คปุ่ม Action บล็อกการดีดหน้าสลับ 100%) ──
 
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
@@ -48,6 +48,10 @@ export async function generateMetadata(
 export default async function PetDetailPage({ params }: Props) {
   const supabase = createClient()
 
+  // ดึงข้อมูลเซสชันปัจจุบันของผู้เปิดชมหน้าเว็บเพื่อนำมาเทียบเคียงสิทธิ์
+  const { data: { session } } = await supabase.auth.getSession()
+  const currentUserId = session?.user?.id || null
+
   // ── 🟢 สั่งดึงข้อมูล Join ข้ามตารางพ่วงก้อนข้อมูล Profiles และรูปภาพ Multi-photos ทั้งหมด ──
   const { data: pet, error } = await supabase
     .from('pets')
@@ -73,6 +77,9 @@ export default async function PetDetailPage({ params }: Props) {
     .single()
 
   if (error || !pet) return notFound()
+
+  // คำนวณตรวจสอบสิทธิ์ความเป็นเจ้าของสัตว์เลี้ยงที่แท้จริง
+  const isOwner = currentUserId !== null && currentUserId === pet.user_id
 
   // จัดการจัดระเบียบคลังรูปภาพ Multi-photos 3 มุมส่งเข้าโมดูลแกลเลอรี
   const galleryImages = pet.pet_images && pet.pet_images.length > 0
@@ -101,8 +108,8 @@ export default async function PetDetailPage({ params }: Props) {
 
   return (
     <>
-      {/* ส่วนควบคุมแอคชันบาร์ด้านบนสุด */}
-      <PetActionButtons petId={pet.id} isOwner={false} />
+      {/* ── 🟢 ปรับเปลี่ยนค่าส่งสัญญาณพารามิเตอร์ของระบบแอคชันบาร์ เพื่อป้องกันการ Redirect Loop วนลูปกลับไปหน้าแก้ไขโดยอัตโนมัติ ── */}
+      <PetActionButtons petId={pet.id} isOwner={isOwner} />
       
       <div className="max-w-5xl mx-auto px-4 py-6 text-black">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -153,7 +160,8 @@ export default async function PetDetailPage({ params }: Props) {
                 ) : (
                   <div className="bg-amber-50 border-2 border-amber-300 p-3 rounded-xl flex gap-2 items-start text-amber-800 text-xs mt-3">
                     <ShieldAlert size={16} className="shrink-0 mt-0.5" />
-                    <p>เจ้าของสัตว์เลี้ยงเลือกตั้งค่าโปรไฟล์เป็น <b>"เฉพาะฉัน"</b> ระบบจึงจำกัดการเข้าถึงข้อมูลพิกัดอำเภอเพื่อความปลอดภัยค่ะ</p>
+                    {/* ── 🟢 เปลี่ยนมาใช้ &quot; เพื่อให้ระบบผ่านการตรวจสอบโครงสร้างสากลฉลุย 100% ── */}
+                    <p>เจ้าของสัตว์เลี้ยงเลือกตั้งค่าโปรไฟล์เป็น <span className="font-black">&quot;เฉพาะฉัน&quot;</span> ระบบจึงจำกัดการเข้าถึงข้อมูลพิกัดอำเภอเพื่อความปลอดภัยค่ะ</p>
                   </div>
                 )}
               </div>
