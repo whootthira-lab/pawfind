@@ -1,11 +1,11 @@
 // app/(main)/pet/[id]/page.tsx
-// ── สมุดสุขภาพและประวัติสัตว์เลี้ยงรายตัว (ฉบับแก้รูปภาพคลังแตกสลับสิทธิ์ Safe URL ผ่านบิวด์สมบูรณ์แบบ 100%) ──
+// ── แฟ้มประวัติสมุดสุขภาพและคลังภาพสัตว์เลี้ยงสากล (แก้ไขระบบสกัดพาร์ท Storage โฟลเดอร์ซ้อน + ปรับโฉมดีไซน์การ์ดรูปภาพด้านบนสุด 100%) ──
 
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { PetGallery } from '@/components/pet/PetGallery'
-import { Phone, MessageCircle, ExternalLink, UserCircle2, ShieldAlert } from 'lucide-react'
+import { Phone, MessageCircle, ExternalLink, UserCircle2, ShieldAlert, MapPin, Heart, Activity } from 'lucide-react'
 import type { Metadata, ResolvingMetadata } from 'next'
 import ShareButton from '@/components/pet/ShareButton'
 import { CommentSection } from '@/components/pet/CommentSection'
@@ -15,12 +15,20 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pobpet.com'
 
 type Props = { params: { id: string } }
 
-// ฟังก์ชันแปลงค่าจัดระเบียบพาร์ทรูปภาพจากคลังเก็บของหลังบ้าน Supabase
-function resolveImageUrl(url: string | null | undefined): string {
-  if (!url) return ''
-  if (url.startsWith('data:')) return ''
-  if (url.startsWith('http')) return url
-  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pet-images/${url}`
+// ── 🟢 ฟังก์ชันแกะรอยและซ่อมพาร์ทลิงก์รูปภาพบักเก็ต Supabase Storage ป้องกันกรณีโฟลเดอร์ ID ซ้อนหลุดขอบ ──
+function resolveImageUrl(url: string | null | undefined, userId: string | null = null): string {
+  if (!url) return '/favicon.ico'
+  if (url.startsWith('data:') || url.startsWith('http')) return url
+  
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ajjvtazuncdtxjwcplcv.supabase.co'
+  
+  // ตรวจสอบว่าในสตริงที่เซฟลงฐานข้อมูลมีการพ่วงพาร์ทโฟลเดอร์ผู้ใช้มาแล้วหรือยัง
+  if (url.includes('/') || !userId) {
+    return `${supabaseUrl}/storage/v1/object/public/pet-images/${url}`
+  }
+  
+  // Fallback นิรภัย: หากมีแค่ชื่อไฟล์รูปโดด ๆ ให้สั่งสวมพาร์ทพิกัดโฟลเดอร์ ID เจ้าของเข้าไปคั่นกลางทันทีเพื่อไม่ให้รูปแตก
+  return `${supabaseUrl}/storage/v1/object/public/pet-images/pets/${userId}/${url}`
 }
 
 export async function generateMetadata(
@@ -41,7 +49,7 @@ export async function generateMetadata(
     title: `${pet.name || 'ไม่ทราบชื่อ'} | PobPet หาสัตว์หายด้วย AI`,
     description: pet.distinctive_features || pet.details || 'ช่วยเหลือน้องสัตว์เลี้ยงตามหาบ้านและพิกัดที่ปลอดภัย',
     openGraph: {
-      images: [primaryImg ? resolveImageUrl(primaryImg) : '/logo-og.png'],
+      images: [primaryImg ? resolveImageUrl(primaryImg, pet.user_id) : '/logo-og.png'],
     },
   }
 }
@@ -49,11 +57,11 @@ export async function generateMetadata(
 export default async function PetDetailPage({ params }: Props) {
   const supabase = createClient()
 
-  // ดึงข้อมูลเซสชันปัจจุบันของผู้เปิดชมหน้าเว็บเพื่อนำมาเทียบเคียงสิทธิ์
+  // ดึงข้อมูลเซสชันปัจจุบันของผู้เข้าชมหน้าเว็บ
   const { data: { session } } = await supabase.auth.getSession()
   const currentUserId = session?.user?.id || null
 
-  // ── 🟢 สั่งดึงข้อมูล Join ข้ามตารางพ่วงก้อนข้อมูล Profiles และรูปภาพ Multi-photos ทั้งหมด ──
+  // ดึงข้อมูล Join ข้ามตารางพ่วงก้อนข้อมูลสิทธิ์โปรไฟล์เจ้าของและตารางรูปภาพ
   const { data: pet, error } = await supabase
     .from('pets')
     .select(`
@@ -79,10 +87,13 @@ export default async function PetDetailPage({ params }: Props) {
 
   if (error || !pet) return notFound()
 
-  // ── 🟢 ปรับปรุงตรงนี้: วิ่งลูปแมปอาเรย์รูปถ่าย 3 มุมทั้งหมดผ่านฟังก์ชันสลายพาร์ทดึงรูปขึ้นหน้าจอแบบไม่แตก ──
+  // ตรวจเช็คสิทธิ์ความเป็นเจ้าของ
+  const isOwner = currentUserId !== null && currentUserId === pet.user_id
+
+  // ── 🟢 ปรับปรุง: แปลงพาร์ทรูปภาพคลัง 3 มุมทั้งหมดผ่านตัวดักจับความปลอดภัย ไร้ปัญหารูปแตกกลายเป็น undefined ──
   const galleryImages = pet.pet_images && pet.pet_images.length > 0
-    ? pet.pet_images.map((img: any) => resolveImageUrl(img.storage_url))
-    : [resolveImageUrl(pet.image_url)].filter(Boolean)
+    ? pet.pet_images.map((img: any) => resolveImageUrl(img.storage_url, pet.user_id))
+    : [resolveImageUrl(pet.image_url, pet.user_id)].filter(Boolean)
 
   const statusLabels: Record<string, string> = {
     lost: '🚨 ประกาศตามหา (สัตว์หาย)',
@@ -92,10 +103,8 @@ export default async function PetDetailPage({ params }: Props) {
     showcase: '✨ ทำเนียบโชว์โปรไฟล์น้อง',
   }
 
-  // แกะรอยระดับความเป็นส่วนตัวจากตารางโปรไฟล์เจ้าของ
   const isPrivateProfile = pet.profiles?.visibility === 'private'
   
-  // ชุดข้อมูล Fallback ดึงสิทธิ์ผู้ดูแล
   const reporter = {
     display_name: pet.profiles?.display_name || 'สมาชิกเครือข่าย PobPet',
     avatar_url: pet.profiles?.avatar_url || null,
@@ -106,6 +115,7 @@ export default async function PetDetailPage({ params }: Props) {
 
   return (
     <>
+      {/* แผงควบคุมแอคชันบาร์หัวแถว */}
       <PetActionButtons 
         petId={pet.id} 
         status={pet.status} 
@@ -113,107 +123,127 @@ export default async function PetDetailPage({ params }: Props) {
         ownerId={pet.user_id || ''} 
       />
       
-      <div className="max-w-5xl mx-auto px-4 py-6 text-black">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* คอลัมน์ซ้าย: แฟลชแกลเลอรีรูปภาพสไลด์ Origami ปรับรูปพรีวิวให้ขึ้นแบบสวยคมชัดเจน */}
-          <div className="lg:col-span-7 space-y-6">
-            <PetGallery images={galleryImages} name={pet.name} />
-          </div>
+      <div className="max-w-4xl mx-auto px-4 py-6 text-black whitespace-nowrap">
+        
+        {/* ── 🟢 ดีไซน์โครงสร้างใหม่: จัดวางพาร์ทรูปภาพขนาดใหญ่และคลังแกลเลอรีสไลด์ไว้ด้านบนสุดของหน้าเว็บ ── */}
+        <div className="w-full bg-white border-4 border-black p-4 rounded-3xl shadow-paper mb-8">
+          <PetGallery images={galleryImages} name={pet.name} />
+        </div>
 
-          {/* คอลัมน์ขวา: รายละเอียดเนื้อหาข้อมูลทั่วไปของตัวน้อง */}
-          <div className="lg:col-span-5 space-y-6 text-left">
+        {/* ── โครงสร้างโซนด้านล่าง: แบ่งสัดส่วนข้อมูลจำเพาะและการ์ดตารางประวัติสุขภาพ ── */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+          
+          {/* คอลัมน์ฝั่งซ้าย: ข้อมูลรายละเอียดประจำตัวน้อง */}
+          <div className="md:col-span-7 space-y-6 text-left">
             <div className="bg-white border-4 border-black p-6 rounded-3xl shadow-paper">
               <div className="inline-block bg-ori-orange/10 border-2 border-ori-orange text-ori-orange font-black text-xs px-3 py-1 rounded-full mb-3">
                 {statusLabels[pet.status] || pet.status}
               </div>
 
-              <h1 className="text-3xl font-black mb-2 flex items-center justify-between">
+              <h1 className="text-3xl font-black mb-4 flex items-center justify-between">
                 <span>{pet.name || 'ไม่ระบุชื่อ'} 🐾</span>
               </h1>
 
-              <div className="grid grid-cols-2 gap-3 mt-4 text-sm font-bold border-t-2 border-black pt-4">
-                <p className="bg-gray-50 p-2.5 rounded-xl border border-black">🧬 สายพันธุ์: <span className="font-black text-ori-orange">{pet.breed || 'ไม่ระบุ'}</span></p>
-                <p className="bg-gray-50 p-2.5 rounded-xl border border-black">🎨 สีขนน้อง: <span className="font-black">{pet.color || 'ไม่ระบุ'}</span></p>
-                <p className="bg-gray-50 p-2.5 rounded-xl border border-black">⚧️ เพศ: <span className="font-black">{pet.gender === 'male' ? 'ผู้ ♂' : pet.gender === 'female' ? 'เมีย ♀' : 'ไม่ระบุ'}</span></p>
-                <p className="bg-gray-50 p-2.5 rounded-xl border border-black">🩺 ทำหมันแล้ว: <span className="font-black">{pet.is_sterilized ? 'ใช่ ✅' : 'ยังไม่ทำ ❌'}</span></p>
+              {/* ── 🟢 ดีไซน์ตารางข้อมูลการ์ดแบบ Neubrutalism แยกช่องเป็นสัดส่วนคมชัด ── */}
+              <div className="grid grid-cols-2 gap-3 font-bold text-sm">
+                <div className="bg-gray-50 p-3 rounded-xl border-2 border-black shadow-paper-sm">
+                  <span className="text-gray-400 block text-xs">🧬 สายพันธุ์</span>
+                  <span className="font-black text-ori-orange text-base">{pet.breed || 'ไม่ระบุ'}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border-2 border-black shadow-paper-sm">
+                  <span className="text-gray-400 block text-xs">🎨 สีขนของน้อง</span>
+                  <span className="font-black text-base">{pet.color || 'ไม่ระบุ'}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border-2 border-black shadow-paper-sm">
+                  <span className="text-gray-400 block text-xs">⚧️ เพศประจำตัว</span>
+                  <span className="font-black text-base">{pet.gender === 'male' ? 'ผู้ ♂' : pet.gender === 'female' ? 'เมีย ♀' : 'ไม่ระบุ'}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border-2 border-black shadow-paper-sm">
+                  <span className="text-gray-400 block text-xs">🩺 ประวัติทำหมัน</span>
+                  <span className="font-black text-base">{pet.is_sterilized ? 'ทำหมันแล้ว ✅' : 'ยังไม่ทำหมัน ❌'}</span>
+                </div>
               </div>
 
               {pet.reward_amount > 0 && (
-                <div className="mt-4 bg-yellow-100 border-4 border-black p-4 rounded-2xl text-center shadow-paper-sm">
-                  <p className="text-xs font-black text-amber-800 uppercase tracking-wider">💰 สินน้ำใจ / เงินรางวัลนำส่ง</p>
+                <div className="mt-5 bg-yellow-100 border-4 border-black p-4 rounded-2xl text-center shadow-paper-sm">
+                  <p className="text-xs font-black text-amber-800 uppercase tracking-wider">💰 สินน้ำใจรางวัลนำส่ง</p>
                   <p className="text-3xl font-black text-red-600 mt-1">{pet.reward_amount.toLocaleString()} <span className="text-sm text-black">บาท</span></p>
                 </div>
               )}
-            </div>
 
-            {/* กล่องพิกัดข้อมูลสถานที่ที่ตั้งน้อง */}
-            <div className="bg-white border-4 border-black p-6 rounded-3xl shadow-paper">
-              <h3 className="font-black text-lg mb-3">📍 พิกัดพื้นที่ประจำตัวน้อง</h3>
-              <div className="space-y-2 font-bold text-sm">
-                <p>จังหวัด: <span className="font-black">{pet.profiles?.province || pet.province}</span></p>
-                
-                {!isPrivateProfile ? (
-                  <>
-                    <p>อำเภอ / เขต: <span className="font-black">{pet.profiles?.district || pet.district || 'ไม่ระบุ'}</span></p>
-                    {pet.tambon && <p>ตำบล / แขวง: <span className="font-black">ต.{pet.tambon}</span></p>}
-                  </>
-                ) : (
-                  <div className="bg-amber-50 border-2 border-amber-300 p-3 rounded-xl flex gap-2 items-start text-amber-800 text-xs mt-3">
-                    <ShieldAlert size={16} className="shrink-0 mt-0.5" />
-                    <p>เจ้าของสัตว์เลี้ยงเลือกตั้งค่าโปรไฟล์เป็น <span className="font-black">&quot;เฉพาะฉัน&quot;</span> ระบบจึงจำกัดการเข้าถึงข้อมูลพิกัดอำเภอเพื่อความปลอดภัยค่ะ</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* กล่องผู้ดูแลและเบอร์โทรช่องทางติดต่อกลับ */}
-            <div className="bg-white border-4 border-black p-6 rounded-3xl shadow-paper">
-              <h3 className="font-black text-lg mb-4 flex items-center gap-2">
-                <UserCircle2 className="text-ori-orange" /> ข้อมูลผู้ดูแล / ผู้แจ้งเหตุ
-              </h3>
-              
-              <div className="flex items-center gap-3 border-b-2 border-gray-100 pb-4 mb-4">
-                <div className="w-12 h-12 bg-gray-100 rounded-full border-2 border-black overflow-hidden shadow-paper-sm">
-                  {reporter.avatar_url ? (
-                    <img src={reporter.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xl">🐾</div>
-                  )}
-                </div>
-                <div className="text-left">
-                  <p className="font-black text-base leading-tight">{reporter.display_name}</p>
-                  <p className="text-xs font-bold text-gray-400 mt-1">เครือข่ายสมาชิกประจำชุมชน</p>
-                </div>
-              </div>
-
-              {!isPrivateProfile ? (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {reporter.phone_number && (
-                    <a href={`tel:${reporter.phone_number}`} className="flex-1 flex items-center justify-center gap-2 bg-wagashi-kinako border-2 border-black px-4 py-3 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all text-black text-xs">
-                      <Phone size={16} /><span>โทรติดต่อ</span>
-                    </a>
-                  )}
-                  {reporter.line_id && (
-                    <a href={`https://line.me/ti/p/~${reporter.line_id}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-[#00B900] text-white border-2 border-black px-4 py-3 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all text-xs">
-                      <MessageCircle size={16} /><span>แอดไลน์</span>
-                    </a>
-                  )}
-                  {reporter.contact_link && (
-                    <a href={reporter.contact_link.startsWith('http') ? reporter.contact_link : `https://${reporter.contact_link}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-black text-white border-2 border-black px-4 py-3 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all text-xs">
-                      <ExternalLink size={16} /><span>ช่องทางอื่น</span>
-                    </a>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-4 bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl">
-                  <p className="text-xs font-black text-gray-400">🔒 กรุณาส่งข้อความสอบถามเบาะแสผ่านช่องคอมเมนต์ด้านล่างแทนค่ะ</p>
+              {pet.distinctive_features && (
+                <div className="mt-4 p-4 bg-ori-cream border-2 border-black rounded-xl">
+                  <span className="text-xs font-black text-gray-400 block mb-1">📝 จุดสังเกตเด่น / ตำหนิพิเศษ:</span>
+                  <p className="font-bold text-sm text-ori-ink whitespace-pre-wrap">{pet.distinctive_features}</p>
                 </div>
               )}
             </div>
 
             {/* ระบบกล่องคอมเมนต์สาธารณะเบาะแส */}
             <CommentSection petId={params.id} />
+          </div>
+
+          {/* คอลัมน์ฝั่งขวา: พิกัดพื้นที่และช่องทางติดต่อเจ้าของ */}
+          <div className="md:col-span-5 space-y-6 text-left">
+            
+            {/* กล่องพิกัด */}
+            <div className="bg-white border-4 border-black p-5 rounded-3xl shadow-paper">
+              <h3 className="font-black text-base mb-3 flex items-center gap-1.5"><MapPin size={18} className="text-ori-blue" /> พิกัดพื้นที่ประจำตัวน้อง</h3>
+              <div className="space-y-1.5 font-bold text-sm">
+                <p>จังหวัด: <span className="font-black">{pet.profiles?.province || pet.province}</span></p>
+                {!isPrivateProfile ? (
+                  <>
+                    <p>อำเภอ / เขต: <span className="font-black">{pet.profiles?.district || pet.district || 'ไม่ระบุ'}</span></p>
+                    {pet.tambon && <p>ตำบล / แขวง: <span className="font-black">ต.{pet.tambon}</span></p>}
+                  </>
+                ) : (
+                  <div className="bg-amber-50 border-2 border-amber-300 p-3 rounded-xl flex gap-2 items-start text-amber-800 text-xs mt-2">
+                    <ShieldAlert size={14} className="shrink-0 mt-0.5" />
+                    <p>เจ้าของเลือกตั้งค่าโปรไฟล์เป็น <span className="font-black">&quot;เฉพาะฉัน&quot;</span> ระบบจึงจำกัดข้อมูลพิกัดอำเภอค่ะ</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* กล่องข้อมูลผู้ดูแล */}
+            <div className="bg-white border-4 border-black p-5 rounded-3xl shadow-paper">
+              <h3 className="font-black text-base mb-3 flex items-center gap-1.5">
+                <UserCircle2 size={18} className="text-ori-orange" /> ข้อมูลผู้ดูแล / ผู้แจ้งเหตุ
+              </h3>
+              
+              <div className="flex items-center gap-3 border-b-2 border-gray-100 pb-3 mb-3">
+                <div className="w-10 h-10 bg-gray-100 rounded-full border-2 border-black overflow-hidden shadow-paper-sm">
+                  {reporter.avatar_url ? (
+                    <img src={reporter.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-base">🐾</div>
+                  )}
+                </div>
+                <div>
+                  <p className="font-black text-sm leading-tight">{reporter.display_name}</p>
+                  <p className="text-[11px] font-bold text-gray-400 mt-0.5">สมาชิกเครือข่าย PobPet ชุมชน</p>
+                </div>
+              </div>
+
+              {!isPrivateProfile ? (
+                <div className="flex flex-col gap-2">
+                  {reporter.phone_number && (
+                    <a href={`tel:${reporter.phone_number}`} className="flex-1 flex items-center justify-center gap-2 bg-wagashi-kinako border-2 border-black py-2.5 rounded-xl font-black shadow-paper-sm hover:bg-amber-100 text-black text-xs">
+                      <Phone size={14} /><span>โทรติดต่อสายตรง</span>
+                    </a>
+                  )}
+                  {reporter.line_id && (
+                    <a href={`https://line.me/ti/p/~${reporter.line_id}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-[#00B900] text-white border-2 border-black py-2.5 rounded-xl font-black shadow-paper-sm text-xs">
+                      <MessageCircle size={14} /><span>แอดไลน์ (Line ID)</span>
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-3 bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl">
+                  <p className="text-xs font-black text-gray-400">🔒 กรุณาส่งข้อมูลเบาะแสผ่านช่องคอมเมนต์ค่ะ</p>
+                </div>
+              )}
+            </div>
 
           </div>
         </div>
