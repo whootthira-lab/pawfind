@@ -6,10 +6,10 @@ import Link from 'next/link'
 export default async function SavedPetsPage() {
   const supabase = createClient()
   
-  // 1. ตรวจสอบสถานะผู้ใช้
+  // 1. ตรวจสอบสถานะผู้ใช้[cite: 27]
   const { data: { user } } = await supabase.auth.getUser()
   
-  // กรณีที่ยังไม่ได้เข้าสู่ระบบ
+  // กรณีที่ยังไม่ได้เข้าสู่ระบบ[cite: 27]
   if (!user) {
     return (
       <div className="max-w-6xl mx-auto px-4 mb-20 flex justify-center items-center min-h-[60vh]">
@@ -36,23 +36,22 @@ export default async function SavedPetsPage() {
     )
   }
 
-  // 2. ดึงข้อมูลโปรไฟล์จาก Metadata (Google/Facebook)
+  // 2. ดึงข้อมูลโปรไฟล์จาก Metadata (Google/Facebook)[cite: 27]
   const userMetadata = user.user_metadata
   const userName = userMetadata?.full_name || user.email?.split('@')[0] || 'นักช่วยเหลือ'
   const userAvatar = userMetadata?.avatar_url
 
-  // 3. ดึงข้อมูลสัตว์ที่ผู้ใช้ Pin ไว้
+  // 3. ดึงข้อมูลสัตว์ที่ผู้ใช้ Pin ไว้ (🟢 ปรับแก้คำสั่งดึงข้อมูลดึง pet_images และตารางฟิลด์ลูกแบบเต็มพิกัดเพื่อแก้ข้อ 9)[cite: 27]
   const { data: savedItems, error } = await supabase
     .from('saved_pets')
     .select(`
       id,
       pets (
-        id,
-        name,
-        breed,
-        province,
-        image_url,
-        status
+        *,
+        pet_images (
+          storage_url,
+          is_primary
+        )
       )
     `)
     .eq('user_id', user.id)
@@ -60,15 +59,31 @@ export default async function SavedPetsPage() {
 
   if (error) console.error('Error fetching saved pets:', error)
 
-  const savedPets = savedItems?.map(item => item.pets).filter(Boolean) || []
+  // ── 🟢 ฟังก์ชันจัดเรียงโครงสร้างข้อมูลรูปภาพ Fallback แบบเดียวกับหน้าสืบค้นหลัก ดึงรูปภาพติดคมชัดชัวร์ 100% (ข้อ 9) ──[cite: 27]
+  const savedPets = savedItems?.map(item => {
+    const p: any = item.pets
+    if (!p) return null
+
+    const safeImageUrl = p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
+      || p.pet_images?.[0]?.storage_url 
+      || (p.images && Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : '')
+      || p.primary_image 
+      || p.image_url 
+      || ''
+
+    return {
+      ...p,
+      image_url: safeImageUrl
+    }
+  }).filter(Boolean) || []
 
   return (
-    <div className="max-w-6xl mx-auto px-4 mb-20">
+    <div className="max-w-6xl mx-auto px-4 mb-20 text-black">
       
-      {/* 🌟 ส่วนแบนเนอร์ผู้ใช้สไตล์ Neubrutalism */}
+      {/* 🌟 ส่วนแบนเนอร์ผู้ใช้สไตล์ Neubrutalism[cite: 27] */}
       <div className="bg-wagashi-kinako border-4 border-black p-8 rounded-2xl shadow-paper mb-10 flex flex-col md:flex-row items-center gap-6 relative overflow-hidden">
         
-        {/* รูปโปรไฟล์จาก Metadata */}
+        {/* รูปโปรไฟล์จาก Metadata[cite: 27] */}
         <div className="relative shrink-0">
           {userAvatar ? (
             <img 
@@ -94,13 +109,13 @@ export default async function SavedPetsPage() {
           </p>
         </div>
         
-        {/* ลายตกแต่งพื้นหลังเพื่อความสวยงาม */}
+        {/* ลายตกแต่งพื้นหลังเพื่อความสวยงาม[cite: 27] */}
         <div className="absolute top-0 right-0 p-4 opacity-10 text-9xl font-bold select-none pointer-events-none">
           🐾
         </div>
       </div>
 
-      {/* รายการสัตว์เลี้ยงที่บันทึก */}
+      {/* รายการสัตว์เลี้ยงที่บันทึก[cite: 27] */}
       {savedPets.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {savedPets.map((pet: any) => (
