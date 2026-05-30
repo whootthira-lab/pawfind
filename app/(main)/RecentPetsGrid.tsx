@@ -18,23 +18,32 @@ export default function RecentPetsGrid() {
   useEffect(() => {
     const fetchPets = async () => {
       try {
+        // ── 🟢 ปรับปรุงสัญญานคิวรีดึงข้อมูลคัดกรองเคสสาธารณะที่ยังไม่ปิดเคส และตัวเลือกมองเห็นเป็น public (ข้อ 4, 6) ──
         const { data, error } = await supabase
           .from('pets')
           .select('*, pet_images(storage_url, is_primary), comments(count)')
           .eq('visibility', 'public')
-          .or('is_resolved.eq.false,status.eq.showcase')
+          .eq('is_resolved', false)
           .order('created_at', { ascending: false })
-          .limit(3) // 💡 ดึงมาเฉพาะเคสสาธารณะที่เปิดอยู่ หรือโพสต์โชว์โปรไฟล์ 3 รายการล่าสุดครับ
+          .limit(3) // ดึงมาเฉพาะเคสสาธารณะที่เปิดอยู่ 3 รายการล่าสุด
         
         if (error) throw error;
 
         if (data) {
-          const formatted = data.map(p => ({
-            ...p,
-            image_url: p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
+          // ── 🟢 เพิ่มสเต็ปจัดเรียงอาเรย์ Safe Image Fallback เพื่อดักปัญหารูปภาพไม่ยอมแสดงผลหน้าแรก (ข้อ 9) ──
+          const formatted = data.map(p => {
+            const safeImageUrl = p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
               || p.pet_images?.[0]?.storage_url 
-              || (p.images && p.images.length > 0 ? p.images[0] : null)
-          }))
+              || (p.images && Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : '')
+              || p.primary_image 
+              || p.image_url 
+              || '/favicon.ico'
+
+            return {
+              ...p,
+              image_url: safeImageUrl
+            }
+          })
           setPets(formatted)
         }
       } catch (error) {
