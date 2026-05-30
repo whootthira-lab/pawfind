@@ -71,6 +71,21 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
   const cfg  = statusCfg(pet.status || 'lost')
   const icon = speciesIcon(pet.species || pet.type || 'other')
 
+  // ── คำนวณ effective status จาก mode columns (fallback กรณี status เก่า = 'active') ──
+  const effectiveStatus = (() => {
+    // ถ้า status ตรงกับ mode อยู่แล้ว → ใช้เลย
+    const validStatuses = ['lost', 'found', 'mating', 'adoption', 'showcase', 'resolved', 'matched', 'claimed']
+    if (pet.status && validStatuses.includes(pet.status)) return pet.status
+    // fallback: อ่านจาก mode_* columns
+    if (pet.mode_lost)     return 'lost'
+    if (pet.mode_mating)   return 'mating'
+    if (pet.mode_adoption) return 'adoption'
+    if (pet.mode_showcase) return 'showcase'
+    return pet.status || 'showcase'
+  })()
+
+  const displayCfg = statusCfg(effectiveStatus)
+
   // ดักเช็คสิทธิ์ความเป็นเจ้าของเพื่อเปิดแผงควบคุมหลังบ้าน
   useEffect(() => {
     const checkOwnership = async () => {
@@ -87,9 +102,9 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
     if (modeChanging) return
     setModeChanging(true)
 
-    const isPublicMode = ['lost', 'found', 'mating'].includes(value)
-    const newVisibility = value === 'private' ? 'private' : (isPublicMode ? 'public' : (pet.visibility || 'public'))
-    const targetStatus = value === 'private' ? (pet.status || 'showcase') : value
+    const isPublicMode  = ['lost', 'found', 'mating', 'adoption', 'showcase'].includes(value)
+    const newVisibility = value === 'private' ? 'private' : 'public'
+    const targetStatus  = value === 'private' ? effectiveStatus : value
 
     try {
       const { error } = await supabase
@@ -134,17 +149,17 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
   const handleResolveCase = async () => {
     let checkText = 'เจอน้องเรียบร้อยแล้วใช่ไหมคะ?'
     let titleText = '🎉 พบน้องแล้ว!'
-    let descText = 'ยินดีด้วยค่ะ น้องได้กลับบ้านอย่างปลอดภัยเรียบร้อยแล้ว'
+    let descText  = 'ยินดีด้วยค่ะ น้องได้กลับบ้านอย่างปลอดภัยเรียบร้อยแล้ว'
     
-    if (pet.status === 'adoption') {
+    if (effectiveStatus === 'adoption') {
       checkText = 'น้องได้บ้านที่อบอุ่นใหม่เรียบร้อยแล้วใช่ไหมคะ?'
       titleText = '🏡 น้องได้บ้านแล้ว!'
-      descText = 'ยินดีด้วยค่ะ น้องได้รับอุปการะสู่บ้านใหม่ที่อบอุ่นเรียบร้อยแล้ว'
+      descText  = 'ยินดีด้วยค่ะ น้องได้รับอุปการะสู่บ้านใหม่ที่อบอุ่นเรียบร้อยแล้ว'
     }
-    if (pet.status === 'mating') {
+    if (effectiveStatus === 'mating') {
       checkText = 'น้องจับคู่แมตช์สำเร็จเรียบร้อยแล้วใช่ไหมคะ?'
       titleText = '❤️ น้องได้คู่แล้ว!'
-      descText = 'ยินดีด้วยค่ะ น้องจับคู่แมตช์และผสมพันธุ์สำเร็จเรียบร้อยแล้ว'
+      descText  = 'ยินดีด้วยค่ะ น้องจับคู่แมตช์และผสมพันธุ์สำเร็จเรียบร้อยแล้ว'
     }
 
     if (!window.confirm(`⚠️ ยืนยันปิดประกาศสถานะเคสนี้สำเร็จ: ${checkText}`)) return
@@ -204,8 +219,8 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
           <div className="w-full h-full flex items-center justify-center text-6xl">{icon}</div>
         )}
 
-        <div className="absolute top-2.5 left-2.5 text-xs font-black px-2.5 py-1 rounded-full border-2 border-black shadow-paper-sm" style={{ background: cfg.bg, color: cfg.color }}>
-          {cfg.label}
+        <div className="absolute top-2.5 left-2.5 text-xs font-black px-2.5 py-1 rounded-full border-2 border-black shadow-paper-sm" style={{ background: displayCfg.bg, color: displayCfg.color }}>
+          {displayCfg.label}
         </div>
 
         {/* แผงป้ายแสดงสถานะการมองเห็น ปรากฏที่มุมขวาบนของการ์ด */}
@@ -242,7 +257,7 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
               <p className="text-[10px] font-black text-gray-400 tracking-wider mb-1 uppercase">⚙️ ปรับสถานะ / โหมดของน้อง:</p>
               <div className="relative">
                 <select
-                  value={pet.visibility === 'private' ? 'private' : pet.status}
+                  value={pet.visibility === 'private' ? 'private' : effectiveStatus}
                   disabled={modeChanging}
                   onChange={(e) => handleDropdownChange(e.target.value)}
                   className="w-full bg-white border-2 border-black rounded-lg p-2 font-black text-xs cursor-pointer shadow-paper-sm hover:bg-gray-50 focus:outline-none text-black"
@@ -256,19 +271,23 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
               </div>
             </div>
 
-            {!pet.is_resolved && (pet.status === 'lost' || pet.status === 'adoption' || pet.status === 'mating') && pet.visibility !== 'private' && (
+            {!pet.is_resolved && (effectiveStatus === 'lost' || effectiveStatus === 'adoption' || effectiveStatus === 'mating') && pet.visibility !== 'private' && (
               <button 
                 type="button"
                 onClick={handleResolveCase}
                 disabled={modeChanging}
                 className={`w-full py-2 border-2 border-black font-black text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-paper-sm transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 text-white
-                  ${pet.status === 'lost' ? 'bg-[#2D6A2D] hover:bg-[#3E803E]' : ''}
-                  ${pet.status === 'mating' ? 'bg-[#C2185B] hover:bg-[#D81B60]' : ''}
-                  ${pet.status === 'adoption' ? 'bg-[#1A5EA8] hover:bg-[#1E71C9]' : ''}
+                  ${effectiveStatus === 'lost'     ? 'bg-[#2D6A2D] hover:bg-[#3E803E]' : ''}
+                  ${effectiveStatus === 'mating'   ? 'bg-[#C2185B] hover:bg-[#D81B60]' : ''}
+                  ${effectiveStatus === 'adoption' ? 'bg-[#1A5EA8] hover:bg-[#1E71C9]' : ''}
                 `}
               >
                 {modeChanging ? <Loader2 className="animate-spin" size={12}/> : null} 
-                {modeChanging ? 'กำลังบันทึก...' : pet.status === 'lost' ? 'พบน้องแล้ว 🚨' : pet.status === 'mating' ? 'น้องได้คู่แล้ว ❤️' : 'น้องได้บ้านแล้ว 🏡'}
+                {modeChanging ? 'กำลังบันทึก...'
+                  : effectiveStatus === 'lost'     ? 'พบน้องแล้ว 🚨'
+                  : effectiveStatus === 'mating'   ? 'น้องได้คู่แล้ว ❤️'
+                  : 'น้องได้บ้านแล้ว 🏡'
+                }
               </button>
             )}
           </div>
