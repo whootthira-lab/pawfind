@@ -1,4 +1,4 @@
-// app/layout.tsx — Origami design system
+// app/layout.tsx — Origami design system (ฉบับรวมศูนย์กระจาย Navbar สลายบั๊กหน้าจอซ้อนเบิ้ล 100%)
 import type { Metadata } from 'next'
 import './globals.css'
 
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   },
   description: 'แพลตฟอร์มตามหาสัตว์เลี้ยงด้วย AI ช่วยกันส่งน้องกลับบ้าน แจ้งพบสัตว์หลง หาบ้านให้สัตว์เลี้ยง และศูนย์รวมข่าวสารกิจกรรมเพื่อชุมชนคนรักสัตว์',
   
-  // ── 🟢 เพิ่มชุดคำสั่งกำหนดค่าไอคอนหัวแท็บเบราว์เซอร์ และระบุสิทธิ์ PWA ชอร์ตคัดมือถือดักสัญญานสากล ──
+  // ── 🟢 คงชุดคำสั่งกำหนดค่าไอคอนหัวแท็บเบราว์เซอร์ และระบุสิทธิ์ PWA ชอร์ตคัดมือถือดักสัญญานสากลไว้ครบถ้วน
   icons: {
     icon: [
       { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
@@ -76,6 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <LoginModal />
         </Suspense>
         
+        {/* ── 🟢 จุดยุทธศาสตร์รวมศูนย์ Navbar และ Global Ticker ให้อยู่ระดับรากนอกสุดที่เดียวจบ เพื่อความเสถียรสูงสุด */}
         <div className="sticky top-0 z-[200] w-full flex flex-col">
           <Navbar />
           <GlobalTicker />
