@@ -8,27 +8,42 @@ export default async function MatchPage() {
   // For now, we simulate the "Algorithm Injection" by fetching a mix of regular and special needs pets.
   const supabase = createClient()
   
+  // ── 🟢 เพิ่มตรรกะตัวกรองคัดกรองความปลอดภัย เอาเคสที่สำเร็จแล้วและโหมดเฉพาะฉันออกจากระบบปัดการ์ด (ข้อ 1, 2, 3, 5) ──
   const { data: regularPets } = await supabase
     .from('pets')
     .select('*, pet_images(storage_url, is_primary)')
     .is('special_needs', false)
+    .eq('is_resolved', false)
+    .eq('visibility', 'public')
+    .not('status', 'eq', 'only_me')
     .limit(10)
     
   const { data: specialPets } = await supabase
     .from('pets')
     .select('*, pet_images(storage_url, is_primary)')
     .is('special_needs', true)
+    .eq('is_resolved', false)
+    .eq('visibility', 'public')
+    .not('status', 'eq', 'only_me')
     .limit(5)
 
   // Mix them: inject special needs pets at every 3rd position
   const mixedPets: Pet[] = []
   
-  const mapWithImage = (p: any): Pet => ({
-    ...p,
-    primary_image: p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
+  // ── 🟢 อัปเดตโครงสร้างฟังก์ชันแมปภาพ Fallback หลายลำดับขั้น เพื่อแก้ไขปัญหารูปภาพไม่แสดง (ข้อ 9) ──
+  const mapWithImage = (p: any): Pet => {
+    const safeImageUrl = p.pet_images?.find((img: any) => img.is_primary)?.storage_url 
       || p.pet_images?.[0]?.storage_url 
+      || (p.images && Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : '')
+      || p.primary_image 
+      || p.image_url 
       || null
-  })
+
+    return {
+      ...p,
+      primary_image: safeImageUrl
+    }
+  }
 
   const regular = (regularPets || []).map(mapWithImage)
   const special = (specialPets || []).map(mapWithImage)
@@ -49,7 +64,7 @@ export default async function MatchPage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh]">
+    <div className="flex flex-col items-center justify-center min-h-[70vh] text-black">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2">ค้นหาเพื่อนใหม่ 💖</h1>
         <p className="font-medium text-lg">ปัดขวาเพื่อบอกว่าสนใจ ปัดซ้ายเพื่อดูตัวถัดไป</p>
