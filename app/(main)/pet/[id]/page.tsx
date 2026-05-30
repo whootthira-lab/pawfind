@@ -59,8 +59,6 @@ export async function generateMetadata(
     'ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾',
   ].filter(Boolean).join(' | ')
 
-  // 💡 พระเอกของเราอยู่ตรงนี้ครับ! 
-  // ระบบจะดึงรูปที่สร้างเสร็จแล้ว (og_image_url) มาใช้ก่อน ถ้าไม่มีค่อยไปเรียก API วาดใหม่
   const ogImageUrl = pet.og_image_url || `${BASE_URL}/api/og?id=${params.id}`
   const pageUrl = `${BASE_URL}/pet/${params.id}`
 
@@ -129,14 +127,14 @@ export default async function PetProfilePage({ params }: Props) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <div className="max-w-3xl mx-auto mb-12 px-4">
+      <div className="max-w-3xl mx-auto mb-12 px-4 text-black">
         <div className="bg-white border-2 border-black rounded-lg shadow-paper overflow-hidden">
 
           <PetGallery primaryImage={primaryImage} images={images} petName={pet.name} />
 
           <div className="p-8">
             <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
-              <div>
+              <div className="text-left">
                 <h1 className="text-4xl font-bold mb-2">{pet.name || 'ไม่ทราบชื่อ'}</h1>
                 <p className="text-xl font-bold text-gray-700">
                   {pet.breed || 'ไม่ระบุสายพันธุ์'} • {pet.sub_district ? `ต.${pet.sub_district} ` : ''}{pet.district ? `อ.${pet.district} ` : ''}จ.{pet.province}
@@ -145,17 +143,16 @@ export default async function PetProfilePage({ params }: Props) {
                   🕒 แจ้งเมื่อ: {formattedDate} เวลา {formattedTime} น.
                 </p>
               </div>
-              <div className="flex flex-col items-end gap-2">
-                <span className="bg-wagashi-matcha border-2 border-black px-4 py-2 rounded-lg font-bold shadow-paper-sm text-lg text-center min-w-[140px]">
+              <div className="flex flex-col items-end gap-2 w-full md:w-auto">
+                <span className="bg-wagashi-matcha border-2 border-black px-4 py-2 rounded-lg font-bold shadow-paper-sm text-lg text-center min-w-[140px] w-full md:w-auto">
                   {pet.status === 'lost' ? '🚨 ประกาศตามหาสัตว์หาย' : pet.status === 'found' ? '👀 พบน้องหลงทาง' : '💖 หาบ้านใหม่'}
                 </span>
                 <ShareButton petName={pet.name || 'น้องสัตว์เลี้ยง'} status={pet.status === 'lost' ? 'ประกาศตามหาสัตว์หาย' : 'พบน้องหลงทาง'} petId={params.id} />
                 {pet.reward_amount > 0 && (
-                  <span className="bg-red-500 text-white border-2 border-black px-3 py-1 rounded font-bold shadow-paper-sm">
+                  <span className="bg-red-500 text-white border-2 border-black px-3 py-1 rounded font-bold shadow-paper-sm w-full text-center md:w-auto">
                     💰 รางวัล {pet.reward_amount.toLocaleString()} บาท
                   </span>
                 )}
-                {/* ปุ่ม Action + Donation Modal */}
                 <PetActionButtons
                   petId={params.id}
                   status={pet.status}
@@ -171,7 +168,7 @@ export default async function PetProfilePage({ params }: Props) {
               <div className="bg-white border-2 border-black p-5 rounded-lg mb-8 shadow-paper-sm flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-4">
                   <div className="bg-wagashi-sora p-3 rounded-full border-2 border-black text-2xl shadow-paper-sm">📍</div>
-                  <div>
+                  <div className="text-left">
                     <h3 className="font-bold text-lg">พิกัดที่พบสัตว์เลี้ยง</h3>
                     <p className="text-sm font-medium text-gray-600 font-mono mt-1">
                       Lat: {pet.latitude.toFixed(5)}, Lng: {pet.longitude.toFixed(5)}
@@ -186,7 +183,8 @@ export default async function PetProfilePage({ params }: Props) {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* แผงข้อมูลลักษณะตารางการ์ดสีสไตล์ Origami */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 text-left">
               <div className="border-2 border-black p-5 rounded-lg bg-wagashi-kinako shadow-paper-sm md:col-span-2">
                 <h3 className="font-bold text-lg mb-2">✨ ตำหนิหรือลักษณะพิเศษ</h3>
                 <p className="text-black font-medium leading-relaxed">
@@ -203,20 +201,33 @@ export default async function PetProfilePage({ params }: Props) {
                   {pet.species === 'dog' ? 'สุนัข' : pet.species === 'cat' ? 'แมว' : pet.species || 'ไม่ระบุ'}
                 </div>
               </div>
+
+              {/* ── 🟢 [เพิ่มกล่องข้อมูลใหม่ 2 ชิ้นสอดคล้องกัน] แสดงข้อมูลเพศ และสถานะการทำหมันออกสู่หน้าเว็บบอร์ดสาธารณะ ── */}
+              <div className="border-2 border-black p-5 rounded-lg bg-blue-50 shadow-paper-sm">
+                <div className="text-sm font-bold text-gray-600 mb-1 uppercase">เพศของน้อง</div>
+                <div className="text-xl font-bold">
+                  {pet.gender === 'male' ? '♂ เพศผู้ (Male)' : pet.gender === 'female' ? '♀ เพศเมีย (Female)' : '❓ ไม่ทราบ / ไม่ระบุ'}
+                </div>
+              </div>
+              <div className="border-2 border-black p-5 rounded-lg bg-green-50 shadow-paper-sm">
+                <div className="text-sm font-bold text-gray-600 mb-1 uppercase">การทำหมัน</div>
+                <div className="text-xl font-bold">
+                  {pet.is_sterilized ? '🩺 ทำหมันเรียบร้อยแล้ว' : '❌ ยังไม่ได้ทำหมัน'}
+                </div>
+              </div>
             </div>
 
-            <div className="bg-washi border-2 border-black p-6 rounded-lg mb-8 shadow-paper-sm">
+            <div className="bg-washi border-2 border-black p-6 rounded-lg mb-8 shadow-paper-sm text-left">
               <h3 className="font-bold text-lg mb-3">🤖 บทวิเคราะห์จาก Gemini AI</h3>
               <p className="text-gray-800 leading-relaxed italic">
-                &quot;{pet.ai_description}&quot;
+                &ldquo;{pet.ai_description}&rdquo;
               </p>
             </div>
 
             {reporter && (
-              <div className="border-2 border-black rounded-xl p-6 bg-gray-50 mt-10">
+              <div className="border-2 border-black rounded-xl p-6 bg-gray-50 mt-10 text-left">
                 <div className="flex items-center gap-4 mb-5 border-b-2 border-black pb-4">
                   {reporter.avatar_url ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={reporter.avatar_url} alt={reporter.display_name || 'Profile'} className="w-14 h-14 rounded-full border-2 border-black object-cover" />
                   ) : (
                     <UserCircle2 size={56} className="text-gray-400" />

@@ -10,6 +10,7 @@ import { SearchBar } from '@/components/layout/SearchBar'
 export function Navbar() {
   const [open, setOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<{ display_name?: string; avatar_url?: string } | null>(null)
   const router = useRouter()
 
   const supabase = createBrowserClient(
@@ -29,6 +30,33 @@ export function Navbar() {
     })
     return () => subscription.unsubscribe()
   }, [router, supabase])
+
+  useEffect(() => {
+    if (!user) {
+      setProfile(null)
+      return
+    }
+    const fetchProfile = async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('display_name, avatar_url')
+          .eq('id', user.id)
+          .maybeSingle()
+        if (data) {
+          setProfile(data)
+        } else {
+          setProfile({
+            display_name: user.user_metadata?.display_name || user.email?.split('@')[0],
+            avatar_url: user.user_metadata?.avatar_url
+          })
+        }
+      } catch (err) {
+        console.error('Error fetching profile for navbar:', err)
+      }
+    }
+    fetchProfile()
+  }, [user, supabase])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -76,8 +104,25 @@ export function Navbar() {
                 <span className="absolute -bottom-9 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">สร้างประกาศข่าว</span>
               </Link>
 
-              <Link href="/profile" className="ori-btn ori-btn-white ori-btn-sm text-sm px-4 flex items-center gap-2 shadow-paper-sm ml-2">
-                <User size={16} /> บัญชี
+              <Link href="/profile" className="ori-btn ori-btn-white ori-btn-sm text-sm px-3 flex items-center gap-2 shadow-paper-sm ml-2 overflow-hidden hover:bg-gray-50 transition-all">
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt="Profile"
+                    className="w-5 h-5 rounded-full border border-black object-cover shrink-0"
+                    onError={(e) => {
+                      if (profile.avatar_url && !profile.avatar_url.includes('/avatars/')) {
+                        const parts = profile.avatar_url.split('/profile-images/');
+                        if (parts.length === 2) {
+                          (e.target as HTMLImageElement).src = `${parts[0]}/profile-images/avatars/${parts[1]}`;
+                        }
+                      }
+                    }}
+                  />
+                ) : (
+                  <User size={16} className="shrink-0" />
+                )}
+                <span className="max-w-[80px] truncate">{profile?.display_name || 'บัญชี'}</span>
               </Link>
               <button onClick={handleLogout} className="ori-btn ori-btn-white ori-btn-sm text-sm px-3 text-red-600 hover:bg-red-50">
                 <LogOut size={16} />
@@ -89,9 +134,37 @@ export function Navbar() {
           <Link href="/report" className="ori-btn ori-btn-orange ori-btn-sm text-sm hidden xl:flex">⚡ แจ้งหายด่วน</Link>
         </div>
 
-        <button className="md:hidden p-2 border-2 border-ori-ink rounded-lg bg-white" onClick={() => setOpen(!open)}>
-          {open ? <X size={20}/> : <Menu size={20}/>}
-        </button>
+        <div className="flex items-center gap-2 md:hidden">
+          {user && (
+            <Link href="/profile" className="flex items-center gap-1.5 bg-white border-2 border-ori-ink px-2.5 py-1.5 rounded-xl shadow-paper-sm hover:scale-105 active:scale-95 transition-all">
+              {profile?.avatar_url ? (
+                <img 
+                  src={profile.avatar_url} 
+                  alt="Avatar" 
+                  className="w-6 h-6 rounded-full border border-black object-cover shrink-0"
+                  onError={(e) => {
+                    if (profile.avatar_url && !profile.avatar_url.includes('/avatars/')) {
+                      const parts = profile.avatar_url.split('/profile-images/');
+                      if (parts.length === 2) {
+                        (e.target as HTMLImageElement).src = `${parts[0]}/profile-images/avatars/${parts[1]}`;
+                      }
+                    }
+                  }}
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-wagashi-kinako border border-black flex items-center justify-center text-[10px] font-black shrink-0">
+                  {profile?.display_name?.charAt(0) || 'P'}
+                </div>
+              )}
+              <span className="text-xs font-black truncate max-w-[85px] text-black">
+                {profile?.display_name || 'บัญชี'}
+              </span>
+            </Link>
+          )}
+          <button className="p-2 border-2 border-ori-ink rounded-xl bg-white shadow-paper-sm hover:scale-105 active:scale-95 transition-all" onClick={() => setOpen(!open)}>
+            {open ? <X size={20}/> : <Menu size={20}/>}
+          </button>
+        </div>
       </div>
 
       {/* ชั้นที่ 2: ช่องค้นหาอัจฉริยะ และทางเข้ากระดานข่าวชุมชน (Desktop) */}

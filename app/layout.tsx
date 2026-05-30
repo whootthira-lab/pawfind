@@ -6,6 +6,7 @@ import { Suspense } from 'react'
 import { Navbar } from '@/components/layout/Navbar'
 import { WelcomePopup } from '@/components/WelcomePopup'
 import { GlobalTicker } from '@/components/layout/GlobalTicker'
+import { LoginModal } from '@/components/LoginModal'
 import PetAssistant from '@/components/chat/PetAssistant' // นำเข้าคอมโพเนนต์ AI Chatbot
 
 // URL ปรับชี้ไปที่โดเมนจริง pobpet.com
@@ -72,6 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         
         <Suspense fallback={null}>
           <WelcomePopup />
+          <LoginModal />
         </Suspense>
         
         <div className="sticky top-0 z-[200] w-full flex flex-col">

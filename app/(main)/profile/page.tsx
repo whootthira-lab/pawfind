@@ -130,12 +130,42 @@ export default function ProfilePage() {
     species: 'แมว',
     breed: '',
     gender: 'unknown',
+    is_sterilized: false,
+    birthday: '',
     province: 'นครราชสีมา',
     district: '',
     sub_district: '',
     details: '',
     reward_amount: '0'
   })
+
+  // ฟังก์ชันคำนวณอายุสัตว์เลี้ยงภาษาไทยเรียลไทม์
+  const calculateAge = (birthdayString: string | null) => {
+    if (!birthdayString) return 'ไม่ระบุอายุ'
+    const birth = new Date(birthdayString)
+    const today = new Date()
+    let years = today.getFullYear() - birth.getFullYear()
+    let months = today.getMonth() - birth.getMonth()
+    if (months < 0 || (months === 0 && today.getDate() < birth.getDate())) {
+      years--
+      months += 12
+    }
+    if (today.getDate() < birth.getDate()) {
+      months--
+      if (months < 0) {
+        years--
+        months += 11
+      }
+    }
+    if (years === 0 && months === 0) {
+      const diffTime = Math.abs(today.getTime() - birth.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      return `อายุ: ${diffDays} วัน`
+    }
+    const yearStr = years > 0 ? `${years} ปี ` : ''
+    const monthStr = months > 0 ? `${months} เดือน` : ''
+    return `อายุ: ${yearStr}${monthStr}`.trim()
+  }
 
   const fetchAllData = useCallback(async () => {
     setLoading(true)
@@ -295,6 +325,9 @@ export default function ProfilePage() {
           species: petDataForm.species,
           breed: petDataForm.breed || null,
           gender: petDataForm.gender,
+          is_sterilized: petDataForm.is_sterilized,
+          birthday: petDataForm.birthday || null,
+          birthdate: petDataForm.birthday || null,
           province: petDataForm.province,
           district: petDataForm.district || null,
           sub_district: petDataForm.sub_district || null,
@@ -610,6 +643,31 @@ export default function ProfilePage() {
                       <option value="นกสวยงาม">🦜 นกสวยงาม</option>
                       <option value="อื่นๆ">🐾 อื่นๆ</option>
                     </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">เพศของน้อง 🐾</label>
+                    <select value={petDataForm.gender} onChange={e => setPetDataForm({...petDataForm, gender: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-bold bg-white cursor-pointer outline-none">
+                      <option value="unknown">❓ ไม่ทราบ / ไม่ระบุ</option>
+                      <option value="male">♂ เพศผู้ (Male)</option>
+                      <option value="female">♀ เพศเมีย (Female)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">การทำหมัน 🩺</label>
+                    <select value={petDataForm.is_sterilized ? "true" : "false"} onChange={e => setPetDataForm({...petDataForm, is_sterilized: e.target.value === "true"})} className="w-full border-2 border-black p-3 rounded-xl font-bold bg-white cursor-pointer outline-none">
+                      <option value="false">❌ ยังไม่ได้ทำหมัน</option>
+                      <option value="true">✨ ทำหมันเรียบร้อยแล้ว</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-black text-sm">วันเกิดของน้อง (เพื่อคำนวณอายุ) 🎂</label>
+                    <input type="date" value={petDataForm.birthday} onChange={e => setPetDataForm({...petDataForm, birthday: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-bold outline-none bg-white cursor-pointer" />
+                    {petDataForm.birthday && (
+                      <p className="text-xs font-black text-ori-orange mt-1">🎂 {calculateAge(petDataForm.birthday)}</p>
+                    )}
                   </div>
                 </div>
 
