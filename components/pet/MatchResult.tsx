@@ -1,9 +1,9 @@
 'use client'
-// components/pet/MatchResult.tsx — แก้ไขปุ่มซ้อนเบิ้ล + เพิ่มปุ่มแชร์ระบบ OG Link รองรับ Web Share API สมบูรณ์แบบ 100%
+// components/pet/MatchResult.tsx — เพิ่มปุ่มแชร์ขยายมิติโซเชียล (Facebook, Threads, X) พร้อมผูกชุดข้อมูล OG (ชื่อ, โหมด, สายพันธุ์, จังหวัด, เพศ) ครบถ้วน 100%
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bookmark, BookmarkCheck, Loader2, MapPin, Edit3, Trash2, ArrowRight, X, Share2 } from 'lucide-react'
+import { Bookmark, BookmarkCheck, Loader2, MapPin, Edit3, Trash2, ArrowRight, X, Share2, MessageSquare } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -21,6 +21,7 @@ interface PetResult {
   province:         string
   image_url:        string
   status:           string
+  gender?:          string // ── 🟢 เพิ่มการรับฟิลด์เพศเพื่อนำมาประกอบชุดข้อมูล OG
   user_id?:         string
   match_percentage?: number
 }
@@ -38,6 +39,9 @@ export function MatchResultCard({ result }: { result: PetResult }) {
   // ── Delete Reason Modal state ─────────────────────────────────
   const [showDeleteModal,   setShowDeleteModal]    = useState(false)
   const [selectedReason,    setSelectedReason]     = useState<DeleteReason | null>(null)
+
+  // ── 🟢 State สำหรับเปิด-ปิดแผงเลือกช่องทางการแชร์ ─────────────────
+  const [showShareModal,    setShowShareModal]     = useState(false)
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -139,32 +143,49 @@ export function MatchResultCard({ result }: { result: PetResult }) {
     }
   }
 
-  // ── 🟢 ฟังก์ชันสำหรับปุ่มแชร์ลิ้งค์ดักรูปภาพพรีวิวสไตล์ OG Card ──
-  const handleShare = async (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation()
-    const shareUrl = `${window.location.origin}/pet/${result.id}`
-    const shareTitle = `PobPet | ช่วยกันแชร์ประกาศของ ${result.name || 'น้องสัตว์เลี้ยง'}`
-    const shareText = `ช่วยเหลือน้องตามหาพิกัดปลอดภัย สายพันธุ์ ${result.breed || 'ไม่ระบุ'} ประจำจังหวัด ${result.province}`
+  const formatSrc = (src: string) => {
+    if (!src) return ''
+    if (src.startsWith('http') || src.startsWith('data:')) return src
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ajjvtazuncdtxjwcplcv.supabase.co'
+    return `${supabaseUrl}/storage/v1/object/public/pet-images/${src}`
+  }
 
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: shareTitle,
-          text: shareText,
-          url: shareUrl,
-        })
-      } catch (err) {
-        console.log('User cancelled or error sharing:', err)
-      }
-    } else {
-      // Fallback กรณีเปิดบนเบราว์เซอร์ที่ไม่มีระบบ Share API ให้ทำระบบก๊อปปี้ลิ้งค์อัตโนมัติ
-      try {
-        await navigator.clipboard.writeText(shareUrl)
-        alert('📋 คัดลอกลิงก์ประกาศสำหรับนำไปแชร์โพสต์ OG สำเร็จเรียบร้อยแล้วค่ะ!')
-      } catch {
-        alert(`แชร์ประกาศผ่านทางลิงก์นี้ได้เลยค่ะ: ${shareUrl}`)
-      }
+  const determineStatus = (): string => {
+    const validStatuses = ['lost', 'found', 'adoption', 'mating', 'showcase']
+    if (result.status && validStatuses.includes(result.status)) {
+      return result.status
     }
+    const r = result as any
+    if (r.mode_lost) return 'lost'
+    if (r.mode_mating) return 'mating'
+    if (r.mode_adoption) return 'adoption'
+    if (r.mode_showcase) return 'showcase'
+    return result.status || 'showcase'
+  }
+
+  const currentStatus = determineStatus()
+
+  const statusCfg: Record<string, { label: string; color: string; bg: string }> = {
+    lost:     { label: '🚨 ประกาศตามหาน้อง', color: '#D94F1E', bg: '#FFF1EC' },
+    found:    { label: '👀 พบน้องหลงทาง',    color: '#2D6A2D', bg: '#EBF5EB' },
+    adoption: { label: '💖 หาบ้านให้น้อง',   color: '#1A5EA8', bg: '#EEF6FF' },
+    mating:   { label: '❤️ หาคู่ให้น้อง',     color: '#C2185B', bg: '#FCE4EC' },
+    showcase: { label: '✨ โชว์โปรไฟล์น้อง',  color: '#A07800', bg: '#FFFDE7' },
+  }
+  
+  const cfg = statusCfg[currentStatus] || { label: '🐾 สัตว์เลี้ยงคอมมูนิตี้', color: '#1A1208', bg: '#FFFFFF' }
+  const isOwner = userId === result.user_id
+
+  // ── 🟢 ฟังก์ชันจัดเรียงเนื้อหาสำหรับแชร์ไปโซเชียลมีเดียพร้อมชุดข้อมูล OG เต็มอัตรา ──
+  const getSharePayload = () => {
+    const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://pobpet.com'}/pet/${result.id}`
+    const genderText = result.gender === 'male' ? 'เพศผู้ ♂' : result.gender === 'female' ? 'เพศเมีย ♀' : 'ไม่ระบุเพศ'
+    
+    // ร้อยเรียงชุดข้อความกระชับความกว้าง ดึงข้อมูลครบ (ชื่อ, โหมด, สายพันธุ์, จังหวัด, เพศ)
+    const shareTitle = `🐾 PobPet: ${cfg.label} -> น้อง ${result.name || 'ไม่ระบุชื่อ'}`
+    const shareText = `📌 ข้อมูลน้องสี่ขา\n• ชื่อ: ${result.name || 'ไม่ระบุชื่อ'}\n• โหมด: ${cfg.label}\n• สายพันธุ์: ${result.breed || 'ไม่ระบุ'}\n• พิกัดจังหวัด: ${result.province}\n• เพศ: ${genderText}\n\nช่วยพาน้องกลับบ้านและส่งต่อความอบอุ่นด้วยพลังชุมชนด่านขุนทดกันค่ะ! ❤️`
+    
+    return { url: shareUrl, title: shareTitle, text: shareText }
   }
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -198,39 +219,6 @@ export function MatchResultCard({ result }: { result: PetResult }) {
       setIsDeleting(false)
     }
   }
-
-  const formatSrc = (src: string) => {
-    if (!src) return ''
-    if (src.startsWith('http') || src.startsWith('data:')) return src
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ajjvtazuncdtxjwcplcv.supabase.co'
-    return `${supabaseUrl}/storage/v1/object/public/pet-images/${src}`
-  }
-
-  const determineStatus = (): string => {
-    const validStatuses = ['lost', 'found', 'adoption', 'mating', 'showcase']
-    if (result.status && validStatuses.includes(result.status)) {
-      return result.status
-    }
-    const r = result as any
-    if (r.mode_lost) return 'lost'
-    if (r.mode_mating) return 'mating'
-    if (r.mode_adoption) return 'adoption'
-    if (r.mode_showcase) return 'showcase'
-    return result.status || 'showcase'
-  }
-
-  const currentStatus = determineStatus()
-
-  const statusCfg: Record<string, { label: string; color: string; bg: string }> = {
-    lost:     { label: '🚨 ประกาศตามหาน้อง', color: '#D94F1E', bg: '#FFF1EC' },
-    found:    { label: '👀 พบน้องหลงทาง',    color: '#2D6A2D', bg: '#EBF5EB' },
-    adoption: { label: '💖 หาบ้านให้น้อง',   color: '#1A5EA8', bg: '#EEF6FF' },
-    mating:   { label: '❤️ หาคู่ให้น้อง',     color: '#C2185B', bg: '#FCE4EC' },
-    showcase: { label: '✨ โชว์โปรไฟล์น้อง',  color: '#A07800', bg: '#FFFDE7' },
-  }
-  
-  const cfg = statusCfg[currentStatus] || { label: '🐾 สัตว์เลี้ยงคอมมูนิตี้', color: '#1A1208', bg: '#FFFFFF' }
-  const isOwner = userId === result.user_id
 
   return (
     <>
@@ -274,10 +262,8 @@ export function MatchResultCard({ result }: { result: PetResult }) {
           </div>
         </div>
 
-        {/* CTA (ส่วนควบคุมปุ่มล่างการ์ด จัดระเบียบตัดปุ่มซ้อนออกถาวร) */}
+        {/* CTA */}
         <div className="px-4 pb-4 space-y-2 bg-white">
-          
-          {/* ── 🟢 ปรับปรุงปุ่มหลัก: แบ่งครึ่งแถวคู่ "ดูรายละเอียด" และ "แชร์โพสต์ OG" ให้เท่ากันอย่างสมมาตร ── */}
           <div className="grid grid-cols-5 gap-2">
             <button
               onClick={() => { setIsNavigating(true); router.push(`/pet/${result.id}`) }}
@@ -287,9 +273,10 @@ export function MatchResultCard({ result }: { result: PetResult }) {
               {isNavigating ? 'กำลังโหลด...' : 'ดูรายละเอียด'} <ArrowRight size={14} />
             </button>
 
+            {/* ── 🟢 ปุ่มเปิดโมดอลเลือกช่องทางการแชร์ไปยังโซเชียลมีเดีย ── */}
             <button
-              onClick={handleShare}
-              title="แชร์ประกาศสไตล์ OG Card"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowShareModal(true); }}
+              title="เลือกแชร์ประกาศไปยังโซเชียลมีเดีย"
               className="ori-btn bg-white border-2 border-black p-0 rounded-xl flex items-center justify-center shadow-paper-sm hover:bg-gray-50 transition-all text-black active:translate-y-0"
             >
               <Share2 size={16} strokeWidth={2.5} />
@@ -310,14 +297,13 @@ export function MatchResultCard({ result }: { result: PetResult }) {
             </div>
           )}
 
-          {/* ── 🟢 ปุ่มปิดเคสเจ้าของ ยึดตำแหน่งด้านในกรอบการ์ดอย่างมั่นคง ไม่หลุดซ้อนเบิ้ลไปด้านนอกอีก ── */}
           {isOwner && (currentStatus === 'lost' || currentStatus === 'mating' || currentStatus === 'adoption' || currentStatus === 'showcase') && (
             <button
               onClick={handleResolveCase}
               disabled={loadingResolve}
               className={`w-full py-2.5 rounded-xl border-2 border-black font-black text-xs flex items-center justify-center gap-1.5 shadow-paper-sm transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 text-white mt-1
                 ${currentStatus === 'lost' ? 'bg-[#2D6A2D] hover:bg-[#3E803E]' : ''}
-                ${currentStatus === 'mating' ? 'bg-[#1A5EA8] hover:bg-[#1E71C9]' : ''}
+                ${currentStatus === 'mating' ? 'bg-[#C2185B] hover:bg-[#D81B60]' : ''}
                 ${currentStatus === 'adoption' ? 'bg-[#1A5EA8] hover:bg-[#1E71C9]' : ''}
                 ${currentStatus === 'showcase' ? 'bg-[#A07800] hover:bg-[#B38F1B]' : ''}
               `}
@@ -328,6 +314,96 @@ export function MatchResultCard({ result }: { result: PetResult }) {
           )}
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════
+          ADVANCED ADVANCED SOCIAL SHARE MODAL (Facebook, Threads, X)
+      ══════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {showShareModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[210] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setShowShareModal(false)}
+          >
+            <motion.div
+              initial={{ scale: .9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: .9, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white border-4 border-ori-ink rounded-2xl shadow-[8px_8px_0_#1A1208] w-full max-w-sm p-6 relative text-black"
+            >
+              <button onClick={() => setShowShareModal(false)}
+                className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-gray-100 transition-colors">
+                <X size={20} />
+              </button>
+
+              <div className="text-2xl mb-1">📢</div>
+              <h3 className="font-display font-black text-lg mb-1">แชร์ประกาศตามหาน้อง</h3>
+              <p className="text-xs font-bold text-gray-400 mb-4">
+                เลือกแพลตฟอร์มโซเชียลเพื่อเรนเดอร์พรีวิวข้อมูลการ์ด OG ลงหน้าฟีด
+              </p>
+
+              {/* รายการปุ่มแชร์ 3 โซเชียลหลัก + 1 ปุ่มก็อปปี้ลิงก์นิรภัย */}
+              <div className="flex flex-col gap-2.5 mb-4">
+                
+                {/* ปุ่มแชร์ไปยัง Facebook */}
+                <button
+                  onClick={() => {
+                    const payload = getSharePayload()
+                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(payload.url)}`, '_blank')
+                  }}
+                  className="w-full text-left px-4 py-3 bg-[#1877F2] text-white border-2 border-black rounded-xl font-black text-sm transition-all hover:-translate-y-0.5 shadow-paper-sm flex items-center gap-2.5"
+                >
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  <span>แชร์ไปยัง Facebook</span>
+                </button>
+
+                {/* ปุ่มแชร์ไปยัง Threads */}
+                <button
+                  onClick={() => {
+                    const payload = getSharePayload()
+                    window.open(`https://threads.net/intent/post?text=${encodeURIComponent(payload.text + '\n' + payload.url)}`, '_blank')
+                  }}
+                  className="w-full text-left px-4 py-3 bg-black text-white border-2 border-black rounded-xl font-black text-sm transition-all hover:-translate-y-0.5 shadow-paper-sm flex items-center gap-2.5"
+                >
+                  <MessageSquare size={20} className="fill-current" />
+                  <span>แชร์ไปยัง Threads</span>
+                </button>
+
+                {/* ปุ่มแชร์ไปยัง X (Twitter) */}
+                <button
+                  onClick={() => {
+                    const payload = getSharePayload()
+                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(payload.text)}&url=${encodeURIComponent(payload.url)}`, '_blank')
+                  }}
+                  className="w-full text-left px-4 py-3 bg-[#111111] text-white border-2 border-black rounded-xl font-black text-sm transition-all hover:-translate-y-0.5 shadow-paper-sm flex items-center gap-2.5"
+                >
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                  <span>แชร์ไปยัง X (Twitter)</span>
+                </button>
+
+                <div className="h-px bg-black/10 my-1"></div>
+
+                {/* ปุ่มคัดลอกลิงก์เป็นทางเลือกสำรอง */}
+                <button
+                  onClick={async () => {
+                    const payload = getSharePayload()
+                    try {
+                      await navigator.clipboard.writeText(payload.url)
+                      alert('📋 คัดลอกลิงก์ประกาศไปรันเป็นโพสต์ OG สำเร็จเรียบร้อยแล้วค่ะ!')
+                    } catch {
+                      alert(`ลิงก์สำหรับคัดลอก: ${payload.url}`)
+                    }
+                    setShowShareModal(false)
+                  }}
+                  className="w-full text-center px-4 py-2.5 bg-gray-50 border-2 border-dashed border-gray-300 hover:bg-gray-100 rounded-xl font-bold text-xs transition-colors"
+                >
+                  🔗 คัดลอกลิงก์เก็บไว้ในคลิปบอร์ด
+                </button>
+
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ══════════════════════════════════════════════════════════
           DELETE REASON MODAL
