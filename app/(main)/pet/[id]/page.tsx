@@ -1,326 +1,320 @@
-// app/(main)/pet/[id]/page.tsx
-import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { PetGallery } from '@/components/pet/PetGallery'
-import { Phone, MessageCircle, ExternalLink, UserCircle2 } from 'lucide-react'
-import type { Metadata, ResolvingMetadata } from 'next'
-import ShareButton from '@/components/pet/ShareButton'
-import { CommentSection } from '@/components/pet/CommentSection'
-import { PetActionButtons } from '@/components/pet/PetActionButtons'
+'use client'
+// app/(main)/pet/[id]/edit/page.tsx (ฉบับปลดล็อคโครงข่ายอัปเดตประวัติการทำหมันและเพศสัตว์เลี้ยงครบมิติ 100%)
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pawfind-eta.vercel.app'
+import { useState, useRef, useMemo, useEffect } from 'react'
+import { createBrowserClient }                  from '@supabase/ssr'
+import { useRouter }                             from 'next/navigation'
+import Link                                     from 'next/link'
+import {
+  Upload, Sparkles, Loader2, ChevronLeft,
+  PawPrint, Heart, Home, Trophy, Search,
+  X, Plus, AlertCircle, Save, Trash2
+} from 'lucide-react'
 
-type Props = { params: { id: string } }
+type Mode = 'mode_lost' | 'mode_mating' | 'mode_adoption' | 'mode_showcase'
 
-function resolveImageUrl(url: string | null | undefined): string {
-  if (!url) return ''
-  if (url.startsWith('data:')) return ''
-  if (url.startsWith('http')) return url
-  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pet-images/${url}`
-}
+const SPECIES_OPTIONS = [
+  '', 'สุนัข', 'แมว', 'นกสวยงาม', 'ปลาสวยงาม',
+  'กระต่าย', 'แฮมสเตอร์', 'เต่า', 'งู', 'กิ้งก่า', 'อื่นๆ',
+]
 
-export async function generateMetadata(
-  { params }: Props,
-  parent: ResolvingMetadata
-): Promise<Metadata> {
-  const supabase = createClient()
-  const { data: pet } = await supabase
-    .from('pets')
-    .select('*, pet_images(storage_url, is_primary)')
-    .eq('id', params.id)
-    .single()
+const GENDER_OPTIONS = [
+  { value: 'unknown', label: '❓ ไม่ทราบ / ไม่ระบุ' },
+  { value: 'male',    label: '♂ เพศผู้ (Male)'   },
+  { value: 'female',  label: '♀ เพศเมีย (Female)'  },
+]
 
-  if (!pet) return { title: 'ไม่พบข้อมูล - PobPet หาสัตว์หายด้วย AI' }
+export default function EditPetFormPage({ params }: { params: { id: string } }) {
+  const router = useRouter()
+  const supabase = useMemo(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ), [])
 
-  let title = ''
-  const petName = pet.name || 'ไม่ทราบชื่อ'
-  if (pet.status === 'lost') {
-    title = `🚨ประกาศตามหาสัตว์หาย(${petName}) | PobPet หาสัตว์หายด้วย AI`
-  } else if (pet.status === 'found') {
-    title = `🚨ประกาศพบสัตว์หลง | PobPet หาสัตว์หายด้วย AI`
-  } else if (pet.status === 'adoption') {
-    title = `💖ประกาศตามหาบ้านให้น้อง(${petName}) | PobPet หาสัตว์หายด้วย AI`
-  } else {
-    title = `${petName} | PobPet หาสัตว์หายด้วย AI`
-  }
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const locationText = [
-    pet.sub_district ? `ต.${pet.sub_district}` : null,
-    pet.district ? `อ.${pet.district}` : null,
-    `จ.${pet.province || ''}`
-  ].filter(Boolean).join(' ')
+  // ── States โครงสร้างฟอร์มแก้ไข ──
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving]   = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
+  const [error, setError]     = useState<string | null>(null)
 
-  const description = [
-    `ประเภท: ${pet.species === 'dog' ? 'สุนัข' : pet.species === 'cat' ? 'แมว' : pet.species || 'สัตว์เลี้ยง'}`,
-    pet.breed ? `สายพันธุ์: ${pet.breed}` : null,
-    `พื้นที่: ${locationText}`,
-    pet.distinctive_features ? `ลักษณะ: ${pet.distinctive_features.slice(0, 80)}` : null,
-    'ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾',
-  ].filter(Boolean).join(' | ')
+  const [name, setName] = useState('')
+  const [species, setSpecies] = useState('')
+  const [breed, setBreed] = useState('')
+  const [color, setColor] = useState('')
+  
+  // ── 🟢 ฟิลด์ประวัติสุขภาพรองรับการแก้ไขเปลี่ยนค่าภายหลัง (ข้อ 1) ──
+  const [gender, setGender] = useState('unknown')
+  const [isSterilized, setIsSterilized] = useState(false)
+  const [birthday, setBirthday] = useState('')
 
-  const ogImageUrl = pet.og_image_url || `${BASE_URL}/api/og?id=${params.id}`
-  const pageUrl = `${BASE_URL}/pet/${params.id}`
+  const [province, setProvince] = useState('')
+  const [district, setDistrict] = useState('')
+  const [tambon, setTambon] = useState('')
+  const [rewardAmount, setRewardAmount] = useState('0')
+  const [distinctiveFeatures, setDistinctiveFeatures] = useState('')
+  const [details, setDetails] = useState('')
+  const [contactInfo, setContactInfo] = useState('')
 
-  return {
-    title,
-    description,
-    openGraph: {
-      type:        'website',
-      url:         pageUrl,
-      title,
-      description,
-      siteName:    'PobPet หาสัตว์หายด้วย AI',
-      locale:      'th_TH',
-      images: [
-        { 
-          url: ogImageUrl, 
-          width: 1200, 
-          height: 630, 
-          alt: `${title}`, 
-          type: 'image/png' 
-        }
-      ],
-    },
-    twitter: { card: 'summary_large_image', title, description, images: [ogImageUrl] },
-    alternates: { canonical: pageUrl },
-    robots: { index: true, follow: true },
-  }
-}
+  // โหมดประกาศ
+  const [activeMode, setActiveMode] = useState<Mode>('mode_showcase')
 
-export default async function PetProfilePage({ params }: Props) {
-  const supabase = createClient()
+  // คลังรูปภาพ
+  const [images, setImages] = useState<{ id?: string; url: string; file?: File; isPrimary: boolean }[]>([])
 
-  const { data: pet } = await supabase
-    .from('pets')
-    .select(`
-      *,
-      pet_images(storage_url, is_primary),
-      profiles(first_name, last_name, display_name, avatar_url, phone_number, line_id, contact_link, province, district, subdistrict, address, is_public)
-    `)
-    .eq('id', params.id)
-    .single()
+  useEffect(() => {
+    const fetchPetData = async () => {
+      const { data: pet, error: petErr } = await supabase
+        .from('pets')
+        .select('*, pet_images(*)')
+        .eq('id', params.id)
+        .single()
 
-  if (!pet) notFound()
-
-  const { data: { session } } = await supabase.auth.getSession()
-  const isOwner = session?.user?.id === pet.user_id
-
-  const images       = pet.pet_images || []
-  const primaryImage = images.find((i: any) => i.is_primary)?.storage_url || pet.image_url
-  const reporter     = pet.profiles
-  const isProfilePublic = reporter?.is_public !== false || isOwner
-
-  let distinctiveFeaturesList: { url: string; description: string }[] = []
-  try {
-    if (pet.distinctive_features) {
-      const parsed = JSON.parse(pet.distinctive_features)
-      if (Array.isArray(parsed)) {
-        distinctiveFeaturesList = parsed.filter(item => item && (item.url || item.description))
+      if (petErr || !pet) {
+        setError('ไม่พบข้อมูลสัตว์เลี้ยงตัวนี้ในระบบค่ะ')
+        setLoading(false)
+        return
       }
+
+      // ดึงสิทธิ์ความปลอดภัยเจ้าของป้องการการแฮกข้ามบัญชี
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session || session.user.id !== pet.user_id) {
+        setError('🔒 คุณไม่มีสิทธิ์เข้าถึงหรือแก้ไขฟอร์มประกาศฉบับนี้ค่ะ')
+        setLoading(false)
+        return
+      }
+
+      // แมปเข้า State
+      setName(pet.name || '')
+      setSpecies(pet.species || '')
+      setBreed(pet.breed || '')
+      setColor(pet.color || '')
+      setGender(pet.gender || 'unknown')
+      setIsSterilized(!!pet.is_sterilized)
+      setBirthday(pet.birthday || pet.birthdate || '')
+      setProvince(pet.province || '')
+      setDistrict(pet.district || '')
+      setTambon(pet.tambon || '')
+      setRewardAmount(String(pet.reward_amount || 0))
+      setDetails(pet.details || '')
+      setContactInfo(pet.contact_info || '')
+
+      // ล้างข้อมูลสตริง JSON ลักษณะเด่นพิเศษถอดออกมาเรนเดอร์ (ข้อ 8)
+      if (pet.distinctive_features && pet.distinctive_features.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(pet.distinctive_features)
+          setDistinctiveFeatures(parsed[0]?.description || pet.distinctive_features)
+        } catch {
+          setDistinctiveFeatures(pet.distinctive_features)
+        }
+      } else {
+        setDistinctiveFeatures(pet.distinctive_features || '')
+      }
+
+      // แกะค่าโหมด
+      if (pet.mode_lost) setActiveMode('mode_lost')
+      else if (pet.mode_mating) setActiveMode('mode_mating')
+      else if (pet.mode_adoption) setActiveMode('mode_adoption')
+      else setActiveMode('mode_showcase')
+
+      // จัดการดึงคลังรูป (ข้อ 9)
+      if (pet.pet_images && pet.pet_images.length > 0) {
+        setImages(pet.pet_images.map((img: any) => ({
+          id: img.id,
+          url: img.storage_url,
+          isPrimary: !!img.is_primary
+        })))
+      } else if (pet.image_url) {
+        setImages([{ url: pet.image_url, isPrimary: true }])
+      }
+
+      setLoading(false)
     }
-  } catch (e) {
-    // legacy non-JSON text
+
+    fetchPetData()
+  }, [params.id, supabase])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (saving) return
+    setSaving(true)
+    setError(null)
+
+    try {
+      // 1. อัปโหลดรูปใหม่เข้าคลัง (ถ้ามี)
+      const finalImages = [...images]
+      for (let i = 0; i < finalImages.length; i++) {
+        if (finalImages[i].file) {
+          const file = finalImages[i].file!
+          const fileExt = file.name.split('.').pop()
+          const path = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+          await supabase.storage.from('pet-images').upload(path, file)
+          const { data: { publicUrl } } = supabase.storage.from('pet-images').getPublicUrl(path)
+          finalImages[i].url = publicUrl
+          delete finalImages[i].file
+        }
+      }
+
+      // 2. เซฟค่าบันทึกลงตารางหลัก pets สอดคล้องตามคอลัมน์ดาต้าเบส
+      const { error: updateErr } = await supabase
+        .from('pets')
+        .update({
+          name,
+          species,
+          breed: breed || null,
+          color,
+          gender,
+          is_sterilized: isSterilized,
+          birthday: birthday || null,
+          birthdate: birthday || null,
+          province,
+          district,
+          tambon,
+          reward_amount: parseFloat(rewardAmount) || 0,
+          distinctive_features: distinctiveFeatures,
+          details,
+          contact_info: contactInfo,
+          status: activeMode === 'mode_lost' ? 'lost' : (activeMode === 'mode_adoption' ? 'adoption' : activeMode === 'mode_mating' ? 'mating' : 'showcase'),
+          mode_lost: activeMode === 'mode_lost',
+          mode_mating: activeMode === 'mode_mating',
+          mode_adoption: activeMode === 'mode_adoption',
+          mode_showcase: activeMode === 'mode_showcase'
+        })
+        .eq('id', params.id)
+
+      if (updateErr) throw updateErr
+
+      // 3. ปรับระดับสลับรูปภาพในตารางย่อย pet_images
+      await supabase.from('pet_images').delete().eq('pet_id', params.id)
+      const imageRows = finalImages.map((img, index) => ({
+        pet_id: params.id,
+        storage_url: img.url,
+        is_primary: index === 0
+      }))
+      await supabase.from('pet_images').insert(imageRows)
+
+      alert('🎉 อัปเดตข้อมูลประวัติและโหมดประกาศของน้องสำเร็จเรียบร้อยค่ะ!')
+      router.push(`/pet/${params.id}`)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const createdAt     = new Date(pet.created_at)
-  const formattedDate = createdAt.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
-  const formattedTime = createdAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: `${pet.status === 'lost' ? 'ตามหา' : 'พบ'}: ${pet.name || 'สัตว์เลี้ยง'}`,
-    description: pet.distinctive_features || pet.ai_description || '',
-    image: resolveImageUrl(primaryImage),
-    datePublished: pet.created_at,
-    dateModified:  pet.updated_at || pet.created_at,
-    url: `${BASE_URL}/pet/${params.id}`,
-    publisher: { '@type': 'Organization', name: 'PobPet หาสัตว์หายด้วย AI', url: BASE_URL }, 
+  const handleDelete = async () => {
+    setDeleting(true)
+    await supabase.from('pets').update({ status: 'archived' }).eq('id', params.id)
+    router.push('/profile')
   }
+
+  if (loading) return <div className="min-h-[50vh] flex items-center justify-center font-bold text-black"><Loader2 className="animate-spin text-ori-orange mr-2" /> กำลังเรียกแฟ้มประวัติน้อง...</div>
 
   return (
-    <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+    <div className="max-w-2xl mx-auto px-4 py-6 text-black">
+      <Link href={`/pet/${params.id}`} className="inline-flex items-center gap-1 font-black text-sm mb-4 text-gray-500 hover:text-black">
+        <ChevronLeft size={16} /> ย้อนกลับหน้าสมุดสุขภาพ
+      </Link>
 
-      <div className="max-w-3xl mx-auto mb-12 px-4 text-black">
-        <div className="bg-white border-2 border-black rounded-lg shadow-paper overflow-hidden">
+      <div className="bg-white border-4 border-black p-6 md:p-8 rounded-3xl shadow-paper space-y-6">
+        <h2 className="text-2xl font-black border-b-4 border-black pb-3 flex items-center gap-2">📝 แก้ไขและสลับโหมดโปรไฟล์</h2>
 
-          <PetGallery primaryImage={primaryImage} images={images} petName={pet.name} />
+        {error && <div className="bg-red-50 border-2 border-red-500 p-4 rounded-xl text-red-700 font-bold">{error}</div>}
 
-          <div className="p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
-              <div className="text-left">
-                <h1 className="text-4xl font-bold mb-2">{pet.name || 'ไม่ทราบชื่อ'}</h1>
-                <p className="text-xl font-bold text-gray-700">
-                  {pet.breed || 'ไม่ระบุสายพันธุ์'} • {pet.sub_district ? `ต.${pet.sub_district} ` : ''}{pet.district ? `อ.${pet.district} ` : ''}จ.{pet.province}
-                </p>
-                <p className="text-sm font-bold text-gray-500 mt-2 bg-gray-100 border border-gray-300 inline-block px-3 py-1 rounded-full">
-                  🕒 แจ้งเมื่อ: {formattedDate} เวลา {formattedTime} น.
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-2 w-full md:w-auto">
-                <span className="bg-wagashi-matcha border-2 border-black px-4 py-2 rounded-lg font-bold shadow-paper-sm text-lg text-center min-w-[140px] w-full md:w-auto">
-                  {pet.status === 'lost' ? '🚨 ประกาศตามหาสัตว์หาย' : pet.status === 'found' ? '👀 พบน้องหลงทาง' : '💖 หาบ้านใหม่'}
-                </span>
-                <ShareButton petName={pet.name || 'น้องสัตว์เลี้ยง'} status={pet.status === 'lost' ? 'ประกาศตามหาสัตว์หาย' : 'พบน้องหลงทาง'} petId={params.id} />
-                {pet.reward_amount > 0 && (
-                  <span className="bg-red-500 text-white border-2 border-black px-3 py-1 rounded font-bold shadow-paper-sm w-full text-center md:w-auto">
-                    💰 รางวัล {pet.reward_amount.toLocaleString()} บาท
-                  </span>
-                )}
-                <PetActionButtons
-                  petId={params.id}
-                  status={pet.status}
-                  petName={pet.name || 'น้อง'}
-                  ownerId={pet.user_id}
-                />
-              </div>
-            </div>
-
-            <hr className="border-black border-1 mb-6" />
-
-            {pet.status === 'found' && pet.latitude && pet.longitude && (
-              <div className="bg-white border-2 border-black p-5 rounded-lg mb-8 shadow-paper-sm flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="bg-wagashi-sora p-3 rounded-full border-2 border-black text-2xl shadow-paper-sm">📍</div>
-                  <div className="text-left">
-                    <h3 className="font-bold text-lg">พิกัดที่พบสัตว์เลี้ยง</h3>
-                    <p className="text-sm font-medium text-gray-600 font-mono mt-1">
-                      Lat: {pet.latitude.toFixed(5)}, Lng: {pet.longitude.toFixed(5)}
-                    </p>
-                  </div>
-                </div>
-                <a href={`https://www.google.com/maps/search/?api=1&query=${pet.latitude},${pet.longitude}`} target="_blank" rel="noopener noreferrer" className="w-full md:w-auto">
-                  <Button className="w-full bg-wagashi-kinako text-black hover:bg-yellow-400 border-2 border-black px-6 py-5 text-md font-bold shadow-paper-sm hover:-translate-y-1 transition-transform">
-                    🗺️ เปิดดูใน Google Maps
-                  </Button>
-                </a>
-              </div>
-            )}
-
-            {/* แผงข้อมูลลักษณะตารางการ์ดสีสไตล์ Origami */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 text-left">
-              <div className="border-2 border-black p-5 rounded-lg bg-wagashi-kinako shadow-paper-sm md:col-span-2">
-                <h3 className="font-bold text-lg mb-2">✨ ตำหนิหรือลักษณะพิเศษ</h3>
-                {distinctiveFeaturesList.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-3">
-                    {distinctiveFeaturesList.map((item, index) => (
-                      <div key={index} className="border-2 border-black rounded-xl overflow-hidden bg-white shadow-paper-sm flex flex-col">
-                        {item.url && (
-                          <div className="aspect-square w-full bg-gray-50 border-b-2 border-black overflow-hidden relative">
-                            <img src={item.url} alt={item.description || 'ตำหนิพิเศษ'} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
-                          </div>
-                        )}
-                        <div className="p-3 flex-1 flex items-center justify-start bg-yellow-50/30">
-                          <p className="font-bold text-xs text-gray-800 leading-relaxed">🐾 {item.description || 'ไม่ได้ระบุคำอธิบาย'}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-black font-medium leading-relaxed">
-                    {pet.distinctive_features && !pet.distinctive_features.startsWith('[') 
-                      ? pet.distinctive_features 
-                      : 'ผู้แจ้งไม่ได้ระบุลักษณะพิเศษไว้'}
-                  </p>
-                )}
-              </div>
-              <div className="border-2 border-black p-5 rounded-lg bg-wagashi-sakura shadow-paper-sm">
-                <div className="text-sm font-bold text-gray-600 mb-1 uppercase">สีของสัตว์เลี้ยง</div>
-                <div className="text-xl font-bold">{pet.color || 'ไม่ระบุ'}</div>
-              </div>
-              <div className="border-2 border-black p-5 rounded-lg bg-wagashi-sora shadow-paper-sm">
-                <div className="text-sm font-bold text-gray-600 mb-1 uppercase">ประเภทสัตว์</div>
-                <div className="text-xl font-bold capitalize">
-                  {pet.species === 'dog' ? 'สุนัข' : pet.species === 'cat' ? 'แมว' : pet.species || 'ไม่ระบุ'}
-                </div>
-              </div>
-
-              {/* ── 🟢 [เพิ่มกล่องข้อมูลใหม่ 2 ชิ้นสอดคล้องกัน] แสดงข้อมูลเพศ และสถานะการทำหมันออกสู่หน้าเว็บบอร์ดสาธารณะ ── */}
-              <div className="border-2 border-black p-5 rounded-lg bg-blue-50 shadow-paper-sm">
-                <div className="text-sm font-bold text-gray-600 mb-1 uppercase">เพศของน้อง</div>
-                <div className="text-xl font-bold">
-                  {pet.gender === 'male' ? '♂ เพศผู้ (Male)' : pet.gender === 'female' ? '♀ เพศเมีย (Female)' : '❓ ไม่ทราบ / ไม่ระบุ'}
-                </div>
-              </div>
-              <div className="border-2 border-black p-5 rounded-lg bg-green-50 shadow-paper-sm">
-                <div className="text-sm font-bold text-gray-600 mb-1 uppercase">การทำหมัน</div>
-                <div className="text-xl font-bold">
-                  {pet.is_sterilized ? '🩺 ทำหมันเรียบร้อยแล้ว' : '❌ ยังไม่ได้ทำหมัน'}
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-washi border-2 border-black p-6 rounded-lg mb-8 shadow-paper-sm text-left">
-              <h3 className="font-bold text-lg mb-3">🤖 บทวิเคราะห์จาก Gemini AI</h3>
-              <p className="text-gray-800 leading-relaxed italic">
-                &ldquo;{pet.ai_description}&rdquo;
-              </p>
-            </div>
-
-            {reporter && (
-              <div className="border-2 border-black rounded-xl p-6 bg-gray-50 mt-10 text-left">
-                <div className="flex items-start gap-4 mb-5 border-b-2 border-black pb-4">
-                  {reporter.avatar_url ? (
-                    <img src={reporter.avatar_url} alt={reporter.display_name || 'Profile'} className="w-14 h-14 rounded-full border-2 border-black object-cover" />
-                  ) : (
-                    <UserCircle2 size={56} className="text-gray-400" />
-                  )}
-                  <div>
-                    <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">ข้อมูลผู้แจ้ง</p>
-                    <p className="text-xl font-black">
-                      {reporter.display_name || `${reporter.first_name || ''} ${reporter.last_name || ''}`}
-                    </p>
-                    <p className="text-xs font-bold text-gray-600 mt-1">
-                      📍 จังหวัด: {reporter.province || 'ไม่ระบุ'}
-                      {isProfilePublic && reporter.district && ` • อำเภอ: ${reporter.district}`}
-                      {isProfilePublic && reporter.subdistrict && ` • ตำบล: ${reporter.subdistrict}`}
-                    </p>
-                    {isProfilePublic && reporter.address && (
-                      <p className="text-xs font-bold text-gray-500 mt-0.5">
-                        🏠 ที่อยู่ติดต่อ: {reporter.address}
-                      </p>
-                    )}
-                    {!isProfilePublic && (
-                      <p className="text-xs font-bold text-red-500 mt-1">
-                        🔒 บัญชีนี้ตั้งค่าการแสดงผลที่อยู่และช่องทางติดต่อเป็นส่วนตัว
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {isProfilePublic ? (
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    {reporter.phone_number && (
-                      <a href={`tel:${reporter.phone_number}`} className="flex-1 flex items-center justify-center gap-2 bg-wagashi-kinako border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all text-black">
-                        <Phone size={20} /><span>โทรติดต่อ</span>
-                      </a>
-                    )}
-                    {reporter.line_id && (
-                      <a href={`https://line.me/ti/p/~${reporter.line_id}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-[#00B900] text-white border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all">
-                        <MessageCircle size={20} /><span>แอดไลน์</span>
-                      </a>
-                    )}
-                    {reporter.contact_link && (
-                      <a href={reporter.contact_link.startsWith('http') ? reporter.contact_link : `https://${reporter.contact_link}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-black text-white border-2 border-black px-4 py-4 rounded-xl font-black shadow-paper-sm hover:shadow-paper transition-all">
-                        <ExternalLink size={20} /><span>ช่องทางอื่น</span>
-                      </a>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-4 bg-gray-200 border border-gray-300 rounded-xl">
-                    <p className="text-sm font-bold text-gray-500">ติดต่อผ่านแผงแชทของระบบ PobPet หรือส่งข้อความผ่านคอมเมนต์ด้านล่าง 🐾</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <CommentSection petId={params.id} />
-
+        {/* แผงปุ่ม Neubrutalism เลือกโหมด 4 ทิศทาง */}
+        <div className="space-y-1 text-left">
+          <label className="font-black text-sm text-gray-400">🚨 เลือกโหมดการโชว์ประกาศในบอร์ดสาธารณะ:</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setActiveMode('mode_lost')} className={`p-3 rounded-xl font-black border-2 border-black flex items-center justify-center gap-1.5 transition-all shadow-paper-sm ${activeMode === 'mode_lost' ? 'bg-red-400' : 'bg-white'}`}><Search size={16} /> ประกาศหาย</button>
+            <button type="button" onClick={() => setActiveMode('mode_mating')} className={`p-3 rounded-xl font-black border-2 border-black flex items-center justify-center gap-1.5 transition-all shadow-paper-sm ${activeMode === 'mode_mating' ? 'bg-pink-400' : 'bg-white'}`}><Heart size={16} /> หาคู่ให้น้อง</button>
+            <button type="button" onClick={() => setActiveMode('mode_adoption')} className={`p-3 rounded-xl font-black border-2 border-black flex items-center justify-center gap-1.5 transition-all shadow-paper-sm ${activeMode === 'mode_adoption' ? 'bg-blue-400' : 'bg-white'}`}><Home size={16} /> หาบ้านให้น้อง</button>
+            <button type="button" onClick={() => setActiveMode('mode_showcase')} className={`p-3 rounded-xl font-black border-2 border-black flex items-center justify-center gap-1.5 transition-all shadow-paper-sm ${activeMode === 'mode_showcase' ? 'bg-amber-400' : 'bg-white'}`}><Trophy size={16} /> โชว์โปรไฟล์</button>
           </div>
         </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4 text-left">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="font-black text-sm">ชื่อน้องสัตว์เลี้ยง</label>
+              <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white" />
+            </div>
+            <div className="space-y-1">
+              <label className="font-black text-sm">ประเภทสัตว์</label>
+              <select value={species} onChange={e => setSpecies(e.target.value)} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
+                {SPECIES_OPTIONS.map(opt => <option key={opt} value={opt}>{opt || 'โปรดเลือกประเภท'}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <label className="font-black text-sm">เพศ</label>
+              <select value={gender} onChange={e => setGender(e.target.value)} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
+                {GENDER_OPTIONS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="font-black text-sm">การทำหมันย้อนหลัง 🩺</label>
+              <select value={isSterilized ? "true" : "false"} onChange={e => setIsSterilized(e.target.value === "true")} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer">
+                <option value="false">❌ ยังไม่ได้ทำหมัน</option>
+                <option value="true">✨ ทำหมันเรียบร้อยแล้ว</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="font-black text-sm">วันเดือนปีเกิด 🎂</label>
+              <input type="date" value={birthday} onChange={e => setBirthday(e.target.value)} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white cursor-pointer" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <label className="font-black text-xs">จังหวัด</label>
+              <input type="text" value={province} onChange={e => setProvince(e.target.value)} className="w-full border-2 border-black p-2 rounded-xl font-bold bg-white" />
+            </div>
+            <div className="space-y-1">
+              <label className="font-black text-xs">อำเภอ</label>
+              <input type="text" value={district} onChange={e => setDistrict(e.target.value)} className="w-full border-2 border-black p-2 rounded-xl font-bold bg-white" />
+            </div>
+            <div className="space-y-1">
+              <label className="font-black text-xs">ตำบล</label>
+              <input type="text" value={tambon} onChange={e => setTambon(e.target.value)} className="w-full border-2 border-black p-2 rounded-xl font-bold bg-white" />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-black text-sm">ตำหนิเด่น / ลักษณะเด่นพิเศษ</label>
+            <input type="text" value={distinctiveFeatures} onChange={e => setDistinctiveFeatures(e.target.value)} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white" />
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-black text-sm">เบอร์โทรศัพท์และช่องทางการติดต่อ</label>
+            <input type="text" value={contactInfo} onChange={e => setContactInfo(e.target.value)} className="w-full border-2 border-black p-2.5 rounded-xl font-bold bg-white" />
+          </div>
+
+          <button type="submit" disabled={saving} className="w-full bg-black text-white font-black py-4 border-2 border-black shadow-paper-sm rounded-xl flex items-center justify-center gap-1.5 hover:bg-gray-800">
+            {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+            {saving ? 'กำลังบันทึกข้อมูลการแก้ไข...' : '💾 ยืนยันอัปเดตแฟ้มข้อมูลสัตว์เลี้ยง'}
+          </button>
+        </form>
+
+        <div className="border-4 border-dashed border-red-300 rounded-3xl p-6 text-left">
+          <h3 className="font-black text-red-700 mb-1 flex items-center gap-2"><Trash2 size={18} /> Danger Zone</h3>
+          <p className="text-sm font-bold text-red-500 mb-4">ลบประกาศนี้ — ข้อมูลจะถูกซ่อนไว้ในคลัง 60 วัน ก่อนถูกเคลียร์ระบบถาวร</p>
+          {!showDelete ? (
+            <button type="button" onClick={() => setShowDelete(true)} className="px-4 py-2 text-sm font-black text-red-600 border-2 border-red-400 rounded-xl bg-white hover:bg-red-50 transition-all shadow-paper-sm">ลบไฟล์ประกาศน้อง</button>
+          ) : (
+            <div className="p-4 bg-red-50 rounded-2xl border-2 border-red-400">
+              <p className="font-black text-red-800 mb-3">คุณแน่ใจใช่ไหมที่จะสั่งลบข้อมูลประกาศน้องตัวนี้?</p>
+              <div className="flex gap-2">
+                <button type="button" onClick={handleDelete} disabled={deleting} className="px-4 py-2 bg-red-600 text-white font-black text-sm rounded-xl flex items-center gap-1.5">{deleting ? <Loader2 className="animate-spin" size={12}/> : null} ยืนยันลบเด็ดขาด</button>
+                <button type="button" onClick={() => setShowDelete(false)} className="px-4 py-2 bg-white text-black font-black text-sm border-2 border-black rounded-xl shadow-paper-sm">ยกเลิก</button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </>
+    </div>
   )
 }

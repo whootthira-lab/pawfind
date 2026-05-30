@@ -1,9 +1,9 @@
 'use client'
-// components/pet/PetCard.tsx
+// components/pet/PetCard.tsx (V4 - ซ่อมแซมระบบดึงรูปภาพลักษณะเด่น แก้ไขบั๊กทลายแคช JSON และตั้งค่าสิทธิ์ความเป็นส่วนตัวสมบูรณ์)
 
 import { Pet }  from '@/types/pet'
 import Link     from 'next/link'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { MapPin, Check, Loader2, Eye, EyeOff } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 import { DonationModal } from '@/components/DonationModal'
@@ -26,22 +26,67 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
   const [pet, setPet] = useState<any>(initialPet)
   const [modeChanging, setModeChanging] = useState(false)
   const [showDonation, setShowDonation] = useState(false)
+  const [isOwner, setIsOwner] = useState(false) // ดักจับสิทธิ์ความปลอดภัยตรวจสอบความเป็นเจ้าของ
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), [])
 
-  const imgUrl = pet.primary_image || pet.image_url
-  const cfg    = statusCfg(pet.status || 'lost')
-  const icon   = speciesIcon(pet.species || pet.type || 'other')
+  // ── 🟢 แก้บั๊กข้อ 9: ระบบเรียกรูปภาพแบบ Fallback เช็คตารางลูกสลับตารางหลัก ป้องกันภาพไม่แสดงผล ──
+  const imgUrl = useMemo(() => {
+    // 1. เช็คคลังรูปจากตารางย่อย pet_images ก่อน
+    if (pet.pet_images && pet.pet_images.length > 0) {
+      const primary = pet.pet_images.find((img: any) => img.is_primary)
+      return primary ? primary.storage_url : pet.pet_images[0].storage_url
+    }
+    // 2. เช็คตัวแปร Array โครงสร้างดั้งเดิม pets.images
+    if (pet.images && pet.images.length > 0) {
+      return pet.images[0]
+    }
+    // 3. ปล่อยพ่นค่า Default กรณีหาลิงก์รูปไม่เจอ
+    return pet.primary_image || pet.image_url || null
+  }, [pet])
 
-  // ── 🟢 ฟังก์ชันสลับโหมดพร้อมปรับค่าการมองเห็นผ่าน Dropdown (Constraint Mapping) ──
+  // ── 🟢 แก้บั๊กข้อ 8: ป้องกันรายละเอียด JSON Metadata แปลกปลอมหลุดพ่นออกมาในช่องลักษณะเด่น ──
+  const sanitizedFeatures = useMemo(() => {
+    const rawText = pet.distinctive_features || pet.special_marks
+    if (!rawText) return 'ไม่มีการระบุตำหนิพิเศษไว้ค่ะ'
+    
+    // ดักจับกรณีดึงก้อนอักขระพิเศษผิดพลาดหลุดส่ง JSON String เข้ามา
+    if (typeof rawText === 'string' && (rawText.trim().startsWith('{') || rawText.trim().startsWith('['))) {
+      try {
+        const parsed = JSON.parse(rawText)
+        if (Array.isArray(parsed)) {
+          return parsed[0]?.message || parsed[0]?.text || 'ระบุข้อมูลไว้ในแฟ้มรูปภาพลักษณะพิเศษ'
+        }
+        return parsed.message || parsed.text || 'ระบุข้อมูลลักษณะเด่นแล้ว'
+      } catch (e) {
+        // หากพาร์สพังให้ถอยกลับไปส่งอักขระดิบปกติ
+      }
+    }
+    return rawText
+  }, [pet])
+
+  const cfg  = statusCfg(pet.status || 'lost')
+  const icon = speciesIcon(pet.species || pet.type || 'other')
+
+  // ดักเช็คสิทธิ์ความเป็นเจ้าของเพื่อเปิดแผงควบคุมหลังบ้าน
+  useEffect(() => {
+    const checkOwnership = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.id === pet.user_id) {
+        setIsOwner(true)
+      }
+    }
+    checkOwnership()
+  }, [pet.user_id, supabase])
+
+  // ── ฟังก์ชันสลับโหมดพร้อมปรับค่าการมองเห็นผ่าน Dropdown (Constraint Mapping) ──
   const handleDropdownChange = async (value: string) => {
     if (modeChanging) return
     setModeChanging(true)
 
-    // บังคับสิทธิ์อัตโนมัติ: lost, found, mating ต้องเป็น public
     const isPublicMode = ['lost', 'found', 'mating'].includes(value)
     const newVisibility = value === 'private' ? 'private' : (isPublicMode ? 'public' : (pet.visibility || 'public'))
     const targetStatus = value === 'private' ? (pet.status || 'showcase') : value
@@ -85,7 +130,7 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
     }
   }
 
-  // ── 🟢 ฟังก์ชันปิดเคสสำเร็จพ่วงเปิดการเด้งป๊อปอัป DonationModal บริจาค ──
+  // ── ฟังก์ชันปิดเคสสำเร็จพ่วงเปิดการเด้งป๊อปอัป DonationModal บริจาค ──
   const handleResolveCase = async () => {
     let checkText = 'เจอน้องเรียบร้อยแล้วใช่ไหมคะ?'
     let titleText = '🎉 พบน้องแล้ว!'
@@ -142,7 +187,6 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
         mode_showcase: true
       }))
       
-      // สั่งเปิดหน้าต่างภาพรับบริจาคที่พี่วุฒิ์ดีไซน์ไว้
       setShowDonation(true)
     } catch (err: any) {
       alert(`ปิดเคสไม่สำเร็จ: ${err.message}`)
@@ -182,53 +226,58 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
         <h3 className="font-black text-lg text-ori-ink flex items-center justify-between">
           <span>{pet.name || 'ไม่ทราบชื่อ'} {icon}</span>
         </h3>
-        <p className="text-xs font-bold text-gray-500 truncate">{[pet.species, pet.breed].filter(Boolean).join(' · ')}</p>
+        
+        {/* ── เรียกใช้ข้อความที่ผ่านการล้างบั๊กเรียบร้อยแล้ว ไม่พ่น API Key หรือก้อนสัญญานแปลกปลอมออกหน้าต่างแสดงผล ── */}
+        <p className="text-xs font-bold text-gray-500 truncate">{sanitizedFeatures}</p>
         
         <div className="flex items-center gap-1 text-xs font-bold text-gray-600">
           <MapPin size={12} />
           <span>{pet.province || 'ไม่ระบุพื้นที่'}</span>
         </div>
 
-        {/* แผงปุ่มตั้งค่า */}
-        <div className="mt-3 pt-2 border-t border-dashed border-gray-200 space-y-3">
-          <div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">⚙️ ปรับสถานะ / โหมดของน้อง:</p>
-            <div className="relative">
-              <select
-                value={pet.visibility === 'private' ? 'private' : pet.status}
-                disabled={modeChanging}
-                onChange={(e) => handleDropdownChange(e.target.value)}
-                className="w-full bg-white border-2 border-black rounded-lg p-2 font-black text-xs cursor-pointer shadow-paper-sm hover:bg-gray-50 focus:outline-none text-black"
-              >
-                <option value="lost">📢 ประกาศหาย (สาธารณะ)</option>
-                <option value="mating">❤️ หาคู่ให้น้อง (สาธารณะ)</option>
-                <option value="adoption">🏡 หาบ้านให้น้อง (สาธารณะ)</option>
-                <option value="showcase">✨ โชว์โปรไฟล์ (สาธารณะ)</option>
-                <option value="private">🔒 เฉพาะฉัน (ส่วนตัว)</option>
-              </select>
+        {/* แผงปุ่มตั้งค่า (จะแสดงและให้สิทธิ์เข้าถึงเฉพาะนุดที่เป็นเจ้าของสัตว์เลี้ยงตัวจริงเท่านั้น) */}
+        {isOwner && (
+          <div className="mt-3 pt-2 border-t border-dashed border-gray-200 space-y-3">
+            <div>
+              <p className="text-[10px] font-black text-gray-400 tracking-wider mb-1 uppercase">⚙️ ปรับสถานะ / โหมดของน้อง:</p>
+              <div className="relative">
+                <select
+                  value={pet.visibility === 'private' ? 'private' : pet.status}
+                  disabled={modeChanging}
+                  onChange={(e) => handleDropdownChange(e.target.value)}
+                  className="w-full bg-white border-2 border-black rounded-lg p-2 font-black text-xs cursor-pointer shadow-paper-sm hover:bg-gray-50 focus:outline-none text-black"
+                >
+                  <option value="lost">📢 ประกาศหาย (สาธารณะ)</option>
+                  <option value="mating">❤️ หาคู่ให้น้อง (สาธารณะ)</option>
+                  <option value="adoption">🏡 หาบ้านให้น้อง (สาธารณะ)</option>
+                  <option value="showcase">✨ โชว์โปรไฟล์ (สาธารณะ)</option>
+                  <option value="private">🔒 เฉพาะฉัน (ส่วนตัว)</option>
+                </select>
+              </div>
             </div>
-          </div>
 
-          {!pet.is_resolved && (pet.status === 'lost' || pet.status === 'adoption' || pet.status === 'mating') && pet.visibility !== 'private' && (
-            <button 
-              type="button"
-              onClick={handleResolveCase}
-              disabled={modeChanging}
-              className={`w-full py-2 border-2 border-black font-black text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-paper-sm transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 text-white
-                ${pet.status === 'lost' ? 'bg-[#2D6A2D] hover:bg-[#3E803E]' : ''}
-                ${pet.status === 'mating' ? 'bg-[#C2185B] hover:bg-[#D81B60]' : ''}
-                ${pet.status === 'adoption' ? 'bg-[#1A5EA8] hover:bg-[#1E71C9]' : ''}
-              `}
-            >
-              {modeChanging ? <Loader2 className="animate-spin" size={12}/> : null} 
-              {modeChanging ? 'กำลังบันทึก...' : pet.status === 'lost' ? 'พบน้องแล้ว 🚨' : pet.status === 'mating' ? 'น้องได้คู่แล้ว ❤️' : 'น้องได้บ้านแล้ว 🏡'}
-            </button>
-          )}
-        </div>
+            {!pet.is_resolved && (pet.status === 'lost' || pet.status === 'adoption' || pet.status === 'mating') && pet.visibility !== 'private' && (
+              <button 
+                type="button"
+                onClick={handleResolveCase}
+                disabled={modeChanging}
+                className={`w-full py-2 border-2 border-black font-black text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-paper-sm transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 text-white
+                  ${pet.status === 'lost' ? 'bg-[#2D6A2D] hover:bg-[#3E803E]' : ''}
+                  ${pet.status === 'mating' ? 'bg-[#C2185B] hover:bg-[#D81B60]' : ''}
+                  ${pet.status === 'adoption' ? 'bg-[#1A5EA8] hover:bg-[#1E71C9]' : ''}
+                `}
+              >
+                {modeChanging ? <Loader2 className="animate-spin" size={12}/> : null} 
+                {modeChanging ? 'กำลังบันทึก...' : pet.status === 'lost' ? 'พบน้องแล้ว 🚨' : pet.status === 'mating' ? 'น้องได้คู่แล้ว ❤️' : 'น้องได้บ้านแล้ว 🏡'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="px-4 pb-4">
-        <Link href={`/pets/${pet.id}`} className="ori-btn ori-btn-orange w-full text-xs font-black text-center block border-2 border-black py-1.5 rounded-xl shadow-paper-sm">
+        {/* ลิงก์ยึดเส้นทางชี้พิกัดไปที่ระบบไม่มีตัวเอส (pet/[id]) ให้ตรงจุดแสดงผลหน้ากระดานบอร์ดหลักของพี่วุฒิ์อย่างแม่นยำ */}
+        <Link href={`/pet/${pet.id}`} className="ori-btn ori-btn-orange w-full text-xs font-black text-center block border-2 border-black py-1.5 rounded-xl shadow-paper-sm">
           ดูรายละเอียดสมุดสุขภาพ →
         </Link>
       </div>

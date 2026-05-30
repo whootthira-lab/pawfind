@@ -143,7 +143,20 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
         birthday:             formattedBirthday,
         weight:               pet.weight?.toString()   || '',
         microchip_id:         pet.microchip_id         || '',
-        distinctive_features: pet.distinctive_features || '',
+        distinctive_features: (() => {
+          if (!pet.distinctive_features) return ''
+          if (pet.distinctive_features.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(pet.distinctive_features)
+              if (Array.isArray(parsed)) {
+                return parsed.map((item: any) => item.description).filter(Boolean).join(', ')
+              }
+            } catch (e) {
+              // ignore
+            }
+          }
+          return pet.distinctive_features
+        })(),
         ai_caption:           pet.ai_caption           || '',
         father_name:          pet.father_name          || '',
         mother_name:          pet.mother_name          || '',
