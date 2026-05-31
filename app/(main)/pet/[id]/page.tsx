@@ -50,14 +50,29 @@ export async function generateMetadata(
     .single()
 
   if (!pet) return { title: 'ไม่พบข้อมูล - PobPet หาสัตว์หายด้วย AI' }
-  const primaryImg = pet.pet_images?.find((img: any) => img.is_primary)?.storage_url || pet.image_url || ''
+  
+  const ogImageUrl = pet.og_image_url || `${BASE_URL}/api/og?id=${params.id}`
   
   return {
     title: `${pet.name || 'ไม่ทราบชื่อ'} | PobPet หาสัตว์หายด้วย AI`,
     description: pet.distinctive_features || pet.details || 'ช่วยเหลือน้องสัตว์เลี้ยงตามหาบ้านและพิกัดที่ปลอดภัย',
     openGraph: {
-      images: [primaryImg ? resolveImageUrl(primaryImg, pet.user_id) : '/logo-og.png'],
+      url: `${BASE_URL}/pet/${params.id}`,
+      title: `${pet.name || 'ไม่ทราบชื่อ'} | PobPet หาสัตว์หายด้วย AI`,
+      description: pet.distinctive_features || pet.details || 'ช่วยเหลือน้องสัตว์เลี้ยงตามหาบ้านและพิกัดที่ปลอดภัย',
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          type: 'image/png'
+        }
+      ],
     },
+    twitter: {
+      card: 'summary_large_image',
+      images: [ogImageUrl]
+    }
   }
 }
 

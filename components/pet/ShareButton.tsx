@@ -67,12 +67,16 @@ export default function ShareButton({ petName, status, petId }: ShareButtonProps
 
   const shareText = `${status}: ${petName} — ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾`
 
-  // 💡 ฟังก์ชันสั่งอุ่นเครื่องแคช
+  // 💡 ฟังก์ชันสั่งสร้างภาพ OG บน Supabase และแคชอุ่นเครื่อง
   const prewarmOgImage = async () => {
     try {
-      await fetch(`/api/og?id=${petId}`)
+      await fetch('/api/generate-og', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ petId })
+      })
     } catch (e) {
-      console.error("OG prewarm failed", e)
+      console.error("OG generation/upload failed", e)
     }
   }
 

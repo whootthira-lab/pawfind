@@ -50,8 +50,8 @@ export async function generateMetadata(
     'ช่วยแชร์เพื่อส่งน้องกลับบ้าน 🐾',
   ].filter(Boolean).join(' | ')
 
-  // ✅ จุดสำคัญ: ส่งแค่ ?id=... สั้นๆ ไปให้ช่างวาดรูป
-  const ogImageUrl = `${BASE_URL}/api/og?id=${params.id}`
+  // ✅ จุดสำคัญ: ดึงรูปภาพจากการอัปโหลด Supabase หรือ fallback สู่ API
+  const ogImageUrl = pet.og_image_url || `${BASE_URL}/api/og?id=${params.id}`
   const pageUrl = `${BASE_URL}/pet/${params.id}`
 
   return {
@@ -64,7 +64,6 @@ export async function generateMetadata(
       description,
       siteName:    'Pobpet · ตามหาน้อง',
       locale:      'th_TH',
-      // ✅ จุดสำคัญ: บังคับให้ Facebook รอรูป OG เท่านั้น ไม่มีรูปสำรองให้เลือกอีกต่อไป
       images: [
         {
           url:    ogImageUrl,
