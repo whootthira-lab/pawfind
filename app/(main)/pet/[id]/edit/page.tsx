@@ -177,12 +177,30 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
         mode_showcase: pet.mode_showcase || false,
       })
 
-      // จัดคิวรูปถ่ายเดิม
-      const imgs: ExistingImage[] = (pet.pet_images || [])
-        .sort((a: any, b: any) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
+      // ── 🟢 ปรับปรุงกลไก Safe Image Fallback เพื่อดึงคลังรูปภาพ 3 มุมกลับมาแสดงผลให้ครบถ้วน ──
+      let imgs: ExistingImage[] = []
+      
+      if (pet.pet_images && pet.pet_images.length > 0) {
+        // กรณีดึงความสัมพันธ์ผ่านตารางลูกมาสำเร็จ ให้แปลงค่า mapping ทันที
+        imgs = pet.pet_images.map((img: any) => ({
+          id: img.id,
+          storage_url: img.storage_url,
+          is_primary: !!img.is_primary
+        }))
+      } else if (pet.image_url) {
+        // Fallback: ถ้าตารางลูกไม่ยอมดึง ให้ดักจับพิกัดรูปภาพหลักในตารางแม่มาสวมสิทธิ์เพื่อความปลอดภัยชั่วคราว
+        imgs = [{
+          id: 'primary-fallback-id',
+          storage_url: pet.image_url,
+          is_primary: true
+        }]
+      }
+
+      // ทำการจัดคิวเรียงลำดับให้รูปภาพหลักขึ้นหน้าก่อน
+      imgs.sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
       setExistingImages(imgs)
 
-      const primaryImg = imgs.find((i: ExistingImage) => i.is_primary)
+      const primaryImg = imgs.find(i => i.is_primary) || imgs[0]
       if (primaryImg) {
         setPrimaryKey(`existing-${imgs.indexOf(primaryImg)}`)
       }
@@ -321,7 +339,7 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
           tambon:               form.tambon               || null,
           district:             form.district             || null,
           province:             form.province,
-          status:               modes.mode_lost ? 'lost' : 'active',
+          status:               modes.mode_lost ? 'lost' : (modes.mode_adoption ? 'adoption' : modes.mode_mating ? 'mating' : 'showcase'),
           emergency_contact: (form.emergency_name || form.emergency_tel) ? {
             name: form.emergency_name,
             tel:  form.emergency_tel,
@@ -445,7 +463,7 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
                 const isPrimary = primaryKey === key
                 const deleted = img.toDelete
                 return (
-                  <div key={img.id} className="relative">
+                  <div key={img.id || i} className="relative">
                     <div
                       onClick={() => !deleted && setPrimaryKey(key)}
                       className={`w-20 h-20 rounded-xl overflow-hidden border-4 transition-all ${
@@ -529,7 +547,7 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
               <input value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} required className="ori-input" />
             </div>
 
-            {/* ── 🟢 ส่วนอินพุตสุขภาพพรีเมียม สลับเลือกเพศ และสถานะทำหมัน ── */}
+            {/* ── ส่วนอินพุตสุขภาพพรีเมียม สลับเลือกเพศ และสถานะทำหมัน ── */}
             <div className="space-y-1">
               <label className="font-bold text-sm">เพศของน้อง 🐾</label>
               <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} className="ori-input bg-white font-bold cursor-pointer">

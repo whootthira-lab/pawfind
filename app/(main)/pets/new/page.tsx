@@ -199,6 +199,8 @@ export default function NewPetPage() {
           reward_amount: form.reward_amount ? parseFloat(form.reward_amount) : 0,
           mode: mode,
           images: uploadedUrls,
+          image_url: uploadedUrls[0] || null,
+          primary_image: uploadedUrls[0] || null,
           status: mode === 'mode_lost'     ? 'lost'     :
                   mode === 'mode_mating'   ? 'mating'   :
                   mode === 'mode_adoption' ? 'adoption' : 'showcase',
@@ -217,6 +219,16 @@ export default function NewPetPage() {
         .single()
 
       if (insertErr) throw insertErr
+
+      // ── 🟢 แตกแถวข้อมูลลิงก์ส่งไปบันทึกลงฐานตารางย่อย pet_images อัตโนมัติ ──
+      if (insertedPet && uploadedUrls.length > 0) {
+        const imageRows = uploadedUrls.map((url, index) => ({
+          pet_id: insertedPet.id,
+          storage_url: url,
+          is_primary: index === 0
+        }))
+        await supabase.from('pet_images').insert(imageRows)
+      }
 
       images.forEach(img => URL.revokeObjectURL(img.preview))
 

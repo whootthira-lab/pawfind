@@ -94,10 +94,36 @@ export default async function PetDetailPage({ params }: Props) {
 
   if (error || !pet) return notFound()
 
+  // หาค่ารูปภาพหลักของน้อง
+  const primaryImg = pet.pet_images?.find((img: any) => img.is_primary)?.storage_url || pet.image_url || ''
+  const resolvedPrimaryImage = resolveImageUrl(primaryImg, pet.user_id)
+
   // จัดพาร์ทรูปภาพแกลเลอรีสไลด์ผ่านตัวประมวลผลความปลอดภัยชั้นสูง ป้องกันรูปแตกกลายเป็น undefined
   const galleryImages = pet.pet_images && pet.pet_images.length > 0
     ? pet.pet_images.map((img: any) => resolveImageUrl(img.storage_url, pet.user_id))
     : [resolveImageUrl(pet.image_url, pet.user_id)].filter(Boolean)
+
+  // ── 🟢 แยกแยะและวิเคราะห์ข้อมูลจุดสังเกต / ตำหนิพิเศษ (รองรับทั้ง JSON Array หรือ Plain text ดั้งเดิม)
+  let parsedFeatures: { url?: string; description: string }[] = []
+  let isJsonFeatures = false
+
+  if (pet.distinctive_features) {
+    const trimmed = pet.distinctive_features.trim()
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) {
+          parsedFeatures = parsed.map((item: any) => ({
+            url: item.url || item.storage_url || '',
+            description: item.description || ''
+          })).filter(item => item.description || item.url)
+          isJsonFeatures = parsedFeatures.length > 0
+        }
+      } catch (e) {
+        // Fallback
+      }
+    }
+  }
 
   const statusLabels: Record<string, string> = {
     lost: '🚨 ประกาศตามหา (สัตว์หาย)',
@@ -123,7 +149,7 @@ export default async function PetDetailPage({ params }: Props) {
         
         {/* โครงสร้างโซนบนสุด: การ์ดตารางรูปภาพขนาดใหญ่และคลังแกลเลอรีสไลด์สไตล์ Origami */}
         <div className="w-full bg-white border-4 border-black p-4 rounded-3xl shadow-paper mb-4">
-          <PetGallery images={galleryImages} name={pet.name} />
+          <PetGallery primaryImage={resolvedPrimaryImage} images={galleryImages} petName={pet.name} />
         </div>
 
         {/* ── 🟢 ย้ายปุ่มควบคุมแอคชันบาร์ (แก้ไข/ลบ/แชร์) มาสถิตอยู่ใต้บล็อกรูปภาพด้านบนสุดอย่างลงตัว สวยงาม ── */}
@@ -178,9 +204,48 @@ export default async function PetDetailPage({ params }: Props) {
               )}
 
               {pet.distinctive_features && (
-                <div className="mt-4 p-4 bg-ori-cream border-2 border-black rounded-xl">
-                  <span className="text-xs font-black text-gray-400 block mb-1">📝 จุดสังเกตเด่น / ตำหนิพิเศษ:</span>
-                  <p className="font-bold text-sm text-ori-ink whitespace-pre-wrap">{pet.distinctive_features}</p>
+                <div className="mt-4 p-4 bg-ori-cream border-2 border-black rounded-xl text-left">
+                  <span className="text-xs font-black text-gray-400 block mb-1.5">📝 จุดสังเกตเด่น / ตำหนิพิเศษ:</span>
+                  {isJsonFeatures ? (
+                    <div className="space-y-4">
+                      {/* รายการข้อความบรรยายลักษณะเด่น */}
+                      <ul className="list-disc list-inside space-y-1 text-sm font-bold text-ori-ink">
+                        {parsedFeatures.map((feat, idx) => (
+                          <li key={idx}>{feat.description || 'จุดสังเกตเด่นพิเศษ'}</li>
+                        ))}
+                      </ul>
+
+                      {/* รายการรูปภาพประกอบตำหนิพิเศษ 3 มุม */}
+                      {parsedFeatures.some(f => f.url) && (
+                        <div className="mt-3 border-t border-black/10 pt-3">
+                          <span className="text-[10px] font-black text-gray-400 block mb-2">📸 รูปภาพประกอบลักษณะตำหนิพิเศษ:</span>
+                          <div className="grid grid-cols-3 gap-3">
+                            {parsedFeatures.map((feat, idx) => {
+                              if (!feat.url) return null
+                              return (
+                                <div key={idx} className="flex flex-col gap-1.5">
+                                  <div className="relative aspect-square border-2 border-black rounded-xl overflow-hidden bg-white shadow-paper-sm">
+                                    <img 
+                                      src={resolveImageUrl(feat.url, pet.user_id)} 
+                                      alt={feat.description || `ตำหนิที่ ${idx + 1}`} 
+                                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                                    />
+                                  </div>
+                                  {feat.description && (
+                                    <span className="text-[10px] font-bold text-gray-500 leading-tight text-center line-clamp-2">
+                                      {feat.description}
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="font-bold text-sm text-ori-ink whitespace-pre-wrap">{pet.distinctive_features}</p>
+                  )}
                 </div>
               )}
             </div>

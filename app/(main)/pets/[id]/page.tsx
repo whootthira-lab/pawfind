@@ -75,14 +75,17 @@ export default function PetProfilePage() {
   const [evidenceFile,  setEvidenceFile]  = useState<File | null>(null)
   const [imgFilePreview, setImgFilePreview] = useState<string | null>(null)
   
-  // 🟢 เพิ่มค่าดักจับ State เพศ และการทำหมัน ไว้เตรียมส่งไปบันทึกทับข้อมูลตัวสัตว์เลี้ยงหลัก
+  // 🟢 เพิ่มค่าดักจับ State เพศ, การทำหมัน, น้ำหนัก และสายพันธุ์ เพื่อความปลอดภัยสูงสุดในการอัปเดตข้อมูลของสัตว์เลี้ยงหลัก
   const [healthForm,    setHealthForm]    = useState({
     title: '',
     event_type: 'vaccine',
+    event_type_custom: '',   // 🟢 เพิ่มฟิลด์กิจกรรมอื่นๆ ตามที่ผู้ใช้ระบุเพิ่มเติม
     description: '',
     event_date: new Date().toISOString().split('T')[0],
     gender: 'unknown',       // 🟢 รองรับสลับเพศในฟอร์มย่อยหน้าเว็บ
     is_sterilized: false,    // 🟢 รองรับการเลือกทำหมันในฟอร์มย่อยหน้าเว็บ
+    weight: '',              // 🟢 รองรับน้ำหนัก
+    breed: '',               // 🟢 รองรับสายพันธุ์
     set_reminder: false,
     next_remind_at: '',
     repeat_type: 'none'
@@ -149,11 +152,13 @@ export default function PetProfilePage() {
       setPet(petData)
       petInitialRef.current = petData
       
-      // เอาค่าเพศและการทำหมันเดิมที่มีอยู่แล้วในระบบมาหยอดลงในฟอร์มรอก่อนล่วงหน้าเพื่อความลื่นไหล
+      // เอาค่าเดิมที่มีอยู่แล้วในระบบมาหยอดลงในฟอร์มรอก่อนล่วงหน้าเพื่อความลื่นไหล
       setHealthForm(prev => ({
         ...prev,
         gender: petData.gender || 'unknown',
-        is_sterilized: petData.is_sterilized ?? false
+        is_sterilized: petData.is_sterilized ?? false,
+        weight: petData.weight?.toString() || '',
+        breed: petData.breed || ''
       }))
 
       setIsOwner(session?.user?.id === petData.user_id)
@@ -208,6 +213,27 @@ export default function PetProfilePage() {
     }
   }
 
+  // 🟢 ฟังก์ชันสำหรับเปิด Modal และดึงข้อมูลของสัตว์เลี้ยงตัวนี้มาแสดงทันที
+  const openHealthModal = () => {
+    if (pet) {
+      setHealthForm({
+        title: pet.name || '',
+        event_type: 'vaccine',
+        event_type_custom: '',
+        description: '',
+        event_date: new Date().toISOString().split('T')[0],
+        gender: pet.gender || 'unknown',
+        is_sterilized: pet.is_sterilized ?? false,
+        weight: pet.weight?.toString() || '',
+        breed: pet.breed || '',
+        set_reminder: false,
+        next_remind_at: '',
+        repeat_type: 'none'
+      })
+    }
+    setShowFormModal(true)
+  }
+
   const handleSaveHealthEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!healthForm.title.trim() || formSaving || !pet) return
@@ -237,7 +263,9 @@ export default function PetProfilePage() {
         .from('pet_health_events')
         .insert({
           pet_id: id,
-          event_type: healthForm.event_type,
+          event_type: healthForm.event_type === 'other' && healthForm.event_type_custom.trim()
+            ? healthForm.event_type_custom.trim()
+            : healthForm.event_type,
           title: healthForm.title.trim(),
           description: healthForm.description.trim() || null,
           event_date: healthForm.event_date,
@@ -247,12 +275,14 @@ export default function PetProfilePage() {
 
       if (evErr) throw evErr
 
-      // ── 🟢 2. สั่งบันทึกแก้ไขและอัปเดตฟิลด์ เพศ และการทำหมัน วิ่งกลับเข้าไปอัปเดตที่โปรไฟล์น้องโดยตรง ──
+      // ── 🟢 2. สั่งบันทึกแก้ไขและอัปเดตฟิลด์ เพศ, การทำหมัน, น้ำหนัก และสายพันธุ์ วิ่งกลับเข้าไปอัปเดตที่โปรไฟล์น้องโดยตรง ──
       const { error: petUpdateErr } = await supabase
         .from('pets')
         .update({
           gender: healthForm.gender,
-          is_sterilized: healthForm.is_sterilized
+          is_sterilized: healthForm.is_sterilized,
+          weight: healthForm.weight ? parseFloat(healthForm.weight) : null,
+          breed: healthForm.breed.trim() || null
         })
         .eq('id', id)
 
@@ -262,7 +292,9 @@ export default function PetProfilePage() {
       setPet((prev: any) => ({
         ...prev,
         gender: healthForm.gender,
-        is_sterilized: healthForm.is_sterilized
+        is_sterilized: healthForm.is_sterilized,
+        weight: healthForm.weight ? parseFloat(healthForm.weight) : null,
+        breed: healthForm.breed.trim() || null
       }))
 
       if (healthForm.set_reminder && healthForm.next_remind_at) {
@@ -421,7 +453,7 @@ export default function PetProfilePage() {
       <div className="flex gap-2 mb-4 border-b-4 border-ori-ink pb-2">
         {([
           { key: 'info',      label: '📋 ข้อมูลทั่วไป' },
-          { key: 'health',    label: `💉 สมุดสุขภาพสมบูรณ์${events.length ? ` (${events.length})` : ''}` },
+          { key: 'health',    label: `💉 สมุดบันทึกสุขภาพ${events.length ? ` (${events.length})` : ''}` },
           { key: 'reminders', label: `🔔 คิวแจ้งเตือนความจำ${reminders.length ? ` (${reminders.length})` : ''}`, ownerOnly: true },
         ] as { key: Tab; label: string; ownerOnly?: boolean }[])
           .filter(t => !t.ownerOnly || isOwner)
@@ -536,7 +568,7 @@ export default function PetProfilePage() {
               <p className="text-xs font-bold text-gray-500 mt-0.5">รวมสถิติทางการแพทย์และการบันทึกรางวัลของน้องฟรี</p>
             </div>
             {isOwner && (
-              <Button onClick={() => setShowFormModal(true)} className="bg-black text-white font-black hover:bg-gray-800 rounded-xl px-4 py-2.5 flex items-center gap-1.5 border-2 border-black shadow-paper-sm">
+              <Button onClick={openHealthModal} className="bg-black text-white font-black hover:bg-gray-800 rounded-xl px-4 py-2.5 flex items-center gap-1.5 border-2 border-black shadow-paper-sm">
                 <PlusCircle size={16} /> ➕ บันทึกประวัติสุขภาพ/ตั้งเตือน
               </Button>
             )}
@@ -564,6 +596,21 @@ export default function PetProfilePage() {
                         </span>
                       </div>
                       {ev.description && <p className="text-sm font-bold text-gray-500">{ev.description}</p>}
+                      
+                      {/* ── 🟢 การแสดงประวัติสุขภาพ: ดึงค่าวันแจ้งเตือนความจำรอบถัดไปขึ้นมาแสดงผล (ถ้ามี) ── */}
+                      {(() => {
+                        const matchingReminder = reminders.find(r => 
+                          r.title.toLowerCase().includes(ev.title.toLowerCase()) ||
+                          r.body?.toLowerCase().includes(ev.title.toLowerCase())
+                        )
+                        if (!matchingReminder) return null
+                        return (
+                          <div className="text-[11px] font-black text-blue-600 flex items-center gap-1 mt-1.5 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md inline-flex">
+                            <Bell size={10} className="animate-swing text-blue-600 shrink-0" />
+                            <span>คิวแจ้งเตือนถัดไป: {new Date(matchingReminder.next_remind_at || matchingReminder.remind_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          </div>
+                        )
+                      })()}
                       
                       {ev.notes && ev.notes.startsWith('http') && (
                         <div className="pt-1">
@@ -651,16 +698,29 @@ export default function PetProfilePage() {
                   <input type="text" required value={healthForm.title} onChange={e => setHealthForm({...healthForm, title: e.target.value})} placeholder="เช่น ชาเย็น, นมสด" className="ori-input" />
                 </div>
                 <div className="space-y-1">
-                  <label className="font-black text-sm">ประเภทสายพันธุ์</label>
-                  <select value={healthForm.event_type} onChange={e => setHealthForm({...healthForm, event_type: e.target.value})} className="ori-input bg-white cursor-pointer font-bold">
+                  <label className="font-black text-sm">ประเภทกิจกรรม</label>
+                  <select value={healthForm.event_type} onChange={e => setHealthForm({...healthForm, event_type: e.target.value, event_type_custom: ''})} className="ori-input bg-white cursor-pointer font-bold">
                     {Object.entries(EVENT_TYPE_LABEL).map(([val, lbl]) => (
                       <option key={val} value={val}>{lbl}</option>
                     ))}
                   </select>
+                  {/* ── ช่องกรอกเพิ่มเติมเมื่อเลือก "อื่นๆ" ── */}
+                  {healthForm.event_type === 'other' && (
+                    <div className="mt-2 animate-fadeIn">
+                      <input
+                        type="text"
+                        value={healthForm.event_type_custom}
+                        onChange={e => setHealthForm({...healthForm, event_type_custom: e.target.value})}
+                        placeholder="ระบุประเภทกิจกรรม เช่น อาบน้ำตัดขน..."
+                        className="ori-input border-2 border-dashed border-black focus:border-solid text-xs font-bold"
+                        autoFocus
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* ── 🟢 [แผงแทรกใหม่แกะกล่องตามรูปภาพ image_e49afb.png] ช่องกรอกข้อมูลเพศ และการทำหมัน ── */}
+              {/* ── 🟢 ช่องกรอกข้อมูลเพศ และการทำหมัน ── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 <div className="space-y-1">
                   <label className="font-black text-sm">เพศของน้อง 🐾</label>
@@ -684,6 +744,31 @@ export default function PetProfilePage() {
                     <option value="false">❌ ยังไม่ได้ทำหมัน</option>
                     <option value="true">✨ ทำหมันเรียบร้อยแล้ว</option>
                   </select>
+                </div>
+              </div>
+
+              {/* ── 🟢 [ฟิลด์แทรกใหม่] ช่องกรอกข้อมูลน้ำหนัก และสายพันธุ์เพิ่มเติมดึงจากตัวประวัติน้อง ── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-black text-sm">น้ำหนักของน้อง (กก.)</label>
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    value={healthForm.weight} 
+                    onChange={e => setHealthForm({...healthForm, weight: e.target.value})} 
+                    placeholder="เช่น 4.5" 
+                    className="ori-input font-bold" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-black text-sm">สายพันธุ์ของน้อง</label>
+                  <input 
+                    type="text" 
+                    value={healthForm.breed} 
+                    onChange={e => setHealthForm({...healthForm, breed: e.target.value})} 
+                    placeholder="เช่น ชิสุ, ไทยบ้าน" 
+                    className="ori-input font-bold" 
+                  />
                 </div>
               </div>
 
