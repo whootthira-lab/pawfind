@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
       longitude,
       color: userColor,
       sub_district,
+      phone_number,
+      line_id,
       ...petData 
     } = body
 
