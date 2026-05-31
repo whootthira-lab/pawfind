@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
         latitude: latitude || null,
         longitude: longitude || null,
         ai_description: analysis.full_description,
+        ai_caption: analysis.full_description,
         breed: analysis.breed,
         color: userColor || analysis.main_color,
         embedding: `[${finalEmbedding.join(',')}]`,

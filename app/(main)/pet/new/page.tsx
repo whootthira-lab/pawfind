@@ -230,6 +230,44 @@ export default function NewPetPage() {
         await supabase.from('pet_images').insert(imageRows)
       }
 
+      // 🟢 ออโต้สร้างคำบรรยายภาพ AI (Auto AI Caption) หลังจากสร้างประกาศสำเร็จ เพื่อให้แสดงผลจับคู่ AI ได้เต็มประสิทธิภาพทันที
+      if (insertedPet && images.length > 0) {
+        try {
+          const firstFile = images[0].file
+          const reader = new FileReader()
+          const base64Str = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => {
+              const res = reader.result as string
+              resolve(res.split(',')[1])
+            }
+            reader.onerror = reject
+            reader.readAsDataURL(firstFile)
+          })
+
+          const captionRes = await fetch('/api/pets/caption', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageBase64: base64Str,
+              petName: insertedPet.name,
+              species: insertedPet.species
+            })
+          })
+
+          if (captionRes.ok) {
+            const { caption } = await captionRes.json()
+            if (caption) {
+              await supabase
+                .from('pets')
+                .update({ ai_caption: caption })
+                .eq('id', insertedPet.id)
+            }
+          }
+        } catch (autoErr) {
+          console.error('[Auto AI Caption Error]:', autoErr)
+        }
+      }
+
       images.forEach(img => URL.revokeObjectURL(img.preview))
 
       if (isPublic && (mode === 'mode_lost' || mode === 'mode_mating' || mode === 'mode_adoption')) {
