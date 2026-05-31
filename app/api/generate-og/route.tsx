@@ -98,11 +98,11 @@ export async function POST(req: NextRequest) {
             )}
           </div>
           <div style={{ width: '600px', height: '100%', padding: '40px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: '#F5EDD8' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', backgroundColor: cfg.bg, border: `3.5px solid ${cfg.border}`, borderRadius: '50px', padding: '10px 20px', fontSize: '22px', fontWeight: 'bold', color: cfg.accent }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', backgroundColor: cfg.bg, border: `4px solid ${cfg.border}`, borderRadius: '50px', padding: '12px 24px', fontSize: '26px', fontWeight: '900', color: cfg.accent }}>
                 {cfg.label}
               </div>
-              <div style={{ display: 'flex', fontSize: '26px', fontWeight: 'bold', color: '#1A1208' }}>PobPet.com</div>
+              <div style={{ display: 'flex', fontSize: '26px', fontWeight: '900', color: '#1A1208' }}>🐾 pobpet.com 🐾</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', fontSize: '72px', fontWeight: '900', color: '#1A1208', lineHeight: 1.1 }}>
