@@ -74,6 +74,49 @@ function ReportLoadingOverlay() {
   )
 }
 
+// 💡 Helper Function: บีบอัดรูปภาพฝั่งหน้าบ้านเพื่อไม่ให้ขนาด Payload เกิน 4.5 MB ของ Vercel
+const compressImage = (file: File, maxWidth: number = 1024, maxHeight: number = 1024, quality: number = 0.7): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = (event) => {
+      const img = new Image()
+      img.src = event.target?.result as string
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width)
+            width = maxWidth
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height)
+            height = maxHeight
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve((event.target?.result as string).split(',')[1])
+          return
+        }
+
+        ctx.drawImage(img, 0, 0, width, height)
+        const dataUrl = canvas.toDataURL('image/jpeg', quality)
+        resolve(dataUrl.split(',')[1])
+      }
+      img.onerror = (err) => reject(err)
+    }
+    reader.onerror = (err) => reject(err)
+  })
+}
+
 function ReportForm() {
   const router       = useRouter()
   const searchParams = useSearchParams()
@@ -149,14 +192,13 @@ function ReportForm() {
     if (files.length > remaining)
       alert(`อัปโหลดได้สูงสุด 5 รูป (เพิ่มได้อีก ${remaining} รูป)`)
 
-    const b64s = await Promise.all(toUpload.map(file =>
-      new Promise<string>(resolve => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve((reader.result as string).split(',')[1])
-        reader.readAsDataURL(file)
-      })
-    ))
-    setImages(prev => [...prev, ...b64s])
+    try {
+      const b64s = await Promise.all(toUpload.map(file => compressImage(file)))
+      setImages(prev => [...prev, ...b64s])
+    } catch (err) {
+      console.error("Image compression error:", err)
+      alert("เกิดข้อผิดพลาดในการบีบอัดรูปภาพ กรุณาลองใหม่อีกครั้งค่ะ")
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
