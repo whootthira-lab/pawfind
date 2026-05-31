@@ -398,7 +398,12 @@ export default function EditPetPage() {
         }
       }
 
-      router.push(`/pets/${id}?updated=true`)
+      if (!modes.mode_private && (modes.mode_lost || modes.mode_mating || modes.mode_adoption)) {
+        alert('บันทึกการแก้ไขข้อมูลสำเร็จเรียบร้อยค่ะ 🎉')
+        router.push(`/pet/${id}/match`)
+      } else {
+        router.push(`/pets/${id}?updated=true`)
+      }
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด'

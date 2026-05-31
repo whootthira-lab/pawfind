@@ -232,7 +232,11 @@ export default function NewPetPage() {
 
       images.forEach(img => URL.revokeObjectURL(img.preview))
 
-      router.push(`/pets/${insertedPet.id}?created=true`)
+      if (isPublic && (mode === 'mode_lost' || mode === 'mode_mating' || mode === 'mode_adoption')) {
+        router.push(`/pet/${insertedPet.id}/match`)
+      } else {
+        router.push(`/pets/${insertedPet.id}?created=true`)
+      }
       router.refresh()
 
     } catch (err: any) {

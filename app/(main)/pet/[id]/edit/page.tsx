@@ -444,7 +444,11 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
       }
 
       alert('บันทึกการซ่อมแซมโปรไฟล์ประกาศสำเร็จเรียบร้อยค่ะ 🎉')
-      router.push(`/pet/${id}`)
+      if (!modes.mode_private && (modes.mode_lost || modes.mode_mating || modes.mode_adoption)) {
+        router.push(`/pet/${id}/match`)
+      } else {
+        router.push(`/pet/${id}`)
+      }
       router.refresh()
 
     } catch (err: any) {

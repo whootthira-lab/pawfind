@@ -265,7 +265,11 @@ function ReportForm() {
         }).catch(console.error)
       }
 
-      router.push('/search')
+      if (newPetId && (status === 'lost' || status === 'adoption')) {
+        router.push(`/pet/${newPetId}/match`)
+      } else {
+        router.push('/search')
+      }
     } catch (err: any) {
       setError(err.message)
       setLoading(false)
