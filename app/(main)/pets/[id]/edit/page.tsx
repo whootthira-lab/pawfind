@@ -303,11 +303,9 @@ export default function EditPetPage() {
           mode_showcase:  !isPrivate && modes.mode_showcase,
           is_public:      !isPrivate,
           visibility:     isPrivate ? 'private' : 'public',
-          status:         isPrivate ? 'private' : (
-            modes.mode_lost ? 'lost' : (
-              modes.mode_adoption ? 'adoption' : (
-                modes.mode_mating ? 'mating' : 'showcase'
-              )
+          status:         modes.mode_lost ? 'lost' : (
+            modes.mode_adoption ? 'adoption' : (
+              modes.mode_mating ? 'mating' : 'showcase'
             )
           ),
           updated_at: new Date().toISOString(),

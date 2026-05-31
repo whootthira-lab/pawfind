@@ -356,11 +356,9 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
           mode_showcase:        !isPrivate && modes.mode_showcase,
           is_public:            !isPrivate,
           visibility:           isPrivate ? 'private' : 'public',
-          status:               isPrivate ? 'private' : (
-            modes.mode_lost ? 'lost' : (
-              modes.mode_adoption ? 'adoption' : (
-                modes.mode_mating ? 'mating' : 'showcase'
-              )
+          status:               modes.mode_lost ? 'lost' : (
+            modes.mode_adoption ? 'adoption' : (
+              modes.mode_mating ? 'mating' : 'showcase'
             )
           ),
           updated_at: new Date().toISOString(),
@@ -710,7 +708,7 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
 
         {/* ปุ่มเซฟประมวลผล */}
         <button type="submit" disabled={saving} className="w-full py-5 bg-black text-white font-black text-lg rounded-2xl border-4 border-black shadow-paper hover:shadow-paper-lg hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-          {saving ? <><Loader2 size={20} className="animate-spin" /> กำลังประมวลผลบันทึกข้อมูลแก้ไข...</> : <><Save size={20} /> บันทึกการแก้ไขข้อมูลประกาศตัวเต็ม</>}
+          {saving ? <><Loader2 size={20} className="animate-spin" /> กำลังประมวลผลบันทึกข้อมูลแก้ไข...</> : <><Save size={20} /> บันทึกการแก้ไขข้อมูล</>}
         </button>
 
         {/* โซนอันตรายซ่อนประกาศ */}
