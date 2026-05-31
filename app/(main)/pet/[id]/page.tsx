@@ -1,5 +1,5 @@
 // app/(main)/pet/[id]/page.tsx
-// ── แฟ้มประวัติสมุดสุขภาพและคลังภาพสัตว์เลี้ยงสากล (แก้ไขระบบสกัดพาร์ท Storage โฟลเดอร์ซ้อน + ปรับโฉมดีไซน์การ์ดรูปภาพด้านบนสุด 100%) ──
+// ── สมุดสุขภาพสัตว์เลี้ยงรายตัว (ฉบับย้ายปุ่มควบคุมไว้ใต้รูปภาพ + ซ่อมระบบสกัดพาร์ทบักเก็ต Storage ขั้นสูงรูปขึ้น 100%) ──
 
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
@@ -15,20 +15,28 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pobpet.com'
 
 type Props = { params: { id: string } }
 
-// ── 🟢 ฟังก์ชันแกะรอยและซ่อมพาร์ทลิงก์รูปภาพบักเก็ต Supabase Storage ป้องกันกรณีโฟลเดอร์ ID ซ้อนหลุดขอบ ──
+// ── 🟢 ฟังก์ชันแกะรอยและซ่อมพาร์ทลิงก์รูปภาพบักเก็ตสากล ป้องกันการเบิ้ลพาร์ทซ้ำซ้อนจนรูปแตก ──
 function resolveImageUrl(url: string | null | undefined, userId: string | null = null): string {
   if (!url) return '/favicon.ico'
   if (url.startsWith('data:') || url.startsWith('http')) return url
   
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ajjvtazuncdtxjwcplcv.supabase.co'
   
-  // ตรวจสอบว่าในสตริงที่เซฟลงฐานข้อมูลมีการพ่วงพาร์ทโฟลเดอร์ผู้ใช้มาแล้วหรือยัง
-  if (url.includes('/') || !userId) {
-    return `${supabaseUrl}/storage/v1/object/public/pet-images/${url}`
+  // 1. เคลียร์เอาเครื่องหมายปีกกา หรือเศษสตริงแปลกปลอมออก (ถ้ามี)
+  let cleanUrl = url.trim().replace(/^["']|["']$/g, '')
+
+  // 2. ถ้าในดาต้าเบสบันทึกพาร์ทโฟลเดอร์ pets/ นำหน้าไว้อยู่แล้ว ให้ต่อสายตรงออกสาธารณะได้เลย
+  if (cleanUrl.startsWith('pets/')) {
+    return `${supabaseUrl}/storage/v1/object/public/pet-images/${cleanUrl}`
+  }
+
+  // 3. Fallback: ถ้าเป็นแค่ชื่อไฟล์รูปภาพโดด ๆ และมี userId ให้สวมพาร์ทโฟลเดอร์คั่นกลางให้ถูกต้องตรงตามบักเก็ตหลังบ้าน
+  if (userId) {
+    return `${supabaseUrl}/storage/v1/object/public/pet-images/pets/${userId}/${cleanUrl}`
   }
   
-  // Fallback นิรภัย: หากมีแค่ชื่อไฟล์รูปโดด ๆ ให้สั่งสวมพาร์ทพิกัดโฟลเดอร์ ID เจ้าของเข้าไปคั่นกลางทันทีเพื่อไม่ให้รูปแตก
-  return `${supabaseUrl}/storage/v1/object/public/pet-images/pets/${userId}/${url}`
+  // 4. กรณีสุดท้ายถ้าดักจับไม่ได้ ให้พ่นพาร์ทบักเก็ตดิบ
+  return `${supabaseUrl}/storage/v1/object/public/pet-images/${cleanUrl}`
 }
 
 export async function generateMetadata(
@@ -90,7 +98,7 @@ export default async function PetDetailPage({ params }: Props) {
   // ตรวจเช็คสิทธิ์ความเป็นเจ้าของ
   const isOwner = currentUserId !== null && currentUserId === pet.user_id
 
-  // ── 🟢 ปรับปรุง: แปลงพาร์ทรูปภาพคลัง 3 มุมทั้งหมดผ่านตัวดักจับความปลอดภัย ไร้ปัญหารูปแตกกลายเป็น undefined ──
+  // แปลงพาร์ทรูปภาพคลัง 3 มุมทั้งหมดผ่านตัวดักจับความปลอดภัยชั้นสูง ป้องกันรูปแตก
   const galleryImages = pet.pet_images && pet.pet_images.length > 0
     ? pet.pet_images.map((img: any) => resolveImageUrl(img.storage_url, pet.user_id))
     : [resolveImageUrl(pet.image_url, pet.user_id)].filter(Boolean)
@@ -115,22 +123,24 @@ export default async function PetDetailPage({ params }: Props) {
 
   return (
     <>
-      {/* แผงควบคุมแอคชันบาร์หัวแถว */}
-      <PetActionButtons 
-        petId={pet.id} 
-        status={pet.status} 
-        petName={pet.name || 'ไม่ทราบชื่อ'} 
-        ownerId={pet.user_id || ''} 
-      />
-      
-      <div className="max-w-4xl mx-auto px-4 py-6 text-black whitespace-nowrap">
+      <div className="max-w-4xl mx-auto px-4 py-6 text-black">
         
-        {/* ── 🟢 ดีไซน์โครงสร้างใหม่: จัดวางพาร์ทรูปภาพขนาดใหญ่และคลังแกลเลอรีสไลด์ไว้ด้านบนสุดของหน้าเว็บ ── */}
-        <div className="w-full bg-white border-4 border-black p-4 rounded-3xl shadow-paper mb-8">
+        {/* โครงสร้างโซนบนสุด: จัดวางพาร์ทรูปภาพขนาดใหญ่และคลังแกลเลอรีสไลด์สไตล์ Origami */}
+        <div className="w-full bg-white border-4 border-black p-4 rounded-3xl shadow-paper mb-4">
           <PetGallery images={galleryImages} name={pet.name} />
         </div>
 
-        {/* ── โครงสร้างโซนด้านล่าง: แบ่งสัดส่วนข้อมูลจำเพาะและการ์ดตารางประวัติสุขภาพ ── */}
+        {/* ── 🟢 ย้ายปุ่มควบคุมแอคชันบาร์ (แก้ไข/ลบ/แชร์) จากบนสุด ลงมาสถิตอยู่ใต้บล็อกรูปภาพอย่างสมดุล สวยงาม ── */}
+        <div className="w-full mb-8">
+          <PetActionButtons 
+            petId={pet.id} 
+            status={pet.status} 
+            petName={pet.name || 'ไม่ทราบชื่อ'} 
+            ownerId={pet.user_id || ''} 
+          />
+        </div>
+
+        {/* โครงสร้างโซนด้านล่าง: แบ่งสัดส่วนข้อมูลจำเพาะและการ์ดตารางประวัติสุขภาพ */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
           
           {/* คอลัมน์ฝั่งซ้าย: ข้อมูลรายละเอียดประจำตัวน้อง */}
@@ -144,7 +154,7 @@ export default async function PetDetailPage({ params }: Props) {
                 <span>{pet.name || 'ไม่ระบุชื่อ'} 🐾</span>
               </h1>
 
-              {/* ── 🟢 ดีไซน์ตารางข้อมูลการ์ดแบบ Neubrutalism แยกช่องเป็นสัดส่วนคมชัด ── */}
+              {/* ดีไซน์ตารางข้อมูลการ์ดแบบ Neubrutalism แยกช่องเป็นสัดส่วนคมชัด */}
               <div className="grid grid-cols-2 gap-3 font-bold text-sm">
                 <div className="bg-gray-50 p-3 rounded-xl border-2 border-black shadow-paper-sm">
                   <span className="text-gray-400 block text-xs">🧬 สายพันธุ์</span>
