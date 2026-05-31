@@ -9,11 +9,11 @@ import Link                                     from 'next/link'
 import {
   Upload, Sparkles, Loader2, ChevronLeft,
   PawPrint, Heart, Home, Trophy, Search,
-  X, Plus, AlertCircle, Save, Trash2
+  X, Plus, AlertCircle, Save, Trash2, Shield
 } from 'lucide-react'
 
 // ── Types & Constants (เหมือน new page) ─────────────────────
-type Mode = 'mode_lost' | 'mode_mating' | 'mode_adoption' | 'mode_showcase'
+type Mode = 'mode_lost' | 'mode_mating' | 'mode_adoption' | 'mode_showcase' | 'mode_private'
 
 const SPECIES_OPTIONS = [
   '', 'สุนัข', 'แมว', 'นกสวยงาม', 'ปลาสวยงาม',
@@ -29,12 +29,14 @@ const MODE_CONFIG: { key: Mode; icon: any; label: string; color: string; desc: s
   { key: 'mode_mating',   icon: Heart,  label: 'หาคู่ให้น้อง',  color: 'pink',  desc: 'จับคู่กับสัตว์ที่ต้องการผสมพันธุ์'    },
   { key: 'mode_adoption', icon: Home,   label: 'หาบ้านให้น้อง', color: 'green', desc: 'ให้คนอื่นมารับเลี้ยงน้องต่อ'           },
   { key: 'mode_showcase', icon: Trophy, label: 'โชว์โปรไฟล์',   color: 'amber', desc: 'แสดงในฟีดและชมรมสัตว์เลี้ยง'          },
+  { key: 'mode_private',  icon: Shield, label: 'เฉพาะฉัน',     color: 'red',   desc: 'ซ่อนโปรไฟล์ทั้งหมดและดูได้เฉพาะคุณคนเดียว' },
 ]
 const MODE_COLOR: Record<string, string> = {
   blue:  'border-blue-400 bg-blue-50 text-blue-700',
   pink:  'border-pink-400 bg-pink-50 text-pink-700',
   green: 'border-green-400 bg-green-50 text-green-700',
   amber: 'border-amber-400 bg-amber-50 text-amber-700',
+  red:   'border-red-400 bg-red-50 text-red-700',
 }
 
 // ── Existing image type ────────────────────────────────────
@@ -75,6 +77,7 @@ export default function EditPetPage() {
   const [modes, setModes] = useState<Record<Mode, boolean>>({
     mode_lost: false, mode_mating: false,
     mode_adoption: false, mode_showcase: false,
+    mode_private: false,
   })
 
   // ── Image state ─────────────────────────────────────────
@@ -137,12 +140,14 @@ export default function EditPetPage() {
         emergency_tel:  ec.tel             || '',
       })
 
-      // Pre-fill modes[cite: 34]
+      // Pre-fill modes
+      const isPrivate = pet.visibility === 'private' || !pet.is_public
       setModes({
-        mode_lost:     pet.mode_lost     || false,
-        mode_mating:   pet.mode_mating   || false,
-        mode_adoption: pet.mode_adoption || false,
-        mode_showcase: pet.mode_showcase || false,
+        mode_lost:     !isPrivate && (pet.mode_lost     || false),
+        mode_mating:   !isPrivate && (pet.mode_mating   || false),
+        mode_adoption: !isPrivate && (pet.mode_adoption || false),
+        mode_showcase: !isPrivate && (pet.mode_showcase || false),
+        mode_private:  isPrivate,
       })
 
       // Pre-fill images[cite: 34]
@@ -268,7 +273,9 @@ export default function EditPetPage() {
       if (!session) { router.push('/login'); return }
       const userId = session.user.id
 
-      // ── 1. Update pet record ────────────────────────────[cite: 34]
+      const isPrivate = modes.mode_private
+
+      // ── 1. Update pet record ────────────────────────────
       const { error: petErr } = await supabase
         .from('pets')
         .update({
@@ -276,7 +283,7 @@ export default function EditPetPage() {
           species:        form.species,
           breed:          form.breed          || null,
           gender:         form.gender,
-          is_sterilized:  form.is_sterilized, // 🟢 อัปเดตผูกบันทึกสถานะทำหมันเข้าสู่ Supabase[cite: 34]
+          is_sterilized:  form.is_sterilized, // 🟢 อัปเดตผูกบันทึกสถานะทำหมันเข้าสู่ Supabase
           birthday:       form.birthday       || null,
           birthdate:      form.birthday       || null, // รองรับชื่อฟิลด์ทั้งสองรูปแบบขนานกันเพื่อความปลอดภัยสากล
           color:          form.color          || null,
@@ -290,7 +297,19 @@ export default function EditPetPage() {
             name: form.emergency_name,
             tel:  form.emergency_tel,
           } : null,
-          ...modes,
+          mode_lost:      !isPrivate && modes.mode_lost,
+          mode_mating:    !isPrivate && modes.mode_mating,
+          mode_adoption:  !isPrivate && modes.mode_adoption,
+          mode_showcase:  !isPrivate && modes.mode_showcase,
+          is_public:      !isPrivate,
+          visibility:     isPrivate ? 'private' : 'public',
+          status:         isPrivate ? 'private' : (
+            modes.mode_lost ? 'lost' : (
+              modes.mode_adoption ? 'adoption' : (
+                modes.mode_mating ? 'mating' : 'showcase'
+              )
+            )
+          ),
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
@@ -678,7 +697,25 @@ export default function EditPetPage() {
               const active = modes[m.key]
               return (
                 <button key={m.key} type="button"
-                  onClick={() => setModes(prev => ({ ...prev, [m.key]: !prev[m.key] }))}
+                  onClick={() => {
+                    setModes(prev => {
+                      if (m.key === 'mode_private') {
+                        return {
+                          mode_lost: false,
+                          mode_mating: false,
+                          mode_adoption: false,
+                          mode_showcase: false,
+                          mode_private: !prev.mode_private
+                        }
+                      } else {
+                        return {
+                          ...prev,
+                          [m.key]: !prev[m.key],
+                          mode_private: false
+                        }
+                      }
+                    })
+                  }}
                   className={`p-4 rounded-2xl border-2 text-left transition-all ${
                     active ? MODE_COLOR[m.color] : 'border-gray-200 bg-gray-50 hover:border-gray-400'
                   }`}>

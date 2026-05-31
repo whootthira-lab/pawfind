@@ -9,7 +9,7 @@ import {
   PawPrint, Heart, Home, Trophy, Search,
   QrCode, Shield, Edit3, Share2,
   CheckCircle2, Loader2, ChevronLeft,
-  Bell, Clock, Repeat, PlusCircle, Calendar, FileText, Image as ImageIcon, X
+  Bell, Clock, Repeat, PlusCircle, Calendar, FileText, Image as ImageIcon, X, Trash2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -149,6 +149,12 @@ export default function PetProfilePage() {
         .from('pets').select('*').eq('id', id).single()
       if (!petData) { router.push('/'); return }
       
+      const isOwnerUser = session?.user?.id === petData.user_id
+      if (petData.visibility === 'private' && !isOwnerUser) {
+        router.push('/')
+        return
+      }
+
       setPet(petData)
       petInitialRef.current = petData
       
@@ -325,6 +331,25 @@ export default function PetProfilePage() {
       alert(`เกิดข้อผิดพลาดในการบันทึกสมุดสุขภาพ: ${err.message || 'กรุณาลองใหม่อีกครั้งค่ะ'}`)
     } finally {
       setFormSaving(false)
+    }
+  }
+
+  // ── 🟢 ฟังก์ชันสำหรับลบประวัติรายการสุขภาพเฉพาะรายการ (ลบข้อมูลโดยเจ้าของบัญชีเท่านั้น) ──
+  const handleDeleteHealthEvent = async (eventId: string) => {
+    if (!window.confirm('⚠️ ยืนยันที่จะลบรายการประวัติสุขภาพนี้ใช่หรือไม่?')) return
+
+    try {
+      const { error } = await supabase
+        .from('pet_health_events')
+        .delete()
+        .eq('id', eventId)
+
+      if (error) throw error
+
+      alert('✅ ลบรายการประวัติสุขภาพเรียบร้อยแล้วค่ะ')
+      await fetchHealthAndReminders()
+    } catch (err: any) {
+      alert(`เกิดข้อผิดพลาดในการลบประวัติสุขภาพ: ${err.message || 'กรุณาลองใหม่อีกครั้งค่ะ'}`)
     }
   }
 
@@ -626,8 +651,17 @@ export default function PetProfilePage() {
                       )}
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="text-right shrink-0 flex flex-row sm:flex-col items-center sm:items-end gap-2">
                     <p className="text-xs font-black bg-black text-white px-2 py-1 rounded-md flex items-center gap-1"><Calendar size={12}/> {new Date(ev.event_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    {isOwner && (
+                      <button
+                        onClick={() => handleDeleteHealthEvent(ev.id)}
+                        className="text-xs font-black bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded-md border-2 border-red-200 hover:border-red-300 transition-all flex items-center gap-1 shadow-paper-sm active:translate-y-0"
+                        title="ลบรายการประวัตินี้"
+                      >
+                        <Trash2 size={10} /> ลบ
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

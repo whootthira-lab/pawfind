@@ -294,10 +294,12 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
         )}
       </div>
 
-      <div className="px-4 pb-4">
-        {/* ลิงก์ยึดเส้นทางชี้พิกัดไปที่ระบบไม่มีตัวเอส (pet/[id]) ให้ตรงจุดแสดงผลหน้ากระดานบอร์ดหลักของพี่วุฒิ์อย่างแม่นยำ */}
-        <Link href={`/pet/${pet.id}`} className="ori-btn ori-btn-orange w-full text-xs font-black text-center block border-2 border-black py-1.5 rounded-xl shadow-paper-sm">
-          ดูรายละเอียดสมุดสุขภาพ →
+      <div className="px-4 pb-4 grid grid-cols-2 gap-2">
+        <Link href={`/pet/${pet.id}`} className="bg-ori-orange text-white hover:bg-ori-orange-d border-2 border-black py-2 rounded-xl text-xs font-black text-center block shadow-paper-sm transition-transform active:scale-95">
+          ดูรายละเอียด →
+        </Link>
+        <Link href={`/pets/${pet.id}?tab=health`} className="bg-white text-black hover:bg-gray-50 border-2 border-black py-2 rounded-xl text-xs font-black text-center block shadow-paper-sm transition-transform active:scale-95">
+          🏥 สมุดสุขภาพ
         </Link>
       </div>
 

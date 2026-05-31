@@ -268,16 +268,24 @@ export function MatchResultCard({ result }: { result: PetResult }) {
             <button
               onClick={() => { setIsNavigating(true); router.push(`/pet/${result.id}`) }}
               disabled={isNavigating}
-              className="ori-btn ori-btn-orange col-span-4 text-xs py-3 flex items-center justify-center gap-1.5">
-              {isNavigating ? <Loader2 size={14} className="animate-spin" /> : null}
-              {isNavigating ? 'กำลังโหลด...' : 'ดูรายละเอียด'} <ArrowRight size={14} />
+              className="bg-ori-orange text-white hover:bg-ori-orange-d border-2 border-black py-2.5 rounded-xl text-[11px] font-black text-center flex items-center justify-center gap-1 shadow-paper-sm transition-transform active:scale-95 col-span-2"
+            >
+              {isNavigating ? <Loader2 size={12} className="animate-spin" strokeWidth={3} /> : null}
+              ดูรายละเอียด
+            </button>
+
+            <button
+              onClick={() => { router.push(`/pets/${result.id}?tab=health`) }}
+              className="bg-white text-black hover:bg-gray-50 border-2 border-black py-2.5 rounded-xl text-[11px] font-black text-center flex items-center justify-center gap-1 shadow-paper-sm transition-transform active:scale-95 col-span-2"
+            >
+              🏥 สมุดสุขภาพ
             </button>
 
             {/* ── 🟢 ปุ่มเปิดโมดอลเลือกช่องทางการแชร์ไปยังโซเชียลมีเดีย ── */}
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowShareModal(true); }}
               title="เลือกแชร์ประกาศไปยังโซเชียลมีเดีย"
-              className="ori-btn bg-white border-2 border-black p-0 rounded-xl flex items-center justify-center shadow-paper-sm hover:bg-gray-50 transition-all text-black active:translate-y-0"
+              className="ori-btn bg-white border-2 border-black p-0 rounded-xl flex items-center justify-center shadow-paper-sm hover:bg-gray-50 transition-all text-black active:translate-y-0 col-span-1"
             >
               <Share2 size={16} strokeWidth={2.5} />
             </button>

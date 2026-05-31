@@ -94,6 +94,11 @@ export default async function PetDetailPage({ params }: Props) {
 
   if (error || !pet) return notFound()
 
+  // ── 🟢 ล็อกสิทธิ์ความปลอดภัย: หากโปรไฟล์เป็น 'private' ให้เข้าชมได้เฉพาะเจ้าของบัญชีเท่านั้น ──
+  if (pet.visibility === 'private' && currentUserId !== pet.user_id) {
+    return notFound()
+  }
+
   // หาค่ารูปภาพหลักของน้อง
   const primaryImg = pet.pet_images?.find((img: any) => img.is_primary)?.storage_url || pet.image_url || ''
   const resolvedPrimaryImage = resolveImageUrl(primaryImg, pet.user_id)
