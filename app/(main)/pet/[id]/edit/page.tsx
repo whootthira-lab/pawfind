@@ -60,6 +60,33 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), [])
 
+  // ── Geolocation states ──
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [showGeoModal, setShowGeoModal] = useState(false)
+  const [geoLoading, setGeoLoading] = useState(false)
+  const [geoSuccess, setGeoSuccess] = useState(false)
+
+  const requestGeoLocation = () => {
+    if (!('geolocation' in navigator)) {
+      alert('บราวเซอร์ของคุณไม่รองรับการแชร์พิกัด GPS ค่ะ')
+      return
+    }
+    setGeoLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setGeoSuccess(true)
+        setGeoLoading(false)
+      },
+      (err) => {
+        console.warn("GPS Access Error:", err)
+        alert('ไม่สามารถเข้าถึงพิกัดได้ กรุณาอนุญาตสิทธิ์เข้าถึงพิกัดในบราวเซอร์ของคุณค่ะ')
+        setGeoLoading(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
+
   // ── Form State (เชื่อมสัญญานฟิลด์โมเดลและฟิลด์พิกัดบอร์ดเข้าด้วยกันอย่างสมบูรณ์) ──
   const [form, setForm] = useState({
     name:                 '',
@@ -181,6 +208,12 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
         mode_showcase: !isPrivate && (pet.mode_showcase || false),
         mode_private:  isPrivate,
       })
+
+      // Pre-fill location
+      if (pet.latitude && pet.longitude) {
+        setLocation({ lat: pet.latitude, lng: pet.longitude })
+        setGeoSuccess(true)
+      }
 
       // ── 🟢 ปรับปรุงกลไก Safe Image Fallback เพื่อดึงคลังรูปภาพ 3 มุมกลับมาแสดงผลให้ครบถ้วน ──
       let imgs: ExistingImage[] = []
@@ -356,6 +389,8 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
           mode_showcase:        !isPrivate && modes.mode_showcase,
           is_public:            !isPrivate,
           visibility:           isPrivate ? 'private' : 'public',
+          latitude:             location?.lat ?? null,
+          longitude:            location?.lng ?? null,
           status:               modes.mode_lost ? 'lost' : (
             modes.mode_adoption ? 'adoption' : (
               modes.mode_mating ? 'mating' : 'showcase'
@@ -610,6 +645,13 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
               return (
                 <button key={m.key} type="button"
                   onClick={() => {
+                    const currentlyActive = modes[m.key]
+                    const turningOn = !currentlyActive
+                    if (turningOn && (m.key === 'mode_lost' || m.key === 'mode_mating' || m.key === 'mode_adoption')) {
+                      setShowGeoModal(true)
+                      setGeoSuccess(false)
+                    }
+
                     setModes(prev => {
                       if (m.key === 'mode_private') {
                         return {
@@ -729,6 +771,45 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
         </div>
 
       </form>
+
+      {/* ══ 📍 MODAL ขอเข้าถึงพิกัดค้นหาอัจฉริยะ ══ */}
+      {showGeoModal && (
+        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-xs" onClick={() => setShowGeoModal(false)}>
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full text-center border-4 border-black shadow-paper" onClick={e => e.stopPropagation()}>
+            <div className="text-4xl mb-3">📍</div>
+            <h3 className="font-black text-xl mb-1 text-black">ตั้งค่าพิกัดค้นหาอัจฉริยะ (AI Location)</h3>
+            <p className="text-xs font-bold text-gray-500 mb-4 px-2">
+              เพื่อให้ AI ใช้ในการค้นหาจากบริเวณโดยรอบ ข้อมูลนี้จะไม่แสดงให้บุคคลเห็น
+            </p>
+
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={requestGeoLocation}
+                disabled={geoLoading}
+                className="w-full py-3 bg-ori-orange text-white font-black text-sm rounded-xl border-2 border-black shadow-paper-sm hover:bg-ori-orange-d transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {geoLoading ? <Loader2 size={16} className="animate-spin" /> : 'ขอเข้าถึงพิกัด 🔍'}
+              </button>
+
+              {geoSuccess && location && (
+                <div className="p-3 bg-green-50 border-2 border-green-400 rounded-xl text-green-800 text-xs font-bold animate-fadeIn">
+                  ✅ ได้รับพิกัดเรียบร้อยแล้วค่ะ!
+                  <div className="text-[10px] text-gray-500 mt-0.5">Lat: {location.lat.toFixed(5)}, Lng: {location.lng.toFixed(5)}</div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setShowGeoModal(false)}
+                className="w-full py-2.5 bg-black text-white font-black text-xs rounded-xl border-2 border-black shadow-paper-sm hover:bg-gray-800 transition-all"
+              >
+                เสร็จสิ้น
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
