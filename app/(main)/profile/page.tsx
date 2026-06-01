@@ -681,7 +681,6 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
             {myPets.filter(p => p.is_resolved).map(pet => (
               <div key={pet.id} className="relative opacity-90 grayscale-[0.3]">
-                <div className="absolute top-4 right-4 z-10 bg-green-600 text-white px-3 py-1 rounded-full font-black shadow-paper-sm text-sm">🎉  สำเร็จแล้ว</div>
                 <MatchResultCard result={pet} />
               </div>
             ))}
