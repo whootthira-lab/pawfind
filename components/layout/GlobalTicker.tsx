@@ -41,7 +41,7 @@ export function GlobalTicker() {
         .animate-ticker {
           display: inline-flex;
           white-space: nowrap;
-          animation: ticker-scroll 35s linear infinite; /* ปรับความเร็วให้พอดีกับการอ่านข้อมูลที่ยาวขึ้น */
+          animation: ticker-scroll 29s linear infinite; /* ปรับความเร็วให้วิ่งเร็วขึ้น 20% */
         }
         .animate-ticker:hover {
           animation-play-state: paused;

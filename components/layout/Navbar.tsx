@@ -221,7 +221,7 @@ export function Navbar() {
           ) : (
             <Link href="/login" className="ori-btn ori-btn-white ori-btn-sm text-sm">เข้าสู่ระบบ</Link>
           )}
-          <Link href="/report" className="ori-btn ori-btn-orange ori-btn-sm text-sm hidden xl:flex">⚡ แจ้งหายด่วน</Link>
+          <Link href="/donate" className="ori-btn ori-btn-orange ori-btn-sm text-sm hidden xl:flex">เกี่ยวกับเรา</Link>
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
