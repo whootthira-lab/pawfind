@@ -13,11 +13,42 @@ export function CommentSection({ petId }: { petId: string }) {
   const [editContent, setEditContent] = useState('')
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState<any>(null)
-
   // 💡 State และ Ref สำหรับจัดการรูปภาพ
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [likedCommentIds, setLikedCommentIds] = useState<string[]>([])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('pobpet_comment_likes')
+        if (stored) setLikedCommentIds(JSON.parse(stored))
+      } catch (e) {
+        console.error(e)
+      }
+    }
+  }, [])
+
+  const isCommentLiked = (id: string) => likedCommentIds.includes(id)
+
+  const handleToggleLikeComment = (id: string) => {
+    let updated = []
+    if (likedCommentIds.includes(id)) {
+      updated = likedCommentIds.filter(cid => cid !== id)
+    } else {
+      updated = [...likedCommentIds, id]
+    }
+    setLikedCommentIds(updated)
+    localStorage.setItem('pobpet_comment_likes', JSON.stringify(updated))
+  }
+
+  const getCommentLikesCount = (commentId: string) => {
+    const hash = commentId.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)
+    const baseLikes = Math.abs(hash % 4) // 0 to 3 base likes
+    return isCommentLiked(commentId) ? baseLikes + 1 : baseLikes
+  }
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,7 +61,12 @@ export function CommentSection({ petId }: { petId: string }) {
       .select('*')
       .eq('pet_id', petId)
       .order('created_at', { ascending: true })
-    if (data) setComments(data)
+    if (data) {
+      setComments(data)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`last_viewed_comments_${petId}`, Date.now().toString())
+      }
+    }
   }, [petId, supabase])
 
   const checkUser = useCallback(async () => {
@@ -197,6 +233,17 @@ export function CommentSection({ petId }: { petId: string }) {
                     />
                   </div>
                 )}
+                {/* 💡 Like Button (❤️) */}
+                <div className="mt-2.5 flex items-center gap-1.5">
+                  <button 
+                    onClick={() => handleToggleLikeComment(comment.id)} 
+                    className="flex items-center gap-1 text-xs font-black text-gray-500 hover:text-red-500 transition-colors p-1.5 rounded-xl border border-black/5 hover:border-black/10 bg-gray-50 hover:bg-red-50 shadow-paper-sm active:scale-95 transition-transform"
+                    title={isCommentLiked(comment.id) ? 'เลิกถูกใจ' : 'ถูกใจ'}
+                  >
+                    <span className="text-sm shrink-0 leading-none">{isCommentLiked(comment.id) ? '❤️' : '🤍'}</span>
+                    <span className="text-xs font-black text-black leading-none">{getCommentLikesCount(comment.id)}</span>
+                  </button>
+                </div>
               </div>
             )}
 

@@ -14,6 +14,34 @@ import {
   type DeleteReason,
 } from '@/lib/analytics'
 
+function CommentBadge({ petId, comments }: { petId: string; comments: any[] }) {
+  const [hasNew, setHasNew] = useState(false)
+  const count = comments?.length || 0
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && count > 0) {
+      const lastViewedStr = localStorage.getItem(`last_viewed_comments_${petId}`)
+      const lastViewed = lastViewedStr ? parseInt(lastViewedStr) : 0
+      const latestCommentTime = comments && comments.length > 0
+        ? Math.max(...comments.map((c: any) => new Date(c.created_at).getTime()))
+        : 0
+      setHasNew(latestCommentTime > lastViewed)
+    }
+  }, [petId, comments, count])
+
+  if (count === 0) return null
+
+  return (
+    <div 
+      className={`absolute -top-3 -left-3 z-30 bg-ori-orange text-white min-w-[32px] h-8 px-2.5 rounded-full flex items-center justify-center border-4 border-black shadow-paper-sm font-black text-xs ${hasNew ? 'animate-bounce' : ''}`}
+      title={hasNew ? 'มีความคิดเห็นใหม่!' : 'ความคิดเห็น'}
+    >
+      <MessageSquare size={12} className="mr-1 shrink-0" />
+      <span>{hasNew ? `+${count}` : count}</span>
+    </div>
+  )
+}
+
 interface PetResult {
   id:               string
   name:             string
@@ -35,6 +63,39 @@ export function MatchResultCard({ result }: { result: PetResult }) {
   const [isDeleting,        setIsDeleting]         = useState(false)
   const [isCheckingInitial, setIsCheckingInitial]  = useState(true)
   const [userId,            setUserId]             = useState<string | null>(null)
+
+  const [likedPetIds, setLikedPetIds] = useState<string[]>([])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('pobpet_pet_likes')
+        if (stored) setLikedPetIds(JSON.parse(stored))
+      } catch (e) {
+        console.error(e)
+      }
+    }
+  }, [])
+
+  const isPetLiked = likedPetIds.includes(result.id)
+
+  const handleToggleLikePet = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    let updated = []
+    if (isPetLiked) {
+      updated = likedPetIds.filter(pid => pid !== result.id)
+    } else {
+      updated = [...likedPetIds, result.id]
+    }
+    setLikedPetIds(updated)
+    localStorage.setItem('pobpet_pet_likes', JSON.stringify(updated))
+  }
+
+  const petLikesCount = (() => {
+    const hash = result.id.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)
+    const baseLikes = Math.abs(hash % 9) + 2 // 2 to 10 base likes
+    return isPetLiked ? baseLikes + 1 : baseLikes
+  })()
 
   // ── Delete Reason Modal state ─────────────────────────────────
   const [showDeleteModal,   setShowDeleteModal]    = useState(false)
@@ -240,9 +301,21 @@ export function MatchResultCard({ result }: { result: PetResult }) {
           {isLoadingPin ? <Loader2 size={18} className="animate-spin" /> : isPinned ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
         </motion.button>
 
+        {/* Heart Like Button */}
+        <motion.button 
+          whileTap={{ scale: .9 }} 
+          onClick={handleToggleLikePet}
+          className="absolute top-2.5 right-14 z-20 p-1.5 rounded-lg border-2 border-ori-ink shadow-[2px_2px_0_#1A1208] transition-colors flex items-center justify-center bg-white hover:bg-red-50 text-red-600 font-bold gap-1"
+          title={isPetLiked ? 'เลิกถูกใจ' : 'ถูกใจน้อง'}
+        >
+          <span className="text-sm shrink-0 leading-none">{isPetLiked ? '❤️' : '🤍'}</span>
+          <span className="text-xs font-black text-black leading-none">{petLikesCount}</span>
+        </motion.button>
+
         {/* Image */}
         <div className="relative w-full pt-[100%] overflow-hidden border-b-2 border-ori-ink shrink-0 block"
           style={{ background: 'linear-gradient(135deg, #FDE8ED, #E4F0E5)' }}>
+          <CommentBadge petId={result.id} comments={(result as any).comments} />
           <img src={formatSrc(result.image_url)} alt={result.name}
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           
@@ -290,6 +363,13 @@ export function MatchResultCard({ result }: { result: PetResult }) {
               <Share2 size={16} strokeWidth={2.5} />
             </button>
           </div>
+
+          <button
+            onClick={() => { router.push('/profile?tab=pets') }}
+            className="w-full bg-wagashi-matcha text-black hover:bg-wagashi-matcha/80 border-2 border-black py-2 rounded-xl text-[11px] font-black text-center block shadow-paper-sm transition-transform active:scale-95"
+          >
+            📋 ประวัติสุขภาพสัตว์เลี้ยง
+          </button>
 
           {isOwner && (
             <div className="grid grid-cols-2 gap-2 pt-1">

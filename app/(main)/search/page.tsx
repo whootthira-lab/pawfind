@@ -76,10 +76,10 @@ function SearchContent() {
     let query;
     if (userLocation) {
       query = supabase.rpc('get_pets_by_distance', { user_lat: userLocation.lat, user_lng: userLocation.lng })
-        .select('*, pet_images(storage_url, is_primary)')
+        .select('*, pet_images(storage_url, is_primary), comments(id, created_at)')
     } else {
       query = supabase.from('pets')
-        .select('*, pet_images(storage_url, is_primary)')
+        .select('*, pet_images(storage_url, is_primary), comments(id, created_at)')
         .order('created_at', { ascending: false })
     }
 

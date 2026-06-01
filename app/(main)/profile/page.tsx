@@ -82,6 +82,34 @@ const thailandProvinces = [
   "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยะลา", "ยโสธร", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อุดรธานี", "อุทัยธานี", "อุตรดิตถ์", "อุบลราชธานี", "อำนาจเจริญ"
 ].sort()
 
+function CommentBadge({ petId, comments }: { petId: string; comments: any[] }) {
+  const [hasNew, setHasNew] = useState(false)
+  const count = comments?.length || 0
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && count > 0) {
+      const lastViewedStr = localStorage.getItem(`last_viewed_comments_${petId}`)
+      const lastViewed = lastViewedStr ? parseInt(lastViewedStr) : 0
+      const latestCommentTime = comments && comments.length > 0
+        ? Math.max(...comments.map((c: any) => new Date(c.created_at).getTime()))
+        : 0
+      setHasNew(latestCommentTime > lastViewed)
+    }
+  }, [petId, comments, count])
+
+  if (count === 0) return null
+
+  return (
+    <div 
+      className={`absolute -top-3 -left-3 z-30 bg-ori-orange text-white min-w-[32px] h-8 px-2.5 rounded-full flex items-center justify-center border-4 border-black shadow-paper-sm font-black text-xs ${hasNew ? 'animate-bounce' : ''}`}
+      title={hasNew ? 'มีความคิดเห็นใหม่!' : 'ความคิดเห็น'}
+    >
+      <MessageSquare size={12} className="mr-1 shrink-0" />
+      <span>{hasNew ? `+${count}` : count}</span>
+    </div>
+  )
+}
+
 export default function ProfilePage() {
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -96,6 +124,16 @@ export default function ProfilePage() {
   const [uploading,    setUploading]    = useState(false)
   const [saveSuccess,  setSaveSuccess]  = useState(false)
   const [showDonation, setShowDonation] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const tab = params.get('tab')
+      if (tab === 'pets') {
+        setActiveTab('pets')
+      }
+    }
+  }, [])
 
   const [profile, setProfile] = useState({
     display_name:         '',
@@ -209,7 +247,7 @@ export default function ProfilePage() {
       // ── Pets ──────────────────────────────────────────────[cite: 21]
       const { data: pets } = await supabase
         .from('pets')
-        .select('*, pet_images(storage_url, is_primary), comments(count)')
+        .select('*, pet_images(storage_url, is_primary), comments(id, created_at)')
         .eq('user_id', session.user.id)
         .not('status', 'eq', 'archived')
         .order('created_at', { ascending: false })
@@ -226,7 +264,8 @@ export default function ProfilePage() {
 
           return {
             ...p,
-            unread_count: p.comments?.[0]?.count || 0,
+            unread_count: p.comments?.length || 0,
+            comments:     p.comments || [],
             image_url:    safeImageUrl,
           }
         }))
@@ -624,11 +663,7 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
             {myPets.filter(p => !p.is_resolved).map(pet => (
               <div key={pet.id} className="flex flex-col gap-4 relative">
-                {pet.unread_count > 0 && (
-                  <div className="absolute -top-3 -left-3 z-30 bg-ori-orange text-white min-w-[32px] h-8 px-2 rounded-full flex items-center justify-center border-4 border-black shadow-paper-sm font-black text-sm animate-bounce">
-                    <MessageSquare size={14} className="mr-1" /> {pet.unread_count}
-                  </div>
-                )}
+                <CommentBadge petId={pet.id} comments={pet.comments} />
                 <MatchResultCard result={pet} />
                 <ResolveButton petId={pet.id} status={pet.status} onResolved={() => { fetchAllData(); setShowDonation(true) }} />
               </div>
@@ -800,12 +835,14 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {myPets.map(pet => (
-                <div key={pet.id} className="border-4 border-black p-4 rounded-2xl bg-white shadow-paper-sm flex gap-3 text-left hover:-translate-y-0.5 transition-transform duration-200">
+                <div key={pet.id} className="border-4 border-black p-4 rounded-2xl bg-white shadow-paper-sm flex gap-3 text-left hover:-translate-y-0.5 transition-transform duration-200 relative">
+                  <CommentBadge petId={pet.id} comments={pet.comments} />
                   <img src={pet.image_url || '/favicon.ico'} className="w-20 h-20 object-cover border-2 border-black rounded-xl bg-gray-100 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <h4 className="font-black text-lg leading-tight truncate text-ori-ink">{pet.name}</h4>
                     <p className="text-xs font-bold text-gray-500 mt-0.5">{pet.species} · {pet.province || 'นครราชสีมา'}</p>
-                    <div className="flex gap-1.5 mt-3">
+                    <div className="flex gap-1.5 mt-3 flex-wrap">
+                      <Link href={`/pet/${pet.id}`} className="text-[10px] font-black border-2 border-black bg-ori-orange text-white px-2 py-1 rounded-md hover:bg-ori-orange-d shadow-paper-sm transition-transform active:scale-95">ดูโปรไฟล์ →</Link>
                       <Link href={`/pets/${pet.id}`} className="text-[10px] font-black border-2 border-black bg-gray-100 px-2 py-1 rounded-md hover:bg-gray-200">🏥 สมุดสุขภาพ</Link>
                       <Link href={`/pets/${pet.id}/edit`} className="text-[10px] font-black border-2 border-black bg-white px-2 py-1 rounded-md hover:bg-gray-100">✏️ แก้ไข</Link>
                     </div>

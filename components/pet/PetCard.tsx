@@ -4,9 +4,37 @@
 import { Pet }  from '@/types/pet'
 import Link     from 'next/link'
 import { useState, useMemo, useEffect } from 'react'
-import { MapPin, Check, Loader2, Eye, EyeOff } from 'lucide-react'
+import { MapPin, Check, Loader2, Eye, EyeOff, MessageSquare } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 import { DonationModal } from '@/components/DonationModal'
+
+function CommentBadge({ petId, comments }: { petId: string; comments: any[] }) {
+  const [hasNew, setHasNew] = useState(false)
+  const count = comments?.length || 0
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && count > 0) {
+      const lastViewedStr = localStorage.getItem(`last_viewed_comments_${petId}`)
+      const lastViewed = lastViewedStr ? parseInt(lastViewedStr) : 0
+      const latestCommentTime = comments && comments.length > 0
+        ? Math.max(...comments.map((c: any) => new Date(c.created_at).getTime()))
+        : 0
+      setHasNew(latestCommentTime > lastViewed)
+    }
+  }, [petId, comments, count])
+
+  if (count === 0) return null
+
+  return (
+    <div 
+      className={`absolute -top-3 -left-3 z-30 bg-ori-orange text-white min-w-[32px] h-8 px-2.5 rounded-full flex items-center justify-center border-4 border-black shadow-paper-sm font-black text-xs ${hasNew ? 'animate-bounce' : ''}`}
+      title={hasNew ? 'มีความคิดเห็นใหม่!' : 'ความคิดเห็น'}
+    >
+      <MessageSquare size={12} className="mr-1 shrink-0" />
+      <span>{hasNew ? `+${count}` : count}</span>
+    </div>
+  )
+}
 
 function speciesIcon(type: string) {
   return ({ dog:'🐕', cat:'🐈', bird:'🦜', rabbit:'🐰', fish:'🐟', other:'🐾' } as any)[type] ?? '🐾'
@@ -27,6 +55,39 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
   const [modeChanging, setModeChanging] = useState(false)
   const [showDonation, setShowDonation] = useState(false)
   const [isOwner, setIsOwner] = useState(false) // ดักจับสิทธิ์ความปลอดภัยตรวจสอบความเป็นเจ้าของ
+
+  const [likedPetIds, setLikedPetIds] = useState<string[]>([])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('pobpet_pet_likes')
+        if (stored) setLikedPetIds(JSON.parse(stored))
+      } catch (e) {
+        console.error(e)
+      }
+    }
+  }, [])
+
+  const isPetLiked = likedPetIds.includes(pet.id)
+
+  const handleToggleLikePet = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    let updated = []
+    if (isPetLiked) {
+      updated = likedPetIds.filter(pid => pid !== pet.id)
+    } else {
+      updated = [...likedPetIds, pet.id]
+    }
+    setLikedPetIds(updated)
+    localStorage.setItem('pobpet_pet_likes', JSON.stringify(updated))
+  }
+
+  const petLikesCount = (() => {
+    const hash = pet.id.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)
+    const baseLikes = Math.abs(hash % 9) + 2 // 2 to 10 base likes
+    return isPetLiked ? baseLikes + 1 : baseLikes
+  })()
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -213,6 +274,8 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
   return (
     <div className="ori-card flex flex-col group text-black">
       <div className="relative w-full aspect-square overflow-hidden border-b-2 border-ori-ink shrink-0">
+        <CommentBadge petId={pet.id} comments={pet.comments} />
+
         {imgUrl ? (
           <img src={imgUrl} alt={pet.name || 'pet'} className="w-full h-full object-cover" />
         ) : (
@@ -235,6 +298,16 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
             </div>
           )}
         </div>
+
+        {/* Heart Like Button */}
+        <button 
+          onClick={handleToggleLikePet}
+          className="absolute bottom-2.5 right-2.5 z-20 p-1.5 rounded-lg border-2 border-black bg-white hover:bg-red-50 text-red-600 shadow-paper-sm transition-transform active:scale-95 flex items-center justify-center gap-1"
+          title={isPetLiked ? 'เลิกถูกใจ' : 'ถูกใจน้อง'}
+        >
+          <span className="text-sm shrink-0 leading-none">{isPetLiked ? '❤️' : '🤍'}</span>
+          <span className="text-xs font-black text-black leading-none">{petLikesCount}</span>
+        </button>
       </div>
 
       <div className="p-4 flex flex-col gap-1.5 flex-1 text-left">
@@ -294,12 +367,17 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
         )}
       </div>
 
-      <div className="px-4 pb-4 grid grid-cols-2 gap-2">
-        <Link href={`/pet/${pet.id}`} className="bg-ori-orange text-white hover:bg-ori-orange-d border-2 border-black py-2 rounded-xl text-xs font-black text-center block shadow-paper-sm transition-transform active:scale-95">
-          ดูรายละเอียด →
-        </Link>
-        <Link href={`/pets/${pet.id}?tab=health`} className="bg-white text-black hover:bg-gray-50 border-2 border-black py-2 rounded-xl text-xs font-black text-center block shadow-paper-sm transition-transform active:scale-95">
-          🏥 สมุดสุขภาพ
+      <div className="px-4 pb-4 flex flex-col gap-2">
+        <div className="grid grid-cols-2 gap-2">
+          <Link href={`/pet/${pet.id}`} className="bg-ori-orange text-white hover:bg-ori-orange-d border-2 border-black py-2 rounded-xl text-xs font-black text-center block shadow-paper-sm transition-transform active:scale-95">
+            ดูรายละเอียด →
+          </Link>
+          <Link href={`/pets/${pet.id}?tab=health`} className="bg-white text-black hover:bg-gray-50 border-2 border-black py-2 rounded-xl text-xs font-black text-center block shadow-paper-sm transition-transform active:scale-95">
+            🏥 สมุดสุขภาพ
+          </Link>
+        </div>
+        <Link href="/profile?tab=pets" className="bg-wagashi-matcha text-black hover:bg-wagashi-matcha/80 border-2 border-black py-2 rounded-xl text-xs font-black text-center block shadow-paper-sm transition-transform active:scale-95">
+          📋 ประวัติสุขภาพสัตว์เลี้ยง
         </Link>
       </div>
 

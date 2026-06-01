@@ -21,7 +21,7 @@ export default function RecentPetsGrid() {
         // ── 🟢 ปรับปรุงสัญญานคิวรีดึงข้อมูลคัดกรองเคสสาธารณะที่ยังไม่ปิดเคส และตัวเลือกมองเห็นเป็น public (ข้อ 4, 6) ──
         const { data, error } = await supabase
           .from('pets')
-          .select('*, pet_images(storage_url, is_primary), comments(count)')
+          .select('*, pet_images(storage_url, is_primary), comments(id, created_at)')
           .eq('visibility', 'public')
           .eq('is_resolved', false)
           .order('created_at', { ascending: false })
