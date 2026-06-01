@@ -26,13 +26,14 @@ function CommentBadge({ petId, comments }: { petId: string; comments: any[] }) {
   if (count === 0) return null
 
   return (
-    <div 
-      className={`absolute -top-3 -left-3 z-30 bg-ori-orange text-white min-w-[32px] h-8 px-2.5 rounded-full flex items-center justify-center border-4 border-black shadow-paper-sm font-black text-xs ${hasNew ? 'animate-bounce' : ''}`}
-      title={hasNew ? 'มีความคิดเห็นใหม่!' : 'ความคิดเห็น'}
+    <Link 
+      href={`/pet/${petId}#comments`}
+      className={`absolute -top-3 -left-3 z-30 bg-ori-orange text-white min-w-[32px] h-8 px-2.5 rounded-full flex items-center justify-center border-4 border-black shadow-paper-sm font-black text-xs cursor-pointer hover:scale-105 active:scale-95 transition-all ${hasNew ? 'animate-bounce' : ''}`}
+      title={hasNew ? 'มีความคิดเห็นใหม่! กดเพื่อดูความคิดเห็น' : 'ความคิดเห็น กดเพื่อดู'}
     >
       <MessageSquare size={12} className="mr-1 shrink-0" />
       <span>{hasNew ? `+${count}` : count}</span>
-    </div>
+    </Link>
   )
 }
 
@@ -56,38 +57,7 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
   const [showDonation, setShowDonation] = useState(false)
   const [isOwner, setIsOwner] = useState(false) // ดักจับสิทธิ์ความปลอดภัยตรวจสอบความเป็นเจ้าของ
 
-  const [likedPetIds, setLikedPetIds] = useState<string[]>([])
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('pobpet_pet_likes')
-        if (stored) setLikedPetIds(JSON.parse(stored))
-      } catch (e) {
-        console.error(e)
-      }
-    }
-  }, [])
-
-  const isPetLiked = likedPetIds.includes(pet.id)
-
-  const handleToggleLikePet = (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation()
-    let updated = []
-    if (isPetLiked) {
-      updated = likedPetIds.filter(pid => pid !== pet.id)
-    } else {
-      updated = [...likedPetIds, pet.id]
-    }
-    setLikedPetIds(updated)
-    localStorage.setItem('pobpet_pet_likes', JSON.stringify(updated))
-  }
-
-  const petLikesCount = (() => {
-    const hash = pet.id.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)
-    const baseLikes = Math.abs(hash % 9) + 2 // 2 to 10 base likes
-    return isPetLiked ? baseLikes + 1 : baseLikes
-  })()
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -299,15 +269,7 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
           )}
         </div>
 
-        {/* Heart Like Button */}
-        <button 
-          onClick={handleToggleLikePet}
-          className="absolute bottom-2.5 right-2.5 z-20 p-1.5 rounded-lg border-2 border-black bg-white hover:bg-red-50 text-red-600 shadow-paper-sm transition-transform active:scale-95 flex items-center justify-center gap-1"
-          title={isPetLiked ? 'เลิกถูกใจ' : 'ถูกใจน้อง'}
-        >
-          <span className="text-sm shrink-0 leading-none">{isPetLiked ? '❤️' : '🤍'}</span>
-          <span className="text-xs font-black text-black leading-none">{petLikesCount}</span>
-        </button>
+
       </div>
 
       <div className="p-4 flex flex-col gap-1.5 flex-1 text-left">
