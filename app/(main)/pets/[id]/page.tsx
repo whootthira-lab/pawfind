@@ -353,6 +353,25 @@ export default function PetProfilePage() {
     }
   }
 
+  // ── 🟢 ฟังก์ชันสำหรับลบรายการแจ้งเตือนความจำ (ลบข้อมูลโดยเจ้าของบัญชีเท่านั้น) ──
+  const handleDeleteReminder = async (reminderId: string) => {
+    if (!window.confirm('⚠️ ยืนยันที่จะลบรายการแจ้งเตือนความจำนี้ใช่หรือไม่?')) return
+
+    try {
+      const { error } = await supabase
+        .from('reminders')
+        .delete()
+        .eq('id', reminderId)
+
+      if (error) throw error
+
+      alert('✅ ลบรายการแจ้งเตือนความจำเรียบร้อยแล้วค่ะ')
+      await fetchHealthAndReminders()
+    } catch (err: any) {
+      alert(`เกิดข้อผิดพลาดในการลบรายการแจ้งเตือน: ${err.message || 'กรุณาลองใหม่อีกครั้งค่ะ'}`)
+    }
+  }
+
   function getHealthStatus() {
     if (!events.length) return null
     const vaccines = events.filter(e =>
@@ -704,9 +723,18 @@ export default function PetProfilePage() {
                         )}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
                       <p className="text-xs font-black bg-gray-200 border border-gray-400 text-gray-700 px-2 py-1 rounded-md font-mono">{new Date(r.next_remind_at || r.remind_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</p>
-                      {urgent ? <p className="text-xs font-black text-red-600 mt-1">🚨 เลยกำหนดนัด</p> : daysLeft <= 7 ? <p className="text-xs font-black text-amber-600 mt-1">อีก {daysLeft} วัน</p> : null}
+                      {urgent ? <p className="text-xs font-black text-red-600">🚨 เลยกำหนดนัด</p> : daysLeft <= 7 ? <p className="text-xs font-black text-amber-600">อีก {daysLeft} วัน</p> : null}
+                      {isOwner && (
+                        <button
+                          onClick={() => handleDeleteReminder(r.id)}
+                          className="text-xs font-black bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded-md border-2 border-red-200 hover:border-red-300 transition-all flex items-center gap-1 shadow-paper-sm active:translate-y-0 mt-0.5"
+                          title="ลบรายการแจ้งเตือนนี้"
+                        >
+                          <Trash2 size={10} /> ลบ
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
