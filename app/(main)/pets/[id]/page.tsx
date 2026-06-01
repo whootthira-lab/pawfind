@@ -72,6 +72,9 @@ export default function PetProfilePage() {
   // States ฟอร์มเพิ่มประวัติสุขภาพและตั้งเตือน Web Push ฟรี
   const [showFormModal, setShowFormModal] = useState(false)
   const [formSaving,    setFormSaving]    = useState(false)
+
+  // States สำหรับฟอร์มเพิ่มการแจ้งเตือนด่วน (Reminder Creator Modal)
+  const [showReminderModal, setShowReminderModal] = useState(false)
   const [evidenceFile,  setEvidenceFile]  = useState<File | null>(null)
   const [imgFilePreview, setImgFilePreview] = useState<string | null>(null)
   
@@ -369,6 +372,62 @@ export default function PetProfilePage() {
       await fetchHealthAndReminders()
     } catch (err: any) {
       alert(`เกิดข้อผิดพลาดในการลบรายการแจ้งเตือน: ${err.message || 'กรุณาลองใหม่อีกครั้งค่ะ'}`)
+    }
+  }
+
+  // ── 🟢 ฟังก์ชันสำหรับบันทึกรายการแจ้งเตือนความจำย่อยหน้าเว็บ ──
+  const [reminderSaving,    setReminderSaving]    = useState(false)
+  const [reminderForm,      setReminderForm]      = useState({
+    date: new Date().toISOString().split('T')[0],
+    time: '09:00',
+    category: 'หยอดยาหมัด',
+    category_custom: '',
+    description: ''
+  })
+
+  const handleSaveReminder = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const finalCategory = reminderForm.category === 'other' ? reminderForm.category_custom.trim() : reminderForm.category
+    if (!finalCategory) {
+      alert('กรุณาระบุหมวดหมู่การแจ้งเตือนด้วยค่ะ')
+      return
+    }
+    
+    setReminderSaving(true)
+    try {
+      const remindDateTime = new Date(`${reminderForm.date}T${reminderForm.time}`).toISOString()
+      const title = `${finalCategory}${pet.name || ''}`
+      const body = reminderForm.description.trim() || `อย่าลืม${finalCategory}ให้น้อง${pet.name || ''}นะคะ!`
+
+      const { error } = await supabase
+        .from('reminders')
+        .insert({
+          user_id: pet.user_id,
+          pet_id: id,
+          title: title,
+          body: body,
+          remind_at: remindDateTime,
+          next_remind_at: remindDateTime,
+          repeat_type: 'none',
+          is_done: false
+        })
+
+      if (error) throw error
+
+      alert('✅ เพิ่มการแจ้งเตือนความจำเรียบร้อยแล้วค่ะ!')
+      setShowReminderModal(false)
+      setReminderForm({
+        date: new Date().toISOString().split('T')[0],
+        time: '09:00',
+        category: 'หยอดยาหมัด',
+        category_custom: '',
+        description: ''
+      })
+      await fetchHealthAndReminders()
+    } catch (err: any) {
+      alert(`เกิดข้อผิดพลาดในการบันทึกการแจ้งเตือน: ${err.message || 'กรุณาลองใหม่อีกครั้งค่ะ'}`)
+    } finally {
+      setReminderSaving(false)
     }
   }
 
@@ -692,11 +751,17 @@ export default function PetProfilePage() {
       {/* ══ Tab: คิวแจ้งเตือนความจำ (Reminders) ═══════════════════ */}
       {activeTab === 'reminders' && isOwner && (
         <div className="bg-white border-4 border-ori-ink rounded-3xl p-6 shadow-paper text-left">
-          <div className="flex items-center justify-between mb-4 border-b-2 border-gray-100 pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 border-b-2 border-gray-100 pb-3">
             <div>
               <h2 className="font-black text-xl">🔔 คิวแจ้งเตือนความจำของน้อง</h2>
               <p className="text-xs font-bold text-gray-500 mt-0.5">ระบบจะนำไปยิงแจ้งเตือนผ่านบราวเซอร์พุชหน้าจอให้อัตโนมัติ</p>
             </div>
+            <button
+              onClick={() => setShowReminderModal(true)}
+              className="bg-black text-white font-black border-2 border-black shadow-paper-sm rounded-xl px-4 py-2 hover:bg-gray-800 flex items-center gap-1.5 transition-all text-sm self-start sm:self-center"
+            >
+              ➕ เพิ่มการแจ้งเตือน
+            </button>
           </div>
 
           {reminders.length === 0 ? (
@@ -879,6 +944,69 @@ export default function PetProfilePage() {
               <Button type="submit" disabled={formSaving} className="w-full bg-black text-white font-black py-4 text-base rounded-xl border-2 border-black shadow-paper-sm hover:shadow-paper transition-all disabled:opacity-50">
                 {formSaving ? <><Loader2 className="animate-spin" /> กำลังประมวลผลเซฟสมุดสุขภาพดิจิทัล...</> : "💾 บันทึกลงสมุดสุขภาพและคิวแจ้งเตือนพุช"}
               </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ══ ➕ MODAL ฟอร์มเพิ่มการแจ้งเตือนความจำของสัตว์เลี้ยง ══ */}
+      {showReminderModal && (
+        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 backdrop-blur-xs" onClick={() => !reminderSaving && setShowReminderModal(false)}>
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full text-left border-4 border-black shadow-paper max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center border-b-2 border-black pb-3 mb-4">
+              <h3 className="font-black text-xl flex items-center gap-1.5">🔔 ตั้งเวลาแจ้งเตือนความจำน้อง</h3>
+              <button onClick={() => setShowReminderModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
+            </div>
+
+            <form onSubmit={handleSaveReminder} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-black text-sm">วันที่ต้องการแจ้งเตือน <span className="text-red-500">*</span></label>
+                  <input type="date" required value={reminderForm.date} onChange={e => setReminderForm({...reminderForm, date: e.target.value})} className="ori-input" />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-black text-sm">เวลาที่แจ้งเตือน <span className="text-red-500">*</span></label>
+                  <input type="time" required value={reminderForm.time} onChange={e => setReminderForm({...reminderForm, time: e.target.value})} className="ori-input" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-black text-sm">หมวดหมู่การแจ้งเตือน <span className="text-red-500">*</span></label>
+                <select value={reminderForm.category} onChange={e => setReminderForm({...reminderForm, category: e.target.value, category_custom: ''})} className="ori-input bg-white cursor-pointer font-bold">
+                  <option value="หยอดยาหมัด">หยอดยาหมัด</option>
+                  <option value="ฉีดวัคซีน">ฉีดวัคซีน</option>
+                  <option value="ตรวจสุขภาพ">ตรวจสุขภาพ</option>
+                  <option value="อาบน้ำตัดขน">อาบน้ำตัดขน</option>
+                  <option value="นัดพบแพทย์">นัดพบแพทย์</option>
+                  <option value="other">อื่นๆ (กรอกระบุเอง)</option>
+                </select>
+              </div>
+
+              {reminderForm.category === 'other' && (
+                <div className="space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <label className="font-black text-sm">ระบุหมวดหมู่การแจ้งเตือนเพิ่มเติม <span className="text-red-500">*</span></label>
+                  <input type="text" required={reminderForm.category === 'other'} placeholder="เช่น ทำหมัน, ให้ยาบำรุง" value={reminderForm.category_custom} onChange={e => setReminderForm({...reminderForm, category_custom: e.target.value})} className="ori-input" />
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="font-black text-sm">รายละเอียด / คำเตือนความจำ (เลือกกรอกหรือไม่กรอกก็ได้)</label>
+                <textarea rows={3} placeholder="เช่น อย่าลืมพาไปงดน้ำอาหารก่อนพบนัดนะคะ หรือหากเว้นว่างไว้ระบบจะตั้งหัวข้อให้อัตโนมัติ" value={reminderForm.description} onChange={e => setReminderForm({...reminderForm, description: e.target.value})} className="ori-input resize-none py-2.5" />
+              </div>
+
+              <div className="bg-ori-cream-d/10 border-2 border-black/10 p-3.5 rounded-2xl text-xs font-bold text-gray-500 flex flex-col gap-1">
+                <p>💡 ข้อมูลชื่อของสัตว์เลี้ยงที่จะบันทึกอัตโนมัติ: <span className="font-black text-black">น้อง {pet?.name || 'ไม่ระบุ'}</span></p>
+                <p>💡 ข้อความประกาศพุชที่จะใช้พรีวิว: <span className="font-black text-ori-orange-d">{(reminderForm.category === 'other' ? reminderForm.category_custom : reminderForm.category) || 'หยอดยาหมัด'}{pet?.name || ''}</span></p>
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <Button type="button" variant="outline" onClick={() => setShowReminderModal(false)} disabled={reminderSaving} className="flex-1 py-5 border-2 border-black font-black rounded-xl">
+                  ยกเลิก
+                </Button>
+                <Button type="submit" disabled={reminderSaving} className="flex-1 py-5 bg-black text-white font-black rounded-xl hover:bg-gray-800 border-2 border-black flex items-center justify-center gap-1.5">
+                  {reminderSaving ? <Loader2 className="animate-spin" size={16} /> : 'บันทึกแจ้งเตือน'}
+                </Button>
+              </div>
             </form>
           </div>
         </div>
