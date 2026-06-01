@@ -48,11 +48,11 @@ export default function LandingPage() {
         </div>
         
         <p className="text-lg md:text-xl font-bold text-ori-ink-m mb-12 max-w-4xl mx-auto leading-loose md:leading-[2.5]">
-          หาสัตว์หายด้วย AI โดยดำเนินการตามแนวทางของ 
+          หาสัตว์หายด้วย AI โดยดำเนินการตามแนวทาง
           <span className="text-ori-green-d bg-ori-green-bg/40 px-4 py-2 rounded-xl border-2 border-ori-green inline-block mx-2 shadow-paper-sm whitespace-nowrap align-middle">
-            ธุรกิจเพื่อสังคม (Social Enterprise)
+            'Pay it Forward'
           </span> 
-          เพื่อช่วยให้สังคมดีขึ้นทีละนิดเท่าที่ทำได้ ทุกคนอยู่ได้และเติบโตไปด้วยกัน 💖
+        โดยการให้ก่อนและผู้ที่มีก็ส่งต่อสิ่งดีๆต่อไป  เพื่อช่วยให้สังคมดีขึ้นทีละนิดเท่าที่ทำได้ ทุกคนอยู่ได้และเติบโตไปด้วยกัน 💖
         </p>
         
         <div className="flex flex-col md:flex-row gap-4 justify-center flex-wrap">
