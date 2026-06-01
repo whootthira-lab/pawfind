@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 
 // ── Types & Constants ─────────────────────────────────────
-type Mode = 'mode_lost' | 'mode_mating' | 'mode_adoption' | 'mode_showcase' | 'mode_private'
+type Mode = 'mode_lost' | 'mode_found' | 'mode_mating' | 'mode_adoption' | 'mode_showcase' | 'mode_private'
 
 const SPECIES_OPTIONS = [
   '', 'สุนัข', 'แมว', 'นกสวยงาม', 'ปลาสวยงาม',
@@ -28,6 +28,7 @@ const GENDER_OPTIONS = [
 
 const MODE_CONFIG: { key: Mode; icon: any; label: string; color: string; desc: string }[] = [
   { key: 'mode_lost',     icon: Search, label: 'ประกาศหาย',     color: 'blue',  desc: 'เปิดเมื่อน้องหาย AI จะช่วยหาคู่ Match' },
+  { key: 'mode_found',    icon: Search, label: '👀แจ้งพบสัตว์หลง', color: 'green', desc: 'พบน้องหลงทางและต้องการประกาศหาเจ้าของ' },
   { key: 'mode_mating',   icon: Heart,  label: 'หาคู่ให้น้อง',  color: 'pink',  desc: 'จับคู่กับสัตว์ที่ต้องการผสมพันธุ์'    },
   { key: 'mode_adoption', icon: Home,   label: 'หาบ้านให้น้อง', color: 'green', desc: 'ให้คนอื่นมารับเลี้ยงน้องต่อ'           },
   { key: 'mode_showcase', icon: Trophy, label: 'โชว์โปรไฟล์',   color: 'amber', desc: 'แสดงในฟีดและชมรมสัตว์เลี้ยง'          },
@@ -112,7 +113,7 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
   })
 
   const [modes, setModes] = useState<Record<Mode, boolean>>({
-    mode_lost: false, mode_mating: false,
+    mode_lost: false, mode_found: false, mode_mating: false,
     mode_adoption: false, mode_showcase: false,
     mode_private: false,
   })
@@ -132,7 +133,7 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
   const [showDelete, setShowDelete] = useState(false)
   const [deleting,   setDeleting]   = useState(false)
 
-  const maxPhotos = plan === 'member' ? 10 : 3
+  const maxPhotos = plan === 'member' ? 10 : 5
   const activeImages = existingImages.filter(i => !i.toDelete)
   const totalImages  = activeImages.length + newFiles.length
 
@@ -202,10 +203,11 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
       // โหลดโหมดเดิมประจำการการ์ด
       const isPrivate = pet.visibility === 'private' || !pet.is_public
       setModes({
-        mode_lost:     !isPrivate && (pet.mode_lost     || false),
-        mode_mating:   !isPrivate && (pet.mode_mating   || false),
-        mode_adoption: !isPrivate && (pet.mode_adoption || false),
-        mode_showcase: !isPrivate && (pet.mode_showcase || false),
+        mode_lost:     !isPrivate && (pet.status === 'lost'),
+        mode_found:    !isPrivate && (pet.status === 'found'),
+        mode_mating:   !isPrivate && (pet.status === 'mating'),
+        mode_adoption: !isPrivate && (pet.status === 'adoption'),
+        mode_showcase: !isPrivate && (pet.status === 'showcase' || (!pet.mode_lost && !pet.mode_mating && !pet.mode_adoption && pet.status !== 'found')),
         mode_private:  isPrivate,
       })
 
@@ -392,8 +394,10 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
           latitude:             location?.lat ?? null,
           longitude:            location?.lng ?? null,
           status:               modes.mode_lost ? 'lost' : (
-            modes.mode_adoption ? 'adoption' : (
-              modes.mode_mating ? 'mating' : 'showcase'
+            modes.mode_found ? 'found' : (
+              modes.mode_adoption ? 'adoption' : (
+                modes.mode_mating ? 'mating' : 'showcase'
+              )
             )
           ),
           updated_at: new Date().toISOString(),
@@ -444,7 +448,7 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
       }
 
       alert('บันทึกการซ่อมแซมโปรไฟล์ประกาศสำเร็จเรียบร้อยค่ะ 🎉')
-      if (!modes.mode_private && (modes.mode_lost || modes.mode_mating || modes.mode_adoption)) {
+      if (!modes.mode_private && (modes.mode_lost || modes.mode_found || modes.mode_mating || modes.mode_adoption)) {
         router.push(`/pet/${id}/match`)
       } else {
         router.push(`/pet/${id}`)
@@ -660,6 +664,7 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
                       if (m.key === 'mode_private') {
                         return {
                           mode_lost: false,
+                          mode_found: false,
                           mode_mating: false,
                           mode_adoption: false,
                           mode_showcase: false,

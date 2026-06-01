@@ -69,6 +69,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
   const petStatus = pet.status || 'showcase'
   const isMatingMode = petStatus === 'mating'
   const isLostMode = petStatus === 'lost'
+  const isFoundMode = petStatus === 'found'
   const isAdoptionMode = petStatus === 'adoption'
 
   // ดึงภาพหลักเพื่อใช้แสดงแบรนดิ้งการ์ด
@@ -93,6 +94,34 @@ export default async function MatchPage({ params }: MatchPageProps) {
       .from('pets')
       .select('*, pet_images(storage_url, is_primary)')
       .in('status', ['found', 'adoption'])
+      .eq('is_resolved', false)
+      .eq('visibility', 'public')
+
+    const petVector = parseEmbedding(pet.embedding)
+
+    finalMatches = (candidates || [])
+      .map((c: any) => {
+        const cVector = parseEmbedding(c.embedding)
+        const similarity = (petVector && cVector) ? cosineSimilarity(petVector, cVector) : 0
+        return {
+          ...c,
+          similarity,
+          match_percentage: Math.round(similarity * 100)
+        }
+      })
+      // เรียงลำดับตามเปอร์เซ็นต์ความเป็นไปได้สูงสุดก่อน
+      .sort((a, b) => b.similarity - a.similarity)
+
+  } else if (isFoundMode) {
+    modeTitle = 'ตามหาเจ้าของของสัตว์หลง 👀'
+    modeDesc = 'ระบบ AI ดำเนินการวิเคราะห์ภาพถ่ายและจุดสังเกตเพื่อเปรียบเทียบกับประกาศ "🔔ประกาศหาสัตว์เลี้ยง" ที่ผู้ใช้ลงทะเบียนไว้'
+    bgClass = 'bg-wagashi-matcha border-ori-green-d text-ori-green-d'
+
+    // ค้นหา Lost ที่ยังไม่เคลียร์คิว
+    const { data: candidates } = await supabase
+      .from('pets')
+      .select('*, pet_images(storage_url, is_primary)')
+      .in('status', ['lost'])
       .eq('is_resolved', false)
       .eq('visibility', 'public')
 
