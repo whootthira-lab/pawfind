@@ -145,7 +145,30 @@ export async function POST(req: NextRequest) {
       }).catch(err => console.error("⚠️ [OG Trigger Error]:", err));
     }
 
-    return NextResponse.json({ data: pet }, { status: 201 })
+    // ── 🟢 2. ข้อย่อยที่ 2: นับจำนวน "ลงทะเบียนน้องใหม่ + สร้างประกาศบอร์ด" (สะสมรวมกัน) ──
+    let showDonation = false
+    try {
+      const { data: curProfile } = await adminSupabase
+        .from('profiles')
+        .select('pet_creation_count')
+        .eq('id', ownerId)
+        .maybeSingle()
+      
+      const newCount = (curProfile?.pet_creation_count || 0) + 1
+      
+      await adminSupabase
+        .from('profiles')
+        .update({ pet_creation_count: newCount })
+        .eq('id', ownerId)
+      
+      if (newCount % 3 === 0) {
+        showDonation = true
+      }
+    } catch (countErr) {
+      console.error('Error updating pet_creation_count:', countErr)
+    }
+
+    return NextResponse.json({ data: pet, showDonation }, { status: 201 })
 
   } catch (err: any) {
     console.error('❌ API Error:', err)

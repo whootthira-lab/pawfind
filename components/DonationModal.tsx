@@ -34,7 +34,7 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
             </div>
 
             <h2 className="text-2xl font-black mb-3 text-black">
-              ยินดีด้วยที่น้องได้กลับบ้าน! 🎉
+              ยินดีด้วย! 🎉
             </h2>
             <p className="text-gray-700 font-bold mb-6 leading-relaxed">
               ร่วมส่งต่อความหวังและสิ่งดีๆ ด้วยการสมทบทุนค่าใช้จ่ายเพื่อให้เราได้ไปต่อ 🐾
@@ -44,7 +44,7 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
               {/* ⚠️ เปลี่ยนชื่อไฟล์ตรง src เป็นรูป QR Code ของจริง */}
               <img 
                 src="/your-qr-code.jpg" 
-                alt="QR Code สำหรับสมทบทุน" 
+                alt="QR Code สำหรับสนับสนุนเราเพื่อส่งต่อสิ่งดีๆ" 
                 className="w-48 h-48 object-cover rounded-xl border-2 border-black mx-auto bg-white"
               />
               <p className="font-black text-sm mt-3 text-black">สแกนเพื่อสนับสนุน PobPet</p>

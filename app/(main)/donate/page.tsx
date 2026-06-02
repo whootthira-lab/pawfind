@@ -39,7 +39,7 @@ export default function DonateAboutPage() {
               <h3 className="text-2xl font-black text-ori-green-d">ทดลองทำขาเทียมให้นกกระเรียนไทย</h3>
             </div>
             <p className="font-bold text-ori-ink-l mb-6 text-lg">
-              ตั้งแต่ปี 2566 เราได้ริเริ่มโครงการทดลองออกแบบและสร้างขาเทียมให้กับนกกระเรียนพันธุ์ไทยร่วมกับสวนสัตว์นครราชสีมา เพื่อพยายามให้นกที่สูญเสียขาสามารถกลับมาเดินและใช้ชีวิตได้อีกครั้ง
+              ตั้งแต่ปี 2566 เราได้ริเริ่มโครงการทดลองออกแบบและสร้างขาเทียมให้กับนกกระเรียนพันธุ์ไทยร่วมกับสวนสัตว์นครราชสีมา ด้วยงบประมาณส่วนตัว เพื่อพยายามให้นกที่สูญเสียขาสามารถกลับมาเดินและใช้ชีวิตได้อีกครั้ง
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="border-4 border-ori-ink rounded-2xl overflow-hidden shadow-paper-sm relative aspect-[4/3] group">
@@ -134,7 +134,7 @@ export default function DonateAboutPage() {
         <div className="relative z-10 flex flex-col items-center">
           <QrCode className="w-16 h-16 mb-4 text-white drop-shadow-md" />
           <h2 className="text-3xl md:text-4xl font-black mb-4 leading-tight">
-            ร่วมสมทบทุนเพื่อต่อลมหายใจให้กับแพลตฟอร์ม <br className="hidden md:block" />และส่งต่อสิ่งดีๆต่อไป 💖
+            ร่วมสนับสนุนเราเพื่อต่อลมหายใจให้กับแพลตฟอร์ม <br className="hidden md:block" />และส่งต่อสิ่งดีๆต่อไป 💖
           </h2>
           <p className="font-bold text-lg md:text-xl opacity-90 mb-8 max-w-2xl">
             ทุกการสนับสนุนของคุณจะถูกนำไปใช้พัฒนาระบบเพื่อให้น้องกลับบ้าน พัฒนาชุมชน และสานต่อโครงการทำขาเทียมฟรีให้กับน้องๆ สัตว์เลี้ยง
@@ -142,7 +142,7 @@ export default function DonateAboutPage() {
           
           <div className="flex flex-col items-center gap-4 bg-white/20 p-6 rounded-3xl border-4 border-black backdrop-blur-md w-fit mx-auto shadow-paper-sm">
             <div className="w-48 h-48 md:w-56 md:h-56 rounded-2xl border-4 border-black overflow-hidden relative bg-white">
-              <Image src="/qr-code.jpg" alt="QR Code รับบริจาค" fill className="object-cover" />
+              <Image src="/qr-code.jpg" alt="QR Code รับการสนับสนุน" fill className="object-cover" />
             </div>
             <div className="bg-white text-ori-orange font-black py-3 px-8 rounded-xl border-4 border-black shadow-paper-sm text-lg md:text-xl w-full tracking-wide">
               ชื่อบัญชี: PobPet(พบเพ็ท)

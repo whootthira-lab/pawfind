@@ -21,21 +21,23 @@ export async function GET(req: Request) {
   }
 
   const supabase = createClient()
-  const now      = new Date()
-  const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1)
+  const now = new Date()
+  const tenHoursFromNow = new Date(now.getTime() + 10 * 60 * 60 * 1000)
 
-  // ── หา reminders ที่ next_remind_at อยู่ในช่วงวันนี้ ────
+  // ── หา reminders ที่ next_remind_at อยู่ในช่วง 10 ชั่วโมงข้างหน้า ────
   const { data: dueReminders } = await supabase
     .from('reminders')
     .select('id, user_id, pet_id, title, body, remind_at, repeat_type, next_remind_at')
     .eq('is_done', false)
-    .lte('next_remind_at', tomorrow.toISOString())
+    .lte('next_remind_at', tenHoursFromNow.toISOString())
     .gte('next_remind_at', now.toISOString())
 
   let sent = 0
 
   for (const reminder of dueReminders || []) {
     let pushSuccess = false
+
+    const redirectLink = `/dashboard?f=push&rem_id=${reminder.id}`
 
     // ── 1. ค้นหา Token รับสิทธิ์ Web Push ประจำเบราว์เซอร์ของผู้ใช้รายบุคคล ──
     const { data: profile } = await supabase
@@ -55,7 +57,7 @@ export async function GET(req: Request) {
           icon: '/favicon.ico',
           badge: '/favicon.ico',
           data: {
-            link: reminder.pet_id ? `/pets/${reminder.pet_id}` : '/dashboard/reminders'
+            link: redirectLink
           }
         })
 
@@ -72,7 +74,7 @@ export async function GET(req: Request) {
       type:        'reminder_due',
       title:       reminder.title,
       body:        reminder.body || 'แจ้งเตือนที่ตั้งไว้',
-      link:        reminder.pet_id ? `/pets/${reminder.pet_id}` : '/dashboard/reminders',
+      link:        redirectLink,
       is_read:     false,
       reminder_id: reminder.id,
       is_pushed:   pushSuccess,

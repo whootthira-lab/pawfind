@@ -12,6 +12,7 @@ import {
   Bell, Clock, Repeat, PlusCircle, Calendar, FileText, Image as ImageIcon, X, Trash2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DonationModal } from '@/components/DonationModal'
 
 const MODE_BADGE: Record<string, { label: string; color: string; icon: any }> = {
   mode_lost:     { label: 'ประกาศหาย',     color: 'bg-blue-100 text-blue-700 border-blue-300',   icon: Search },
@@ -72,6 +73,7 @@ export default function PetProfilePage() {
   // States ฟอร์มเพิ่มประวัติสุขภาพและตั้งเตือน Web Push ฟรี
   const [showFormModal, setShowFormModal] = useState(false)
   const [formSaving,    setFormSaving]    = useState(false)
+  const [showDonation,  setShowDonation]  = useState(false)
 
   // States สำหรับฟอร์มเพิ่มการแจ้งเตือนด่วน (Reminder Creator Modal)
   const [showReminderModal, setShowReminderModal] = useState(false)
@@ -328,6 +330,7 @@ export default function PetProfilePage() {
       
       // ปิดกล่องโมดอลและรีเฟรชประวัติตารางความจำสุขภาพด้านล่าง
       setShowFormModal(false)
+      await incrementHealthLogCount()
       await fetchHealthAndReminders()
 
     } catch (err: any) {
@@ -372,6 +375,29 @@ export default function PetProfilePage() {
       await fetchHealthAndReminders()
     } catch (err: any) {
       alert(`เกิดข้อผิดพลาดในการลบรายการแจ้งเตือน: ${err.message || 'กรุณาลองใหม่อีกครั้งค่ะ'}`)
+    }
+  }
+
+  // ── 🟢 ข้อย่อยที่ 3: นับจำนวน "บันทึกประวัติสุขภาพ/ตั้งเตือน" (นับแยกตัว-ไม่รวมกัน) ──
+  const incrementHealthLogCount = async () => {
+    try {
+      const { data: curPet } = await supabase
+        .from('pets')
+        .select('health_log_count')
+        .eq('id', id)
+        .maybeSingle()
+      
+      const newCount = (curPet?.health_log_count || 0) + 1
+      await supabase
+        .from('pets')
+        .update({ health_log_count: newCount })
+        .eq('id', id)
+      
+      if (newCount % 3 === 0) {
+        setShowDonation(true)
+      }
+    } catch (err) {
+      console.error('Error incrementing health_log_count:', err)
     }
   }
 
@@ -423,6 +449,7 @@ export default function PetProfilePage() {
         category_custom: '',
         description: ''
       })
+      await incrementHealthLogCount()
       await fetchHealthAndReminders()
     } catch (err: any) {
       alert(`เกิดข้อผิดพลาดในการบันทึกการแจ้งเตือน: ${err.message || 'กรุณาลองใหม่อีกครั้งค่ะ'}`)
@@ -1031,6 +1058,7 @@ export default function PetProfilePage() {
         </div>
       )}
 
+      <DonationModal isOpen={showDonation} onClose={() => setShowDonation(false)} />
     </div>
   )
 }

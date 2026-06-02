@@ -415,11 +415,36 @@ export default function ProfilePage() {
         await supabase.from('pet_images').insert(imageRows)
       }
 
+      // ── 🟢 2. ข้อย่อยที่ 2: นับจำนวน "ลงทะเบียนน้องใหม่ + สร้างประกาศบอร์ด" (สะสมรวมกัน) ──
+      let shouldShowDonation = false
+      try {
+        const { data: curProfile } = await supabase
+          .from('profiles')
+          .select('pet_creation_count')
+          .eq('id', user.id)
+          .maybeSingle()
+        
+        const newCount = (curProfile?.pet_creation_count || 0) + 1
+        await supabase
+          .from('profiles')
+          .update({ pet_creation_count: newCount })
+          .eq('id', user.id)
+        
+        if (newCount % 3 === 0) {
+          shouldShowDonation = true
+        }
+      } catch (countErr) {
+        console.error('Error updating pet_creation_count client-side:', countErr)
+      }
+
       alert('🎉 ลงทะเบียนบันทึกโปรไฟล์น้องสำเร็จเสร็จสิ้นเรียบร้อย!')
       setPetFormOpen(false)
       setPetImages([])
       setFeatureImages([])
       await fetchAllData()
+      if (shouldShowDonation) {
+        setShowDonation(true)
+      }
     } catch (err: any) {
       alert(`ลงทะเบียนโปรไฟล์น้องล้มเหลว: ${err.message}`)
     } finally {

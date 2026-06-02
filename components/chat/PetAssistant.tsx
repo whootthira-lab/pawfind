@@ -212,6 +212,81 @@ export default function PetAssistant() {
     if (!isOpen) { stopSpeaking(); setSpeaking(false) }
   }, [isOpen])
 
+  // ── 🟢 1.2 ดักจับ Parameter: f=push และ rem_id จาก Web Push ──
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const f = params.get('f')
+    const remId = params.get('rem_id')
+
+    if (f === 'push' && remId) {
+      const fetchAndTrigger = async () => {
+        try {
+          const { data: reminder, error } = await supabase
+            .from('reminders')
+            .select(`
+              id,
+              title,
+              body,
+              remind_at,
+              next_remind_at,
+              pet_id,
+              pets (
+                name
+              )
+            `)
+            .eq('id', remId)
+            .maybeSingle()
+
+          if (error) throw error
+          if (reminder) {
+            const petName = (reminder as any).pets?.name || 'น้องสัตว์เลี้ยง'
+            const titleText = reminder.title || ''
+            
+            // Clean/parse category from title
+            let category = titleText
+              .replace('⏰ ถึงกำหนด: ', '')
+              .replace(' รอบต่อไป', '')
+              .replace(petName, '')
+              .trim()
+            if (!category) {
+              category = 'แจ้งเตือนความจำ'
+            }
+
+            const bodyText = reminder.body || 'ไม่มีรายละเอียดเพิ่มเติม'
+            const remindDate = new Date(reminder.remind_at || reminder.next_remind_at)
+            const dateStr = remindDate.toLocaleDateString('th-TH', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }) + ' น.'
+
+            // "🩺[ชื่อ AI assistant  ลักกี้,โกลดี้,ลุงฮูก]มาเตือนความจำตามที่นัดไว้ หมวด [หมวดหมู่] ของ [ชื่อสัตว์เลี้ยง] โดยมีรายละเอียดคือ [รายละเอียด] ซึ่งต้องทำใน [วันที่กำหนดการ] !"
+            const greetingMsg = `🩺 ${ch.name} มาเตือนความจำตามที่นัดไว้ หมวด ${category} ของ ${petName} โดยมีรายละเอียดคือ ${bodyText} ซึ่งต้องทำใน ${dateStr} !`
+
+            setIsOpen(true)
+            setMessages(prev => {
+              const exists = prev.some(m => m.text === greetingMsg)
+              if (exists) return prev
+              return [...prev, { role: 'bot', text: greetingMsg }]
+            })
+
+            // Clean URL query parameters
+            const url = new URL(window.location.href)
+            url.searchParams.delete('f')
+            url.searchParams.delete('rem_id')
+            window.history.replaceState({}, '', url.pathname + url.search)
+          }
+        } catch (err) {
+          console.error('[PetAssistant Push Detect Error]', err)
+        }
+      }
+      fetchAndTrigger()
+    }
+  }, [supabase, ch.name])
+
   const requestWebPushPermission = async () => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       const permission = await Notification.requestPermission()

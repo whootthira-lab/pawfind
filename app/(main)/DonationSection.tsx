@@ -62,7 +62,7 @@ export default function DonationSection() {
         {/* ── ฝั่งซ้าย: ข้อความและข้อมูลบัญชี ── */}
         <div className="flex-1 text-center md:text-left z-10 w-full">
           <h3 className="text-3xl md:text-4xl lg:text-5xl font-black mb-4 leading-tight flex flex-col md:block items-center gap-2">
-            ร่วมสมทบทุนเพื่อให้น้องๆ <br/>ได้มีโอกาสกลับบ้าน <Heart className="inline-block fill-white" size={40} />
+            ร่วมสนับสนุนเรา เพื่อให้น้องๆ <br/>ได้มีโอกาสกลับบ้าน <Heart className="inline-block fill-white" size={40} />
           </h3>
           <p className="font-bold text-lg md:text-xl mb-8 opacity-95">
             ทุกการสนับสนุนช่วยต่อลมหายใจให้แพลตฟอร์มนี้ได้ไปต่อ

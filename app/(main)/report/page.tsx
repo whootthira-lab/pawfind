@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, MapPinCheckInside, Loader2 } from 'lucide-react'
+import { DonationModal } from '@/components/DonationModal'
 
 const GENDER_OPTIONS = [
   { value: 'unknown', label: '❓ ไม่ทราบ / ไม่ระบุ' },
@@ -124,6 +125,8 @@ function ReportForm() {
 
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState<string | null>(null)
+  const [showDonation, setShowDonation] = useState(false)
+  const [pendingRedirectUrl, setPendingRedirectUrl] = useState<string | null>(null)
 
   // ── Form fields ──────────────────────────────────────────────[cite: 11]
   const [name,               setName]               = useState('')
@@ -265,10 +268,15 @@ function ReportForm() {
         }).catch(console.error)
       }
 
-      if (newPetId && (status === 'lost' || status === 'adoption')) {
-        router.push(`/pet/${newPetId}/match`)
+      const targetUrl = newPetId && (status === 'lost' || status === 'adoption')
+        ? `/pet/${newPetId}/match`
+        : '/search'
+
+      if (data.showDonation) {
+        setPendingRedirectUrl(targetUrl)
+        setShowDonation(true)
       } else {
-        router.push('/search')
+        router.push(targetUrl)
       }
     } catch (err: any) {
       setError(err.message)
@@ -492,6 +500,7 @@ function ReportForm() {
           {loading ? 'กำลังประมวลผลบันทึกข้อมูล...' : 'ลงประกาศเหตุสัตว์เลี้ยง 🐾'}
         </Button>
       </form>
+      <DonationModal isOpen={showDonation} onClose={() => { setShowDonation(false); if (pendingRedirectUrl) router.push(pendingRedirectUrl) }} />
     </div>
   )
 }
