@@ -83,8 +83,7 @@ export async function GET(request: Request) {
             await supabase.from('notifications').insert({
               user_id: userId,
               type:    'subscription_expired',
-              title:   'แพ็คเกจของคุณหมดอายุแล้วนะคะ 🐾',
-              body:    'ต่ออายุได้ที่ /pricing เพื่อใช้ LINE OA และฟีเจอร์เพิ่มเติม',
+              content: 'แพ็คเกจของคุณหมดอายุแล้วนะคะ 🐾: ต่ออายุได้ที่ /pricing เพื่อใช้ LINE OA และฟีเจอร์เพิ่มเติม',
               link:    '/pricing',
               is_read: false,
             })

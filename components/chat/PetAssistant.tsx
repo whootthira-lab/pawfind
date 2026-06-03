@@ -63,6 +63,33 @@ const QUICK_REPLIES = [
   '🔔 ตั้งแจ้งเตือน Web Push ฟรี',
 ]
 
+// ── Embedding Cosine Similarity Helpers ──
+function parseEmbedding(embStr: any): number[] | null {
+  if (!embStr) return null
+  if (Array.isArray(embStr)) return embStr
+  try {
+    if (typeof embStr === 'string' && embStr.startsWith('[')) {
+      return JSON.parse(embStr)
+    }
+    return String(embStr).replace(/[\[\]]/g, '').split(',').map(Number)
+  } catch (e) {
+    return null
+  }
+}
+
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  let dotProduct = 0.0
+  let normA = 0.0
+  let normB = 0.0
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i]
+    normA += vecA[i] * vecA[i]
+    normB += vecB[i] * vecB[i]
+  }
+  if (normA === 0 || normB === 0) return 0
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB))
+}
+
 export default function PetAssistant() {
   const pathname = usePathname()
   const [isOpen,     setIsOpen]     = useState(false)
@@ -144,6 +171,224 @@ export default function PetAssistant() {
       : winW - margin - btnW - (winW - 24 - btnW)  // snap ขวา
     setBtnPos({ x: newX, y: btnPos.y + offset.y })
   }
+
+  // ── Startup check for Reminders and Match Alerts ──
+  useEffect(() => {
+    const runStartupChecks = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) return
+
+      const userId = session.user.id
+
+      // ── 1. Check for unread 'reminder_due' notifications ──
+      const { data: unreadNotifs } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('type', 'reminder_due')
+        .eq('is_read', false)
+
+      let hasNewReminders = false
+      const reminderMsgs: Message[] = []
+
+      if (unreadNotifs && unreadNotifs.length > 0) {
+        for (const notif of unreadNotifs) {
+          if (notif.reminder_id) {
+            // Fetch reminder details
+            const { data: reminder } = await supabase
+              .from('reminders')
+              .select(`
+                id,
+                title,
+                body,
+                remind_at,
+                next_remind_at,
+                pet_id,
+                pets (
+                  name
+                )
+              `)
+              .eq('id', notif.reminder_id)
+              .maybeSingle()
+
+            if (reminder) {
+              const petName = (reminder as any).pets?.name || 'น้องสัตว์เลี้ยง'
+              const titleText = reminder.title || ''
+              let category = titleText
+                .replace('⏰ ถึงกำหนด: ', '')
+                .replace(' รอบต่อไป', '')
+                .replace(petName, '')
+                .trim()
+              if (!category) {
+                category = 'แจ้งเตือนความจำ'
+              }
+              const bodyText = reminder.body || 'ไม่มีรายละเอียดเพิ่มเติม'
+              const remindDate = new Date(reminder.remind_at || reminder.next_remind_at)
+              const dateStr = remindDate.toLocaleDateString('th-TH', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }) + ' น.'
+
+              const greetingMsg = `🩺 ${ch.name} มาเตือนความจำตามที่นัดไว้ หมวด ${category} ของ ${petName} โดยมีรายละเอียดคือ ${bodyText} ซึ่งต้องทำใน ${dateStr} !`
+              reminderMsgs.push({ role: 'bot', text: greetingMsg })
+              hasNewReminders = true
+            }
+          }
+          // Mark as read in DB
+          await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('id', notif.id)
+        }
+      }
+
+      // ── 2. Check for pet matches (once per tab session using sessionStorage) ──
+      const matchesAlerted = sessionStorage.getItem('pawnfind_ai_matches_alerted')
+      const matchMsgs: Message[] = []
+
+      if (!matchesAlerted) {
+        // Fetch active pets of the user
+        const { data: myPetsData } = await supabase
+          .from('pets')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('is_resolved', false)
+          .not('status', 'eq', 'archived')
+
+        if (myPetsData && myPetsData.length > 0) {
+          for (const myPet of myPetsData) {
+            const petStatus = myPet.status || 'showcase'
+            const isLost = petStatus === 'lost' || myPet.mode_lost
+            const isFound = petStatus === 'found' || myPet.mode_found
+            const isMating = petStatus === 'mating' || myPet.mode_mating
+
+            if (isLost) {
+              // 2. Lost Pet Match Check: Compare with Found pets in the same province
+              const { data: candidates } = await supabase
+                .from('pets')
+                .select('*')
+                .eq('status', 'found')
+                .eq('is_resolved', false)
+                .eq('visibility', 'public')
+                .eq('province', myPet.province)
+                .not('id', 'eq', myPet.id)
+
+              const petVector = parseEmbedding(myPet.embedding)
+              let matchCount = 0
+
+              if (candidates && petVector) {
+                candidates.forEach((c: any) => {
+                  const cVector = parseEmbedding(c.embedding)
+                  if (cVector) {
+                    const sim = cosineSimilarity(petVector, cVector)
+                    if (sim >= 0.60) {
+                      matchCount++
+                    }
+                  }
+                })
+              }
+
+              if (matchCount > 0) {
+                matchMsgs.push({
+                  role: 'bot',
+                  text: `📢 ระบบ AI ช่วยค้นหาพบประกาศพบสัตว์หลงทางในจังหวัด${myPet.province || 'เดียวกัน'} ที่มีความเป็นได้มากกว่า 60% ตรงกับประกาศหาสัตว์หาย น้อง ${myPet.name || 'สัตว์เลี้ยง'} ของคุณจำนวน ${matchCount} โพสต์ ค่ะ!`,
+                  action_buttons: [{ label: 'ดูผลการจับคู่ของน้อง', link: `/pet/${myPet.id}/match` }]
+                })
+              }
+
+            } else if (isFound) {
+              // 3. Found Pet Match Check: Compare with Lost pets in the same province
+              const { data: candidates } = await supabase
+                .from('pets')
+                .select('*')
+                .eq('status', 'lost')
+                .eq('is_resolved', false)
+                .eq('visibility', 'public')
+                .eq('province', myPet.province)
+                .not('id', 'eq', myPet.id)
+
+              const petVector = parseEmbedding(myPet.embedding)
+              let matchCount = 0
+
+              if (candidates && petVector) {
+                candidates.forEach((c: any) => {
+                  const cVector = parseEmbedding(c.embedding)
+                  if (cVector) {
+                    const sim = cosineSimilarity(petVector, cVector)
+                    if (sim >= 0.60) {
+                      matchCount++
+                    }
+                  }
+                })
+              }
+
+              if (matchCount > 0) {
+                matchMsgs.push({
+                  role: 'bot',
+                  text: `📢 ระบบ AI ช่วยค้นหาพบประกาศหาสัตว์หายในจังหวัด${myPet.province || 'เดียวกัน'} ที่มีความเป็นได้มากกว่า 60% ตรงกับประกาศพบสัตว์หลง น้อง ${myPet.name || 'สัตว์เลี้ยง'} ของคุณจำนวน ${matchCount} โพสต์ ค่ะ!`,
+                  action_buttons: [{ label: 'ดูผลการจับคู่ของน้อง', link: `/pet/${myPet.id}/match` }]
+                })
+              }
+
+            } else if (isMating) {
+              // 4. Mating Match Check: Find Mating pets in the same province, same species, same breed, but opposite sex
+              const { data: candidates } = await supabase
+                .from('pets')
+                .select('*')
+                .eq('status', 'mating')
+                .eq('is_resolved', false)
+                .eq('visibility', 'public')
+                .eq('province', myPet.province)
+                .not('id', 'eq', myPet.id)
+
+              if (candidates) {
+                const petSpecies = String(myPet.species || '').trim().toLowerCase()
+                const petBreed = String(myPet.breed || '').trim().toLowerCase()
+
+                const filtered = candidates.filter((c: any) => {
+                  const cSpecies = String(c.species || '').trim().toLowerCase()
+                  const cBreed = String(c.breed || '').trim().toLowerCase()
+                  
+                  const speciesMatch = cSpecies === petSpecies
+                  const breedMatch = !petBreed || cBreed === petBreed
+                  
+                  let genderMatch = false
+                  if (myPet.gender === 'male' && c.gender === 'female') genderMatch = true
+                  if (myPet.gender === 'female' && c.gender === 'male') genderMatch = true
+                  
+                  return speciesMatch && breedMatch && genderMatch
+                })
+
+                if (filtered.length > 0) {
+                  matchMsgs.push({
+                    role: 'bot',
+                    text: `📢 ระบบ AI ช่วยค้นหาพบประกาศหาคู่ให้น้องในจังหวัด${myPet.province || 'เดียวกัน'} ที่เป็นประเภทเดียวกัน สายพันธุ์เดียวกัน แต่เป็นเพศตรงข้าม ตรงกับประกาศหาคู่ให้น้อง [ชื่อสัตว์เลี้ยง] ของคุณจำนวน ${filtered.length} โพสต์ ค่ะ!`.replace('[ชื่อสัตว์เลี้ยง]', myPet.name || 'สัตว์เลี้ยง'),
+                    action_buttons: [{ label: 'ดูผลการจับคู่หาคู่ของน้อง', link: `/pet/${myPet.id}/match` }]
+                  })
+                }
+              }
+            }
+          }
+        }
+        sessionStorage.setItem('pawnfind_ai_matches_alerted', 'true')
+      }
+
+      // If we have either new reminders or match alerts, we pop up the chatbot and append the messages
+      if (reminderMsgs.length > 0 || matchMsgs.length > 0) {
+        setIsOpen(true)
+        setMessages(prev => {
+          const initial = prev.length === 0 ? [{ role: 'bot' as const, text: ch.greet }] : prev
+          const filterNew = (newMsgs: Message[]) => newMsgs.filter(nm => !initial.some(im => im.text === nm.text))
+          return [...initial, ...filterNew(reminderMsgs), ...filterNew(matchMsgs)]
+        })
+      }
+    }
+
+    runStartupChecks()
+  }, [supabase, ch.name, ch.greet])
 
   useEffect(() => {
     if (!isOpen) return

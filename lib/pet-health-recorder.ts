@@ -117,8 +117,7 @@ export async function recordHealthEvent(
       await supabase.from('notifications').insert({
         user_id:     userId,
         type:        'health_reminder',
-        title:       reminderTitle,
-        body:        `น้อง${pet.name} ควรได้รับ${input.medicine_name || ''} ภายใน 30 วัน`,
+        content:     `${reminderTitle}: น้อง${pet.name} ควรได้รับ${input.medicine_name || ''} ภายใน 30 วัน`,
         link:        `/pets/${pet.id}`,
         is_read:     false,
         scheduled_at: remindAt.toISOString(),

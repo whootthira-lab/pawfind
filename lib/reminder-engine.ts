@@ -68,8 +68,7 @@ export async function createReminder(
   await supabase.from('notifications').insert({
     user_id:     userId,
     type:        'reminder',
-    title:       input.title,
-    body:        input.body || 'แจ้งเตือนที่ตั้งไว้',
+    content:     input.body ? `${input.title}: ${input.body}` : input.title,
     link:        '/dashboard/reminders',
     is_read:     false,
     scheduled_at: remindDate.toISOString(),

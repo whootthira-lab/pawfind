@@ -183,8 +183,7 @@ export async function checkRenewalAlert(userId: string): Promise<void> {
   await supabase.from('notifications').insert({
     user_id: userId,
     type,
-    title,
-    body,
+    content: `${title}: ${body}`,
     link:    '/account/subscription',
     is_read: false,
   })

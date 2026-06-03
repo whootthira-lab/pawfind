@@ -72,8 +72,7 @@ export async function GET(req: Request) {
     await supabase.from('notifications').insert({
       user_id:     reminder.user_id,
       type:        'reminder_due',
-      title:       reminder.title,
-      body:        reminder.body || 'แจ้งเตือนที่ตั้งไว้',
+      content:     reminder.body ? `${reminder.title}: ${reminder.body}` : reminder.title,
       link:        redirectLink,
       is_read:     false,
       reminder_id: reminder.id,
