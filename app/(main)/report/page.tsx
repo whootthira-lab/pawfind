@@ -13,6 +13,18 @@ const GENDER_OPTIONS = [
   { value: 'female',  label: '♀ เพศเมีย (Female)'  },
 ]
 
+const THAI_PROVINCES = [
+  "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", 
+  "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", 
+  "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", 
+  "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", 
+  "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", 
+  "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", 
+  "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", 
+  "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", 
+  "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+].sort((a, b) => a.localeCompare(b, 'th'))
+
 // ── 🤖 Component สำหรับหน้าโหลด AI แบบ Full Screen ──[cite: 11]
 function ReportLoadingOverlay() {
   const [loadingStep, setLoadingStep] = useState(0)
@@ -450,8 +462,13 @@ function ReportForm() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1">
               <div className="flex flex-col gap-1">
                 <label className="font-bold text-sm text-ori-ink-m">จังหวัด *</label>
-                <input type="text" value={province} onChange={e => setProvince(e.target.value)}
-                  required className="ori-input" placeholder="เช่น นครราชสีมา" />
+                <select value={province} onChange={e => setProvince(e.target.value)}
+                  required className="ori-input bg-white font-bold cursor-pointer">
+                  <option value="">-- เลือกจังหวัด --</option>
+                  {THAI_PROVINCES.map(prov => (
+                    <option key={prov} value={prov}>{prov}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex flex-col gap-1">
                 <label className="font-bold text-sm text-ori-ink-m">อำเภอ / เขต *</label>
