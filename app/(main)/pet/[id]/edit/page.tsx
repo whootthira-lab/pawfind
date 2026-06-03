@@ -26,6 +26,18 @@ const GENDER_OPTIONS = [
   { value: 'female',  label: '♀ เพศเมีย (Female)'  },
 ]
 
+const THAI_PROVINCES = [
+  "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", 
+  "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", 
+  "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", 
+  "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", 
+  "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", 
+  "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", 
+  "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", 
+  "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", 
+  "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+].sort((a, b) => a.localeCompare(b, 'th'))
+
 const MODE_CONFIG: { key: Mode; icon: any; label: string; color: string; desc: string }[] = [
   { key: 'mode_lost',     icon: Search, label: 'ประกาศหาย',     color: 'blue',  desc: 'เปิดเมื่อน้องหาย AI จะช่วยหาคู่ Match' },
   { key: 'mode_found',    icon: Search, label: '👀แจ้งพบสัตว์หลง', color: 'green', desc: 'พบน้องหลงทางและต้องการประกาศหาเจ้าของ' },
@@ -707,7 +719,12 @@ export default function EditPetPage({ params }: { params: { id: string } }) {
             </div>
             <div className="space-y-1">
               <label className="font-bold text-xs">จังหวัดประจำพื้นที่ *</label>
-              <input value={form.province} onChange={e => setForm({ ...form, province: e.target.value })} required className="ori-input text-sm" />
+              <select value={form.province} onChange={e => setForm({ ...form, province: e.target.value })} required className="ori-input text-sm bg-white font-bold cursor-pointer">
+                <option value="">-- เลือกจังหวัด --</option>
+                {THAI_PROVINCES.map(prov => (
+                  <option key={prov} value={prov}>{prov}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>

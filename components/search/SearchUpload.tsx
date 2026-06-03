@@ -5,6 +5,18 @@ import { SearchResult } from '@/types/pet'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 
+const THAI_PROVINCES = [
+  "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", 
+  "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", 
+  "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", 
+  "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", 
+  "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", 
+  "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", 
+  "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", 
+  "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", 
+  "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+].sort((a, b) => a.localeCompare(b, 'th'))
+
 interface SearchUploadProps {
   onResults: (results: SearchResult[], radius: number) => void
   onLoading: (loading: boolean) => void
@@ -151,13 +163,16 @@ export function SearchUpload({ onResults, onLoading }: SearchUploadProps) {
           </div>
 
           <div className="flex flex-col gap-4 mb-6">
-            <input 
-              type="text" 
-              placeholder="📍 จังหวัด (ไม่บังคับ)" 
+            <select 
               value={province} 
               onChange={e => setProvince(e.target.value)}
-              className="ori-input"
-            />
+              className="ori-input bg-white font-bold cursor-pointer"
+            >
+              <option value="">📍 เลือกจังหวัด (ไม่บังคับ)</option>
+              {THAI_PROVINCES.map(prov => (
+                <option key={prov} value={prov}>{prov}</option>
+              ))}
+            </select>
             <input 
               type="text" 
               placeholder="✨ ตำหนิพิเศษ (ไม่บังคับ)" 
