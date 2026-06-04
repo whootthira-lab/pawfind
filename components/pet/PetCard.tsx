@@ -23,12 +23,24 @@ function CommentBadge({ petId, comments }: { petId: string; comments: any[] }) {
     }
   }, [petId, comments, count])
 
+  const handleClick = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`last_viewed_comments_${petId}`, Date.now().toString())
+    }
+    setHasNew(false)
+  }
+
   if (count === 0) return null
 
   return (
     <Link 
       href={`/pet/${petId}#comments`}
-      className={`absolute -top-3 -left-3 z-30 bg-ori-orange text-white min-w-[32px] h-8 px-2.5 rounded-full flex items-center justify-center border-4 border-black shadow-paper-sm font-black text-xs cursor-pointer hover:scale-105 active:scale-95 transition-all ${hasNew ? 'animate-bounce' : ''}`}
+      onClick={handleClick}
+      className={`absolute -top-3 -left-3 z-30 min-w-[32px] h-8 px-2.5 rounded-full flex items-center justify-center border-4 border-black shadow-paper-sm font-black text-xs cursor-pointer hover:scale-105 active:scale-95 transition-all ${
+        hasNew 
+          ? 'bg-ori-orange text-white animate-bounce' 
+          : 'bg-ori-cream text-black'
+      }`}
       title={hasNew ? 'มีความคิดเห็นใหม่! กดเพื่อดูความคิดเห็น' : 'ความคิดเห็น กดเพื่อดู'}
     >
       <MessageSquare size={12} className="mr-1 shrink-0" />
