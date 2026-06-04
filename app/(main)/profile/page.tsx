@@ -645,11 +645,11 @@ export default function ProfilePage() {
               <input type="tel" required value={profile.phone_number} onChange={e => setProfile({ ...profile, phone_number: e.target.value })} className="ori-input" />
             </div>
             <div className="space-y-2 text-left">
-              <label className="font-black text-sm">ชื่อจริง</label>
+              <label className="font-black text-sm">ชื่อจริง <span className="text-red-500">*</span></label>
               <input value={profile.first_name} required onChange={e => setProfile({ ...profile, first_name: e.target.value })} className="ori-input" />
             </div>
             <div className="space-y-2 text-left">
-              <label className="font-black text-sm">นามสกุล</label>
+              <label className="font-black text-sm">นามสกุล <span className="text-red-500">*</span></label>
               <input value={profile.last_name} required onChange={e => setProfile({ ...profile, last_name: e.target.value })} className="ori-input" />
             </div>
 

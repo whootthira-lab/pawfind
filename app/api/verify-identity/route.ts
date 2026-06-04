@@ -20,13 +20,53 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'กรุณาแนบรูปภาพเอกสารยืนยันตัวตนค่ะ', success: false }, { status: 400 })
     }
 
+    // ดึงข้อมูลชื่อ-นามสกุลผู้ใช้จากตาราง profiles เพื่อส่งไปตรวจกับรูปภาพบัตร
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('first_name, last_name')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (profileErr || !profile) {
+      return NextResponse.json({
+        success: false,
+        reason: 'ไม่พบข้อมูลโปรไฟล์ของคุณในระบบ กรุณาลองใหม่อีกครั้งค่ะ'
+      })
+    }
+
+    const firstName = (profile.first_name || '').trim()
+    const lastName = (profile.last_name || '').trim()
+
+    if (!firstName || !lastName) {
+      return NextResponse.json({
+        success: false,
+        reason: 'กรุณากรอกชื่อและนามสกุลจริงในหน้าตั้งค่าโปรไฟล์ก่อนทำการยืนยันตัวตนค่ะ'
+      })
+    }
+
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {
       throw new Error('Missing GEMINI_API_KEY')
     }
 
     const genAI = new GoogleGenerativeAI(apiKey)
-    const prompt = `จงตรวจสอบภาพถ่ายใบนี้อย่างละเอียดและตอบกลับเฉพาะรูปแบบ JSON เท่านั้น โดยวิเคราะห์ว่า: 1. ภาพนี้คือบัตรประชาชนไทยหรือใบขับขี่ไทยใช่หรือไม่ (is_identity_document), 2. ภาพชัดเจนพอที่จะเห็นใบหน้าและตัวหนังสือหลักหรือไม่ (is_clear), 3. มีร่องรอยการตัดต่ออย่างเห็นได้ชัดหรือไม่ (is_forged) จงพ่น JSON ออกมาในสเปกนี้ { "isValid": true/false, "documentType": "id_card"/"driving_license"/"unknown", "reason": "ข้อความเหตุผลภาษาไทยกรณีไม่ผ่าน" }`
+    const prompt = `จงตรวจสอบภาพถ่ายใบนี้อย่างละเอียดและตอบกลับเฉพาะรูปแบบ JSON เท่านั้น โดยวิเคราะห์ว่า:
+1. ภาพนี้คือบัตรประชาชนไทยหรือใบขับขี่ไทยใช่หรือไม่ (is_identity_document)
+2. ภาพชัดเจนพอที่จะเห็นใบหน้าและข้อมูลหลัก เช่น ชื่อ-นามสกุล หรือไม่ (is_clear)
+3. มีร่องรอยการตัดต่ออย่างเห็นได้ชัดหรือไม่ (is_forged)
+4. ตรวจสอบชื่อ-นามสกุลจริงบนภาพบัตรประชาชน/ใบขับขี่นี้ว่า ตรงกับชื่อเป้าหมายคือ "${firstName} ${lastName}" หรือไม่ โดยประเมินและให้ค่าความเหมือนเป็นเปอร์เซ็นต์ (match_score จาก 0 ถึง 100) เช่น หากชื่อและนามสกุลสะกดตรงกันเกือบทั้งหมด หรือตรงกัน 70% ขึ้นไป (ให้ความถูกต้องขั้นต่ำ 70 เปอร์เซ็นต์)
+
+จงตอบกลับเป็น JSON ในรูปแบบนี้เท่านั้น:
+{
+  "is_identity_document": true/false,
+  "is_clear": true/false,
+  "is_forged": true/false,
+  "extracted_name": "ชื่อ-นามสกุลที่ปรากฏบนบัตร (ภาษาไทย หรือ อังกฤษ)",
+  "match_score": 100, // เปอร์เซ็นต์ความตรงกันกับชื่อเป้าหมาย (0-100)
+  "isValid": true/false, // จะเป็น true ก็ต่อเมื่อเป็นบัตรจริง ชัดเจน ไม่ตัดต่อ และ match_score >= 70
+  "documentType": "id_card"/"driving_license"/"unknown",
+  "reason": "ระบุเหตุผลภาษาไทยอย่างละเอียดกรณีไม่ผ่านเกณฑ์ เช่น ชื่อนามสกุลไม่ตรง หรือรูปไม่ชัดเจน"
+}`
 
     // Extract base64 clean data
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "")
@@ -63,7 +103,13 @@ export async function POST(req: Request) {
 
     const cleaned = rawText.replace(/```json|```/g, '').trim()
 
-    let parsed: { isValid: boolean; documentType: string; reason?: string }
+    let parsed: { 
+      isValid: boolean; 
+      documentType: string; 
+      reason?: string;
+      match_score?: number;
+      extracted_name?: string;
+    }
     try {
       parsed = JSON.parse(cleaned)
     } catch {
@@ -73,7 +119,7 @@ export async function POST(req: Request) {
       })
     }
 
-    if (parsed.isValid) {
+    if (parsed.isValid && (parsed.match_score ?? 0) >= 70) {
       // 1. Upload the image to Supabase Storage inside 'pet-images' bucket under 'identities/'
       const fileName = `identities/${userId}/${Date.now()}.jpg`
       const buffer = Buffer.from(base64Data, 'base64')
@@ -116,9 +162,13 @@ export async function POST(req: Request) {
         message: 'ยินดีด้วยค่ะ! คุณผ่านการยืนยันตัวตนเรียบร้อยแล้ว'
       })
     } else {
+      let failReason = parsed.reason || 'ภาพเอกสารดังกล่าวไม่ผ่านเกณฑ์ความถูกต้อง กรุณาอัปโหลดรูปใหม่อีกครั้งค่ะ'
+      if (parsed.match_score !== undefined && parsed.match_score < 70) {
+        failReason = `ชื่อจริง-นามสกุลบนบัตรที่ตรวจพบ ("${parsed.extracted_name || 'ไม่พบชื่อ'}") ไม่สอดคล้องกับชื่อจริงในโปรไฟล์ของคุณ ("${firstName} ${lastName}") (คะแนนความถูกต้อง: ${parsed.match_score}%)`
+      }
       return NextResponse.json({
         success: false,
-        reason: parsed.reason || 'ภาพเอกสารดังกล่าวไม่ผ่านเกณฑ์ความถูกต้อง กรุณาอัปโหลดรูปใหม่อีกครั้งค่ะ',
+        reason: failReason,
       })
     }
 
