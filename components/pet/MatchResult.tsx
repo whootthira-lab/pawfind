@@ -265,7 +265,8 @@ export function MatchResultCard({ result }: { result: PetResult }) {
 
   return (
     <>
-      <div className="ori-card flex flex-col h-full group relative overflow-hidden" style={{ backgroundColor: cfg.bg }}>
+      <div className="ori-card flex flex-col h-full group relative" style={{ backgroundColor: cfg.bg, overflow: 'visible' }}>
+        <CommentBadge petId={result.id} comments={(result as any).comments} />
 
         {/* AI Match % */}
         {result.match_percentage && (
@@ -286,9 +287,8 @@ export function MatchResultCard({ result }: { result: PetResult }) {
 
 
         {/* Image */}
-        <div className="relative w-full pt-[100%] overflow-hidden border-b-2 border-ori-ink shrink-0 block"
+        <div className="relative w-full pt-[100%] overflow-hidden border-b-2 border-ori-ink shrink-0 block rounded-t-ori"
           style={{ background: 'linear-gradient(135deg, #FDE8ED, #E4F0E5)' }}>
-          <CommentBadge petId={result.id} comments={(result as any).comments} />
           <img src={formatSrc(result.image_url)} alt={result.name}
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           

@@ -268,9 +268,9 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
   }
 
   return (
-    <div className="ori-card flex flex-col group text-black">
-      <div className="relative w-full aspect-square overflow-hidden border-b-2 border-ori-ink shrink-0">
-        <CommentBadge petId={pet.id} comments={pet.comments} />
+    <div className="ori-card relative flex flex-col group text-black" style={{ overflow: 'visible' }}>
+      <CommentBadge petId={pet.id} comments={pet.comments} />
+      <div className="relative w-full aspect-square overflow-hidden border-b-2 border-ori-ink shrink-0 rounded-t-ori">
 
         {imgUrl ? (
           <img src={imgUrl} alt={pet.name || 'pet'} className="w-full h-full object-cover" />
