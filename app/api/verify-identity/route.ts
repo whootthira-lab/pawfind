@@ -26,19 +26,41 @@ export async function POST(req: Request) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-
     const prompt = `จงตรวจสอบภาพถ่ายใบนี้อย่างละเอียดและตอบกลับเฉพาะรูปแบบ JSON เท่านั้น โดยวิเคราะห์ว่า: 1. ภาพนี้คือบัตรประชาชนไทยหรือใบขับขี่ไทยใช่หรือไม่ (is_identity_document), 2. ภาพชัดเจนพอที่จะเห็นใบหน้าและตัวหนังสือหลักหรือไม่ (is_clear), 3. มีร่องรอยการตัดต่ออย่างเห็นได้ชัดหรือไม่ (is_forged) จงพ่น JSON ออกมาในสเปกนี้ { "isValid": true/false, "documentType": "id_card"/"driving_license"/"unknown", "reason": "ข้อความเหตุผลภาษาไทยกรณีไม่ผ่าน" }`
 
     // Extract base64 clean data
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "")
 
-    const result = await model.generateContent([
-      prompt,
-      { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-    ])
+    const modelsToTry = [
+      'gemini-2.5-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro'
+    ]
 
-    const rawText = result.response.text()
+    let rawText = ''
+    let lastError = null
+
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`🤖 [Verify Identity] Trying model: ${modelName}...`)
+        const model = genAI.getGenerativeModel({ model: modelName })
+        const result = await model.generateContent([
+          prompt,
+          { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
+        ])
+        rawText = result.response.text()
+        console.log(`✅ [Verify Identity] Succeeded with model: ${modelName}`)
+        break
+      } catch (err: any) {
+        console.warn(`⚠️ [Verify Identity] Model ${modelName} failed:`, err.message)
+        lastError = err
+      }
+    }
+
+    if (!rawText) {
+      throw lastError || new Error('All Gemini models failed to analyze the image.')
+    }
+
     const cleaned = rawText.replace(/```json|```/g, '').trim()
 
     let parsed: { isValid: boolean; documentType: string; reason?: string }
