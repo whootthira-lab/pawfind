@@ -10,6 +10,7 @@ import type { Metadata, ResolvingMetadata } from 'next'
 import ShareButton from '@/components/pet/ShareButton'
 import { CommentSection } from '@/components/pet/CommentSection'
 import { PetActionButtons } from '@/components/pet/PetActionButtons'
+import { RequestLocationButton } from '@/components/pet/RequestLocationButton'
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pobpet.com'
 
@@ -113,6 +114,21 @@ export default async function PetDetailPage({ params }: Props) {
   if (pet.visibility === 'private' && currentUserId !== pet.user_id) {
     return notFound()
   }
+
+  // ตรวจสอบสิทธิ์การเข้าชมพิกัดของสัตว์เลี้ยงหลงทางเพื่อความปลอดภัย
+  let hasLogAccess = false
+  if (currentUserId) {
+    const { data: log } = await supabase
+      .from('pet_location_access_logs')
+      .select('id')
+      .eq('user_id', currentUserId)
+      .eq('pet_id', pet.id)
+      .single()
+    if (log) {
+      hasLogAccess = true
+    }
+  }
+  const hasLocationAccess = (currentUserId === pet.user_id) || hasLogAccess
 
   // หาค่ารูปภาพหลักของน้อง
   const primaryImg = pet.pet_images?.find((img: any) => img.is_primary)?.storage_url || pet.image_url || ''
@@ -280,20 +296,59 @@ export default async function PetDetailPage({ params }: Props) {
             {/* กล่องพิกัด */}
             <div className="bg-white border-4 border-black p-5 rounded-3xl shadow-paper">
               <h3 className="font-black text-base mb-3 flex items-center gap-1.5"><MapPin size={18} className="text-ori-blue" /> พิกัดพื้นที่ประจำตัวน้อง</h3>
-              <div className="space-y-1.5 font-bold text-sm">
-                <p>จังหวัด: <span className="font-black">{pet.profiles?.province || pet.province}</span></p>
-                {!isPrivateProfile ? (
-                  <>
+              
+              {pet.status === 'found' ? (
+                hasLocationAccess ? (
+                  <div className="space-y-2 font-bold text-sm">
+                    <p>จังหวัด: <span className="font-black">{pet.profiles?.province || pet.province}</span></p>
                     <p>อำเภอ / เขต: <span className="font-black">{pet.profiles?.district || pet.district || 'ไม่ระบุ'}</span></p>
                     {pet.tambon && <p>ตำบล / แขวง: <span className="font-black">ต.{pet.tambon}</span></p>}
-                  </>
-                ) : (
-                  <div className="bg-amber-50 border-2 border-amber-300 p-3 rounded-xl flex gap-2 items-start text-amber-800 text-xs mt-2">
-                    <ShieldAlert size={14} className="shrink-0 mt-0.5" />
-                    <p>เจ้าของเลือกตั้งค่าโปรไฟล์เป็น <span className="font-black">&quot;เฉพาะฉัน&quot;</span> ระบบจึงจำกัดข้อมูลพิกัดอำเภอค่ะ</p>
+                    {pet.latitude && pet.longitude && (
+                      <>
+                        <p>พิกัดละติจูด: <span className="font-black">{pet.latitude}</span></p>
+                        <p>พิกัดลองจิจูด: <span className="font-black">{pet.longitude}</span></p>
+                        <div className="mt-3">
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${pet.latitude},${pet.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 bg-wagashi-kinako border-2 border-black px-4 py-2.5 rounded-xl text-xs font-black shadow-paper-sm hover:bg-yellow-400 transition-all text-black hover:-translate-y-0.5 active:translate-y-0"
+                          >
+                            🗺️ เปิดดูใน Google Maps
+                          </a>
+                        </div>
+                      </>
+                    )}
                   </div>
-                )}
-              </div>
+                ) : (
+                  <div className="space-y-2 font-bold text-sm">
+                    <p>จังหวัด: <span className="font-black">{pet.profiles?.province || pet.province}</span></p>
+                    <p>อำเภอ / เขต: <span className="font-black">{pet.profiles?.district || pet.district || 'ไม่ระบุ'}</span></p>
+                    <div className="bg-amber-50 border-2 border-amber-300 p-3 rounded-xl flex gap-2 items-start text-amber-800 text-xs mt-2">
+                      <ShieldAlert size={14} className="shrink-0 mt-0.5" />
+                      <p>🔒 พิกัดพบน้องระดับตำบลและตำแหน่งทางแผนที่ถูกล็อกไว้เพื่อความปลอดภัยของสัตว์เลี้ยง</p>
+                    </div>
+                    <div className="pt-2">
+                      <RequestLocationButton petId={pet.id} />
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="space-y-1.5 font-bold text-sm">
+                  <p>จังหวัด: <span className="font-black">{pet.profiles?.province || pet.province}</span></p>
+                  {!isPrivateProfile ? (
+                    <>
+                      <p>อำเภอ / เขต: <span className="font-black">{pet.profiles?.district || pet.district || 'ไม่ระบุ'}</span></p>
+                      {pet.tambon && <p>ตำบล / แขวง: <span className="font-black">ต.{pet.tambon}</span></p>}
+                    </>
+                  ) : (
+                    <div className="bg-amber-50 border-2 border-amber-300 p-3 rounded-xl flex gap-2 items-start text-amber-800 text-xs mt-2">
+                      <ShieldAlert size={14} className="shrink-0 mt-0.5" />
+                      <p>เจ้าของเลือกตั้งค่าโปรไฟล์เป็น &quot;เฉพาะฉัน&quot; ระบบจึงจำกัดข้อมูลพิกัดอำเภอค่ะ</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* กล่องข้อมูลผู้ดูแล */}

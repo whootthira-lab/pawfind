@@ -7,6 +7,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { MapPin, Check, Loader2, Eye, EyeOff, MessageSquare } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 import { DonationModal } from '@/components/DonationModal'
+import { RequestLocationButton } from './RequestLocationButton'
 
 function CommentBadge({ petId, comments }: { petId: string; comments: any[] }) {
   const [hasNew, setHasNew] = useState(false)
@@ -68,8 +69,8 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
   const [modeChanging, setModeChanging] = useState(false)
   const [showDonation, setShowDonation] = useState(false)
   const [isOwner, setIsOwner] = useState(false) // ดักจับสิทธิ์ความปลอดภัยตรวจสอบความเป็นเจ้าของ
-
-
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [hasLogAccess, setHasLogAccess] = useState(false)
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -129,16 +130,29 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
 
   const displayCfg = statusCfg(effectiveStatus)
 
-  // ดักเช็คสิทธิ์ความเป็นเจ้าของเพื่อเปิดแผงควบคุมหลังบ้าน
+  // ดักเช็คสิทธิ์ความเป็นเจ้าของและประวัติการเข้าชมพิกัดเพื่อความปลอดภัย
   useEffect(() => {
-    const checkOwnership = async () => {
+    const checkAccess = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user?.id === pet.user_id) {
-        setIsOwner(true)
+      if (session?.user) {
+        setCurrentUserId(session.user.id)
+        if (session.user.id === pet.user_id) {
+          setIsOwner(true)
+        }
+        // ตรวจสอบ log ประวัติการขอเข้าถึงพิกัดเคสนี้
+        const { data: log } = await supabase
+          .from('pet_location_access_logs')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .eq('pet_id', pet.id)
+          .single()
+        if (log) {
+          setHasLogAccess(true)
+        }
       }
     }
-    checkOwnership()
-  }, [pet.user_id, supabase])
+    checkAccess()
+  }, [pet.id, pet.user_id, supabase])
 
   // ── ฟังก์ชันสลับโหมดพร้อมปรับค่าการมองเห็นผ่าน Dropdown (Constraint Mapping) ──
   const handleDropdownChange = async (value: string) => {
@@ -292,10 +306,47 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
         {/* ── เรียกใช้ข้อความที่ผ่านการล้างบั๊กเรียบร้อยแล้ว ไม่พ่น API Key หรือก้อนสัญญานแปลกปลอมออกหน้าต่างแสดงผล ── */}
         <p className="text-xs font-bold text-gray-500 truncate">{sanitizedFeatures}</p>
         
-        <div className="flex items-center gap-1 text-xs font-bold text-gray-600">
-          <MapPin size={12} />
-          <span>{pet.province || 'ไม่ระบุพื้นที่'}</span>
-        </div>
+        {effectiveStatus === 'found' ? (
+          (isOwner || hasLogAccess) ? (
+            <div className="flex flex-col gap-0.5 text-xs font-bold text-gray-600 mt-1">
+              <div className="flex items-center gap-1">
+                <MapPin size={12} className="shrink-0 text-ori-blue" />
+                <span className="truncate">
+                  {[
+                    pet.tambon ? `ต.${pet.tambon}` : '',
+                    pet.district ? `อ.${pet.district}` : '',
+                    pet.province ? `จ.${pet.province}` : ''
+                  ].filter(Boolean).join(' ')}
+                </span>
+              </div>
+              {pet.latitude && pet.longitude && (
+                <span className="text-[10px] text-gray-400 ml-4 font-mono">
+                  (พิกัด: {Number(pet.latitude).toFixed(3)}, {Number(pet.longitude).toFixed(3)})
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 text-xs font-bold text-gray-600 mt-1">
+              <div className="flex items-center gap-1">
+                <MapPin size={12} className="shrink-0" />
+                <span className="truncate">
+                  {[
+                    pet.district ? `อ.${pet.district}` : '',
+                    pet.province ? `จ.${pet.province}` : ''
+                  ].filter(Boolean).join(' ')}
+                </span>
+              </div>
+              <div className="pt-0.5">
+                <RequestLocationButton petId={pet.id} size="sm" />
+              </div>
+            </div>
+          )
+        ) : (
+          <div className="flex items-center gap-1 text-xs font-bold text-gray-600">
+            <MapPin size={12} />
+            <span>{pet.province || 'ไม่ระบุพื้นที่'}</span>
+          </div>
+        )}
 
         {/* แผงปุ่มตั้งค่า (จะแสดงและให้สิทธิ์เข้าถึงเฉพาะนุดที่เป็นเจ้าของสัตว์เลี้ยงตัวจริงเท่านั้น) */}
         {isOwner && (
