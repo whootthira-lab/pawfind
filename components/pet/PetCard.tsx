@@ -319,11 +319,7 @@ export function PetCard({ pet: initialPet }: { pet: Pet }) {
                   ].filter(Boolean).join(' ')}
                 </span>
               </div>
-              {pet.latitude && pet.longitude && (
-                <span className="text-[10px] text-gray-400 ml-4 font-mono">
-                  (พิกัด: {Number(pet.latitude).toFixed(3)}, {Number(pet.longitude).toFixed(3)})
-                </span>
-              )}
+
             </div>
           ) : (
             <div className="flex flex-col gap-1.5 text-xs font-bold text-gray-600 mt-1">

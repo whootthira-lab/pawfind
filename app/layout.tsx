@@ -8,6 +8,7 @@ import { WelcomePopup } from '@/components/WelcomePopup'
 import { GlobalTicker } from '@/components/layout/GlobalTicker'
 import { LoginModal } from '@/components/LoginModal'
 import PetAssistant from '@/components/chat/PetAssistant' // นำเข้าคอมโพเนนต์ AI Chatbot
+import { ProfileCheck } from '@/components/layout/ProfileCheck'
 
 // URL ปรับชี้ไปที่โดเมนจริง pobpet.com
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pobpet.com'
@@ -74,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Suspense fallback={null}>
           <WelcomePopup />
           <LoginModal />
+          <ProfileCheck />
         </Suspense>
         
         {/* ── 🟢 จุดยุทธศาสตร์รวมศูนย์ Navbar และ Global Ticker ให้อยู่ระดับรากนอกสุดที่เดียวจบ เพื่อความเสถียรสูงสุด */}

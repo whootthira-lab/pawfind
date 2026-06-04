@@ -8,7 +8,7 @@ import { ResolveButton } from '@/components/pet/ResolveButton'
 import {
   User, CheckCircle, Loader2, Plus, PlusCircle, MessageSquare,
   Save, Camera, MapPin, Phone, UserCircle, Settings, Briefcase,
-  Heart, AlertCircle, ChevronRight, PawPrint, Upload, X, CalendarDays
+  Heart, AlertCircle, ChevronRight, PawPrint, Upload, X, CalendarDays, Home
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
@@ -161,12 +161,31 @@ export default function ProfilePage() {
     province:             'นครราชสีมา',
     district:             '',
     subdistrict:          '',
+    birth_date:           '',
     contact_link:         '',
     community_role:       'general',
     community_role_custom: '',
     interests:            [] as string[],
     is_public:            true,
   })
+
+  const isProfileIncomplete = useMemo(() => {
+    return (
+      !profile.phone_number?.trim() ||
+      !profile.first_name?.trim() ||
+      !profile.last_name?.trim() ||
+      !profile.address?.trim() ||
+      !profile.province?.trim() ||
+      !profile.subdistrict?.trim() ||
+      !profile.birth_date
+    )
+  }, [profile])
+
+  useEffect(() => {
+    if (!loading && isProfileIncomplete && activeTab !== 'settings') {
+      setActiveTab('settings')
+    }
+  }, [loading, isProfileIncomplete, activeTab])
 
   // ── States สำหรับโมดูลสร้างโปรไฟล์น้องใหม่พรีเมียม ──[cite: 21]
   const [petFormOpen, setPetFormOpen] = useState(false)
@@ -249,6 +268,7 @@ export default function ProfilePage() {
           province:              pData.province              || 'นครราชสีมา',
           district:              pData.district              || '',
           subdistrict:           pData.subdistrict           || '',
+          birth_date:            pData.birth_date            || '',
           contact_link:          pData.contact_link          || '',
           community_role:        pData.community_role        || 'general',
           community_role_custom: pData.community_role_custom || '',
@@ -334,6 +354,7 @@ export default function ProfilePage() {
           district: profile.district.trim(),
           subdistrict: profile.subdistrict.trim(),
           address: profile.address.trim(),
+          birth_date: profile.birth_date || null,
           line_id: profile.line_id.trim(),
           avatar_url: profile.avatar_url,
           occupation: profile.occupation,
@@ -529,14 +550,28 @@ export default function ProfilePage() {
       {/* ── Tabs ── */}
       <div className="flex flex-wrap gap-4 border-b-4 border-black pb-2">
         <button
-          onClick={() => setActiveTab('posts')}
+          onClick={() => {
+            if (isProfileIncomplete) {
+              alert('กรุณากรอกข้อมูลส่วนตัวให้ครบ')
+              setActiveTab('settings')
+            } else {
+              setActiveTab('posts')
+            }
+          }}
           className={`pb-2 px-4 font-black text-lg transition-all ${
             activeTab === 'posts' ? 'text-black border-b-4 border-black -mb-[12px]' : 'text-gray-400'
           }`}>
           📦 ประกาศของฉัน ({myPets.filter(p => !p.is_resolved).length})
         </button>
         <button
-          onClick={() => setActiveTab('resolved')}
+          onClick={() => {
+            if (isProfileIncomplete) {
+              alert('กรุณากรอกข้อมูลส่วนตัวให้ครบ')
+              setActiveTab('settings')
+            } else {
+              setActiveTab('resolved')
+            }
+          }}
           className={`pb-2 px-4 font-black text-lg transition-all ${
             activeTab === 'resolved' ? 'text-green-600 border-b-4 border-green-600 -mb-[12px]' : 'text-gray-400'
           }`}>
@@ -550,7 +585,14 @@ export default function ProfilePage() {
           ⚙️ ตั้งค่าโปรไฟล์
         </button>
         <button
-          onClick={() => setActiveTab('pets')}
+          onClick={() => {
+            if (isProfileIncomplete) {
+              alert('กรุณากรอกข้อมูลส่วนตัวให้ครบ')
+              setActiveTab('settings')
+            } else {
+              setActiveTab('pets')
+            }
+          }}
           className={`pb-2 px-4 font-black text-lg transition-all ${
             activeTab === 'pets' ? 'text-amber-600 border-b-4 border-amber-600 -mb-[12px]' : 'text-gray-400'
           }`}>
@@ -639,16 +681,39 @@ export default function ProfilePage() {
               </select>
             </div>
 
+            <div className="space-y-2 text-left">
+              <label className="font-black text-sm flex items-center gap-1"><CalendarDays size={14} /> วันเกิด <span className="text-red-500">*</span></label>
+              <input 
+                type="date" 
+                required 
+                value={profile.birth_date ? profile.birth_date.split('T')[0] : ''} 
+                onChange={e => setProfile({ ...profile, birth_date: e.target.value })} 
+                className="ori-input cursor-pointer" 
+              />
+            </div>
+
             {/* Location */}
             <div className="md:col-span-2 space-y-2 pt-2 text-left">
-              <label className="font-black text-sm flex items-center gap-1"><MapPin size={14} /> ที่อยู่ (จังหวัด/อำเภอ/ตำบล)</label>
+              <label className="font-black text-sm flex items-center gap-1"><MapPin size={14} /> ที่อยู่ (จังหวัด/อำเภอ/ตำบล) <span className="text-red-500">*</span></label>
               <div className="grid grid-cols-3 gap-2">
-                <select value={profile.province} onChange={e => setProfile({ ...profile, province: e.target.value })} className="ori-input text-sm bg-white cursor-pointer outline-none">
+                <select value={profile.province} required onChange={e => setProfile({ ...profile, province: e.target.value })} className="ori-input text-sm bg-white cursor-pointer outline-none">
                   {thailandProvinces.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
-                <input placeholder="อำเภอ" value={profile.district} onChange={e => setProfile({ ...profile, district: e.target.value })} className="ori-input text-sm" />
-                <input placeholder="ตำบล" value={profile.subdistrict} onChange={e => setProfile({ ...profile, subdistrict: e.target.value })} className="ori-input text-sm" />
+                <input placeholder="อำเภอ" required value={profile.district} onChange={e => setProfile({ ...profile, district: e.target.value })} className="ori-input text-sm" />
+                <input placeholder="ตำบล" required value={profile.subdistrict} onChange={e => setProfile({ ...profile, subdistrict: e.target.value })} className="ori-input text-sm" />
               </div>
+            </div>
+
+            <div className="md:col-span-2 space-y-2 text-left">
+              <label className="font-black text-sm flex items-center gap-1"><Home size={14} /> รายละเอียดที่อยู่ (บ้านเลขที่ / ถนน / ซอย) <span className="text-red-500">*</span></label>
+              <input 
+                type="text" 
+                required 
+                placeholder="เช่น 123/45 หมู่ 6 ซอย 3 ถนนสุขุมวิท" 
+                value={profile.address} 
+                onChange={e => setProfile({ ...profile, address: e.target.value })} 
+                className="ori-input text-sm" 
+              />
             </div>
 
             {/* Interests */}
