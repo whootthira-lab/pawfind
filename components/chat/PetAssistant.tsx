@@ -248,6 +248,7 @@ export default function PetAssistant() {
       // ── 2. Check for pet matches (once per tab session using sessionStorage) ──
       const matchesAlerted = sessionStorage.getItem('pawnfind_ai_matches_alerted')
       const matchMsgs: Message[] = []
+      const currentMatches: string[] = []
 
       if (!matchesAlerted) {
         // Fetch active pets of the user
@@ -286,6 +287,7 @@ export default function PetAssistant() {
                     const sim = cosineSimilarity(petVector, cVector)
                     if (sim >= 0.60) {
                       matchCount++
+                      currentMatches.push(`${myPet.id}_${c.id}`)
                     }
                   }
                 })
@@ -320,6 +322,7 @@ export default function PetAssistant() {
                     const sim = cosineSimilarity(petVector, cVector)
                     if (sim >= 0.60) {
                       matchCount++
+                      currentMatches.push(`${myPet.id}_${c.id}`)
                     }
                   }
                 })
@@ -363,6 +366,9 @@ export default function PetAssistant() {
                 })
 
                 if (filtered.length > 0) {
+                  filtered.forEach((c: any) => {
+                    currentMatches.push(`${myPet.id}_${c.id}`)
+                  })
                   matchMsgs.push({
                     role: 'bot',
                     text: `📢 ระบบ AI ช่วยค้นหาพบประกาศหาคู่ให้น้องในจังหวัด${myPet.province || 'เดียวกัน'} ที่เป็นประเภทเดียวกัน สายพันธุ์เดียวกัน แต่เป็นเพศตรงข้าม ตรงกับประกาศหาคู่ให้น้อง [ชื่อสัตว์เลี้ยง] ของคุณจำนวน ${filtered.length} โพสต์ ค่ะ!`.replace('[ชื่อสัตว์เลี้ยง]', myPet.name || 'สัตว์เลี้ยง'),
@@ -373,6 +379,20 @@ export default function PetAssistant() {
             }
           }
         }
+
+        // Compare with previously notified matches in localStorage
+        const storedNotified = localStorage.getItem(`pawnfind_alerted_matches_${userId}`)
+        const notifiedMatches: string[] = storedNotified ? JSON.parse(storedNotified) : []
+
+        const hasNewMatches = currentMatches.some(m => !notifiedMatches.includes(m))
+
+        if (hasNewMatches) {
+          localStorage.setItem(`pawnfind_alerted_matches_${userId}`, JSON.stringify(currentMatches))
+        } else {
+          // If no new matches, we do not alert
+          matchMsgs.length = 0
+        }
+
         sessionStorage.setItem('pawnfind_ai_matches_alerted', 'true')
       }
 
