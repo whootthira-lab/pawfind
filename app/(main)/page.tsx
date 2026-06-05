@@ -8,7 +8,8 @@ import {
   ChevronDown,
   Share2,
   Heart,
-  PawPrint
+  PawPrint,
+  Info
 } from 'lucide-react'
 import DonationSection from '@/components/DonationSection' 
 import RecentPetsGrid from './RecentPetsGrid' 
@@ -92,14 +93,12 @@ export default function LandingPage() {
             <PawPrint size={22} /> ลงทะเบียนสัตว์เลี้ยง
           </Link>
 
-          <a 
-            href={`https://www.facebook.com/sharer/sharer.php?u=https://pobpet.com`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full md:w-auto bg-[#1877F2] text-white border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all z-10"
+          <Link 
+            href="/donate"
+            className="w-full md:w-auto bg-ori-orange text-white border-2 border-black p-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-paper-sm hover:-translate-y-1 transition-all z-10"
           >
-            <Share2 size={22} /> แชร์แพลตฟอร์ม
-          </a>
+            <Info size={22} /> เกี่ยวกับเรา
+          </Link>
         </div>
       </section>
 
