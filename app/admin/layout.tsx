@@ -1,13 +1,18 @@
 import { ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import AdminAssistant from '@/components/chat/AdminAssistant'
+
+const ADMIN_EMAILS = ['whootthira@gmail.com', 'pobpet.th@gmail.com']
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
 
   const user = session?.user
-  const isAdmin = user?.app_metadata?.role === 'admin'
+  const isExplicitAdmin = user?.email && ADMIN_EMAILS.includes(user.email)
+  const isRoleAdmin = user?.app_metadata?.role === 'admin'
+  const isAdmin = isExplicitAdmin || isRoleAdmin
 
   if (!isAdmin) {
     redirect('/')
@@ -27,6 +32,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       <main className="flex-1 p-8">
         {children}
       </main>
+      <AdminAssistant />
     </div>
   )
 }
