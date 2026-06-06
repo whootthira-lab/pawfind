@@ -6,11 +6,20 @@ import { PartyPopper, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { DonationModal } from '@/components/DonationModal' // Import Modal ที่พี่มีอยู่แล้ว
 
-export function PetActionButtons({ petId, status, petName, ownerId }: { 
+export function PetActionButtons({ 
+  petId, 
+  status, 
+  petName, 
+  ownerId,
+  currentUserId,
+  isResolved
+}: { 
   petId: string, 
   status: string, 
   petName: string,
-  ownerId: string
+  ownerId: string,
+  currentUserId: string | null,
+  isResolved: boolean
 }) {
   const [loading, setLoading] = useState(false)
   const [showDonation, setShowDonation] = useState(false) // 🟢 State สำหรับ Pop-up
@@ -51,18 +60,23 @@ export function PetActionButtons({ petId, status, petName, ownerId }: {
     }
   }
 
+  // จำกัดให้เฉพาะเจ้าของโปรไฟล์ที่มองเห็นและกดได้
+  if (!currentUserId || currentUserId !== ownerId) return null
+
   const buttonText = status === 'adoption' ? 'ได้บ้านแล้ว 💖' : 'พบน้องแล้ว 🚨';
 
   return (
     <>
-      <button 
-        onClick={handleResolve}
-        disabled={loading}
-        className="bg-wagashi-matcha w-full py-3 rounded-2xl border-2 border-black font-black text-sm flex items-center justify-center gap-2 shadow-paper-sm hover:shadow-none active:translate-y-1 transition-all"
-      >
-        {loading ? <Loader2 className="animate-spin" size={18} /> : <PartyPopper size={18} />}
-        {loading ? 'กำลังบันทึก...' : buttonText}
-      </button>
+      {!isResolved && (
+        <button 
+          onClick={handleResolve}
+          disabled={loading}
+          className="bg-wagashi-matcha w-full py-3 rounded-2xl border-2 border-black font-black text-sm flex items-center justify-center gap-2 shadow-paper-sm hover:shadow-none active:translate-y-1 transition-all"
+        >
+          {loading ? <Loader2 className="animate-spin" size={18} /> : <PartyPopper size={18} />}
+          {loading ? 'กำลังบันทึก...' : buttonText}
+        </button>
+      )}
 
       {/* 🟢 เรียกใช้ Modal ที่พี่มีอยู่แล้วที่นี่ */}
       <DonationModal isOpen={showDonation} onClose={() => setShowDonation(false)} />

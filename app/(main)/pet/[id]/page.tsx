@@ -195,6 +195,8 @@ export default async function PetDetailPage({ params }: Props) {
             status={pet.status} 
             petName={pet.name || 'ไม่ทราบชื่อ'} 
             ownerId={pet.user_id || ''} 
+            currentUserId={currentUserId}
+            isResolved={pet.is_resolved || false}
           />
         </div>
 
